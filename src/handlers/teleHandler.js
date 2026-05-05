@@ -17,6 +17,7 @@ const { handleImgCommand } = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
 const { createSticker, isFfmpegMissingError } = require('../services/stickerService');
 const { getQuotaStatus } = require('../services/quotaService');
+const { updateStatusAnswered } = require('../services/csService');
 const { logCommand } = require('../services/logService');
 const { shortenUrl } = require('../services/shortenerService');
 const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../services/downloaderService');
@@ -1336,6 +1337,10 @@ function setupTelegramBot() {
                                 });
                             }
                         });
+
+                        if (command === '/answer' && args[0]) {
+                            await updateStatusAnswered(args[0]);
+                        }
 
                         if (replyText) {
                             await sendTelegramReply(ctx, replyText);

@@ -31,6 +31,29 @@ async function sendToSheet(type, userId, message) {
     }
 }
 
+async function updateStatusAnswered(userId) {
+    try {
+        const gasUrl = process.env.GAS_WEBAPP_URL;
+        if (!gasUrl) return false;
+
+        // Send request for updating status to "ANSWERED"
+        const payload = JSON.stringify({
+            action: "UPDATE_STATUS",
+            userId: userId
+        });
+
+        await axios.post(gasUrl, payload, {
+            headers: { 'Content-Type': 'text/plain' }
+        });
+
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to update status to GAS:', error.message);
+        return false;
+    }
+}
+
 module.exports = {
-    sendToSheet
+    sendToSheet,
+    updateStatusAnswered
 };

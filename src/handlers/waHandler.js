@@ -13,7 +13,7 @@ const { handleImgCommand } = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
 const { createSticker, isFfmpegMissingError } = require('../services/stickerService');
 const { getQuotaStatus } = require('../services/quotaService');
-const { sendToSheet } = require('../services/csService');
+const { sendToSheet, updateStatusAnswered } = require('../services/csService');
 const { logCommand } = require('../services/logService');
 const { shortenUrl } = require('../services/shortenerService');
 const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../services/downloaderService');
@@ -903,6 +903,10 @@ class WhatsAppHandler {
                 await this.sock.sendMessage(targetJid, { text: String(textToSend || '') });
               }
             });
+
+            if (command === '/answer' && args[0]) {
+              await updateStatusAnswered(args[0]);
+            }
 
             replyText = broadcastReply;
             break;
