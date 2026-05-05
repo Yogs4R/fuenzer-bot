@@ -1077,7 +1077,7 @@ class WhatsAppHandler {
 
           case '/info': {
             const header = '> *INFORMASI FUENZER BOT* 🤖';
-            const body = `Saya adalah asisten virtual pribadi milik Ridwan Yoga Suryantara.\n\n🆘 *LAYANAN CS & FEEDBACK*\n- \`/help\`           : Pusat Bantuan & Feedback\n\n☕ *DUKUNGAN BOT*\n- \`/donate\`         : Link dukungan + QR donasi\n\n📋 *FITUR KEUANGAN* 💰\n- \`/finance_info\`   : Panduan Lengkap command keuangan\n\n📋 *FITUR SISTEM* ⚙️\n- \`/ping\`           : Cek status bot\n- \`/info\`           : Menampilkan pesan ini\n- \`/start\`          : Memulai bot\n\n💡 *FITUR AI* 🧠\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol, bertanya seputar coding, teknologi, atau sekadar bertukar pikiran!\n*(Support deteksi file: Gambar / Audio VN / Dokumen Teks)*\n- \`/model_info\`     : Daftar model AI yang tersedia\n- \`/switch\`         : Ganti model AI aktif\n\n🌍 *FITUR TRANSLATE*\n- \`/translate_info\` : Panduan Lengkap terjemah kata/kalimat\n\n🛠️ *FITUR UTILITAS*\n- \`/short\`          : Pendekkan URL dengan is.gd\n- \`/research_info\`  : Panduan Lengkap Referensi (buku/jurnal/artikel)\n- \`/downloader\`     : Panduan Lengkap download (/download & /audio)\n- \`/remind_info\`    : Panduan Lengkap fitur Reminder pengingat\n- \`/cuaca\`          : Info cuaca hari ini\n- \`/sholat\`         : Jadwal sholat hari ini\n- \`/me\`             : Tentang pembuat bot\n\n🖼️ *FITUR CONVERTER* 📄\n- \`/img_info\`       : Panduan Lengkap image tools\n- \`/pdf_info\`       : Panduan Lengkap PDF tools\n\n🧩 *FITUR STICKER*\n- \`/sticker_info\`   : Panduan Lengkap sticker tools\n\n🛡️ *FITUR ADMIN*\n- \`/admin\`          : Menu command admin`;
+            const body = `Saya adalah asisten virtual pribadi milik Ridwan Yoga Suryantara.\n\n🆘 *LAYANAN CS & FEEDBACK*\n- \`/help\`           : Pusat Bantuan & Feedback\n\n☕ *DUKUNGAN BOT*\n- \`/donate\`         : Link dukungan + QR donasi\n\n📋 *FITUR KEUANGAN* 💰\n- \`/finance_info\`   : Panduan Lengkap command keuangan\n\n📋 *FITUR SISTEM* ⚙️\n- \`/ping\`           : Cek status bot\n- \`/info\`           : Menampilkan pesan ini\n- \`/start\`          : Memulai bot\n\n💡 *FITUR AI* 🧠\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol, bertanya seputar coding, teknologi, atau sekadar bertukar pikiran!\n*(Support deteksi file: Gambar / Dokumen Teks)*\n- \`/model_info\`     : Daftar model AI yang tersedia\n- \`/switch\`         : Ganti model AI aktif\n\n🌍 *FITUR TRANSLATE*\n- \`/translate_info\` : Panduan Lengkap terjemah kata/kalimat\n\n🛠️ *FITUR UTILITAS*\n- \`/short\`          : Pendekkan URL dengan is.gd\n- \`/research_info\`  : Panduan Lengkap Referensi (buku/jurnal/artikel)\n- \`/downloader\`     : Panduan Lengkap download (/download & /audio)\n- \`/remind_info\`    : Panduan Lengkap fitur Reminder pengingat\n- \`/cuaca\`          : Info cuaca hari ini\n- \`/sholat\`         : Jadwal sholat hari ini\n- \`/me\`             : Tentang pembuat bot\n\n🖼️ *FITUR CONVERTER* 📄\n- \`/img_info\`       : Panduan Lengkap image tools\n- \`/pdf_info\`       : Panduan Lengkap PDF tools\n\n🧩 *FITUR STICKER*\n- \`/sticker_info\`   : Panduan Lengkap sticker tools\n\n🛡️ *FITUR ADMIN*\n- \`/admin\`          : Menu command admin`;
             replyText = appendFooter(`${header}\n\n${body}`, buildSystemStatsFooter());
             break;
           }
@@ -1628,9 +1628,8 @@ class WhatsAppHandler {
         }
       } else {
         const isImage = !!msg.message?.imageMessage;
-        const isAudio = !!msg.message?.audioMessage;
         const isDoc = !!msg.message?.documentMessage;
-        const hasMedia = isImage || isAudio || isDoc;
+        const hasMedia = isImage || isDoc;
 
         if (cleanText.length <= 2 && !hasMedia) {
           const shortHeader = '> *PESAN TERLALU PENDEK* 📏';
@@ -1643,7 +1642,6 @@ class WhatsAppHandler {
 
             if (hasMedia) {
               const fileLength = msg.message?.imageMessage?.fileLength || 
-                                 msg.message?.audioMessage?.fileLength || 
                                  msg.message?.documentMessage?.fileLength;
               const fileSizeBytes = Number(fileLength) || 0;
 
@@ -1658,24 +1656,6 @@ class WhatsAppHandler {
                 aiPayload = [
                   { type: "text", text: promptUser },
                   { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-                ];
-              } else if (isAudio) {
-                if (fileSizeBytes > 10 * 1024 * 1024) {
-                   throw new Error('⛔ Durasi atau ukuran pesan suara terlalu besar! Maksimal 10 MB.');
-                }
-                const buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: this.sock.updateMediaMessage });
-                const base64Data = buffer.toString('base64');
-                const promptUser = cleanText || "Tolong transkripsikan atau tanggapi pesan suara ini.";
-                // We can extract extension from mimetype,e.g., audio/ogg; codecs=opus -> ogg
-                let formatExt = "ogg";
-                if (msg.message.audioMessage.mimetype) {
-                   if (msg.message.audioMessage.mimetype.includes('mp3')) formatExt = 'mp3';
-                   else if (msg.message.audioMessage.mimetype.includes('mp4')) formatExt = 'mp4';
-                   else if (msg.message.audioMessage.mimetype.includes('wav')) formatExt = 'wav';
-                }
-                aiPayload = [
-                  { type: "text", text: promptUser },
-                  { type: "input_audio", input_audio: { data: base64Data, format: formatExt } }
                 ];
               } else if (isDoc) {
                 if (fileSizeBytes > 10 * 1024 * 1024) {

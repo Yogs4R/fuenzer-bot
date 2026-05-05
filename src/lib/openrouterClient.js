@@ -117,6 +117,7 @@ function extractUsageMetadata(response) {
 
 async function askGeminiDetailed(message, userId, platform, logUserId) {
   let modelId = modelName;
+  let isAutoSwitched = false;
 
   try {
     // Validasi API key
@@ -125,6 +126,24 @@ async function askGeminiDetailed(message, userId, platform, logUserId) {
     }
 
     modelId = await getActiveModel(userId, platform);
+    
+    // Auto-Switch Model Logic
+    const visionModelsAliases = ['gemma4', 'deepseek'];
+    const visionModels = visionModelsAliases.map(alias => AI_MODELS[alias]?.id).filter(Boolean);
+    const fallbackVisionAlias = 'gemma4';
+    const fallbackVisionModelId = AI_MODELS[fallbackVisionAlias].id;
+    
+    const isArrayMsg = Array.isArray(message);
+    const hasImage = isArrayMsg && message.some(part => part.type === 'image_url');
+    const msgString = isArrayMsg ? (message.find(m => m.type === 'text')?.text || '') : String(message || '');
+    const hasFileText = msgString.includes('[Isi File Terlampir:');
+
+    if (hasImage || hasFileText) {
+      if (!visionModels.includes(modelId)) {
+        modelId = fallbackVisionModelId;
+        isAutoSwitched = true;
+      }
+    }
     
     // Log untuk debugging
     console.log(`Mengirim permintaan ke OpenRouter API dengan model: ${modelId}`);
@@ -149,7 +168,12 @@ async function askGeminiDetailed(message, userId, platform, logUserId) {
     }
     
     // Ambil teks mentah lalu format untuk WhatsApp
-    const finalMessageWA = formatForWhatsApp(rawText);
+    let finalMessageWA = formatForWhatsApp(rawText);
+    
+    if (isAutoSwitched) {
+      finalMessageWA = `🤖 *(Dialihkan otomatis ke model Gemma karena pesan berisi gambar/file)*\n\n${finalMessageWA}`;
+    }
+    
     const usage = extractUsageMetadata(response);
     const rpm = trackRequestAndGetRpmStatus();
     const modelMeta = getModelById(modelId);
@@ -186,8 +210,6 @@ async function askGeminiDetailed(message, userId, platform, logUserId) {
     
     if (statusCode === 400 && lowerErrorMessage.includes('image')) {
       throw new Error('400 Bad Request: ⛔ Model AI yang kamu gunakan belum mendukung pembacaan gambar atau gambar terlalu besar. Silakan ganti model AI (misal ke Gemini Gemma 4).');
-    } else if (statusCode === 400 && lowerErrorMessage.includes('audio')) {
-      throw new Error('400 Bad Request: ⛔ Model AI yang kamu gunakan belum mendukung pesan suara / pembacaan audio. Silakan ganti model AI (misal ke Mistral Voxtral).');
     } else if (statusCode === 400) {
       throw new Error(`400 Bad Request: ${errorMessage}`);
     } else if (statusCode === 429 || lowerErrorMessage.includes('rate limit')) {
