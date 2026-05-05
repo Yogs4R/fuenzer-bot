@@ -571,30 +571,46 @@ Fitur `/ask` dan `/feedback` membutuhkan URL Web App dari Google Apps Script (GA
 6. Hapus kode bawaan yang ada, lalu paste kode berikut:
    ```javascript
    function doPost(e) {
-     try {
-       const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("User Questions");
-    
-       if (!sheet) throw new Error("Tab 'User Questions' tidak ditemukan!");
-       const data = JSON.parse(e.postData.contents);
-       
-       // Siapkan data untuk dimasukkan ke baris baru
-       const rowData = [
-         new Date(), 
-         data.type,       // 'FEEDBACK' atau 'ASK'
-         data.userId,     // Nomor WA/Tele pengguna
-         data.message,    // Isi pesan
-         'UNANSWERED'     // Status default
-       ];
-       
-       sheet.appendRow(rowData);
-       
-       return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
-         .setMimeType(ContentService.MimeType.JSON);
-     } catch (error) {
-       return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.toString()}))
-         .setMimeType(ContentService.MimeType.JSON);
-     }
-   }
+    try {
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("User Questions");
+      
+      // Jika sheet tidak ditemukan, hentikan proses untuk mencegah error
+      if (!sheet) throw new Error("Tab 'User Questions' tidak ditemukan!");
+      const data = JSON.parse(e.postData.contents);
+
+      if (data.action === "UPDATE_STATUS") {
+        const dataRange = sheet.getDataRange();
+        const values = dataRange.getValues();
+        
+        // Cari dari urutan terbawah agar yang diupdate adalah pertanyaan TERBARU dari user tersebut
+        for (let i = values.length - 1; i >= 1; i--) {
+          // Kolom C (index 2) adalah User_ID, Kolom E (index 4) adalah Status
+          if (values[i][2].toString() === data.userId.toString() && values[i][4] === "UNANSWERED") {
+            sheet.getRange(i + 1, 5).setValue("ANSWERED"); // Mengubah sel di Kolom E
+          }
+        }
+        return ContentService.createTextOutput(JSON.stringify({"status": "success", "message": "Status Updated"}))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      // Siapkan data untuk dimasukkan ke baris baru
+      const rowData = [
+        new Date(), 
+        data.type,       // 'FEEDBACK' atau 'ASK'
+        data.userId,     // Nomor WA/Tele pengguna
+        data.message,    // Isi pesan
+        'UNANSWERED'     // Status default
+      ];
+      
+      sheet.appendRow(rowData);
+      
+      return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (error) {
+      return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.toString()}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
    ```
 7. Klik **Terapkan (Deploy) > Deployment baru**.
 8. Pilih jenis **Aplikasi Web (Web App)**. Set "Akses" ke **Siapa saja (Anyone)**.

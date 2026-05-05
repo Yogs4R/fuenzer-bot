@@ -571,30 +571,46 @@ The `/ask` and `/feedback` features require a Web App URL from Google Apps Scrip
 6. Clear any existing code and paste the following snippet:
    ```javascript
    function doPost(e) {
-     try {
-       const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("User Questions");
-    
-       if (!sheet) throw new Error("Tab 'User Questions' not found!");
-       const data = JSON.parse(e.postData.contents);
-       
-       // Prepare new row data
-       const rowData = [
-         new Date(), 
-         data.type,       // 'FEEDBACK' or 'ASK'
-         data.userId,     // User's WA/Tele ID
-         data.message,    // Message content
-         'UNANSWERED'     // Default status
-       ];
-       
-       sheet.appendRow(rowData);
-       
-       return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
-         .setMimeType(ContentService.MimeType.JSON);
-     } catch (error) {
-       return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.toString()}))
-         .setMimeType(ContentService.MimeType.JSON);
-     }
-   }
+    try {
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("User Questions");
+      
+      // If the sheet is not found, stop the process to prevent errors.
+      if (!sheet) throw new Error("Tab 'User Questions' tidak ditemukan!");
+      const data = JSON.parse(e.postData.contents);
+
+      if (data.action === "UPDATE_STATUS") {
+        const dataRange = sheet.getDataRange();
+        const values = dataRange.getValues();
+        
+        // Search from the bottom so that the latest questions from that user are updated.
+        for (let i = values.length - 1; i >= 1; i--) {
+          // Column C (index 2) is User_ID, Column E (index 4) is Status
+          if (values[i][2].toString() === data.userId.toString() && values[i][4] === "UNANSWERED") {
+            sheet.getRange(i + 1, 5).setValue("ANSWERED"); // Change cells in Column E
+          }
+        }
+        return ContentService.createTextOutput(JSON.stringify({"status": "success", "message": "Status Updated"}))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      // Prepare data to be entered into a new row
+      const rowData = [
+        new Date(), 
+        data.type,       // 'FEEDBACK' or 'ASK'
+        data.userId,     // User's WA/Tele number
+        data.message,    // Message content
+        'UNANSWERED'     // Status default
+      ];
+      
+      sheet.appendRow(rowData);
+      
+      return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (error) {
+      return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.toString()}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
    ```
 7. Click **Deploy > New deployment**.
 8. Select **Web app** as the deployment type. Set "Who has access" to **Anyone**.
