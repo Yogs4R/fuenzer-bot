@@ -61,7 +61,7 @@ Runs simultaneously, independently but fully integrated:
 
 ### 🤖 AI Assistant
 Advanced smart assistant powered by large language models (LLM) via OpenRouter API integration. Ready to answer technical questions, discussions, and coding.
-- **Multimodal** support (capable of reading Images, Audio/Voice Notes, and extracting Text Documents).
+- **Multimodal** support (capable of reading Images, and extracting Text Documents).
 - **Fast Translator** command using `/translate`.
 - Multi-model support with user-level model switching command.
 - Built-in model usage metadata in replies (token usage and RPM label).

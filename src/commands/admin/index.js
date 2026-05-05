@@ -139,9 +139,6 @@ async function handleAdminCommand(command, args, userId, platform, options = {})
           '- \`/ai_usage\` : Statistik penggunaan token AI',
           '- \`/broadcast\` : Kirim pesan ke semua pengguna',
           '- \`/answer [id] [pesan]\` : Balas pertanyaan user',
-          '',
-          '📊 *Data CS (Spreadsheet)*',
-          'Link: https://docs.google.com/spreadsheets/d/1VYp05FrcpSFMXxUrHLN2mXnC-t9r-XsPh7wl0zBUbrk/edit?usp=sharing'
         ].join('\n');
         const footer = ['—'.repeat(19), 'Gunakan command di atas untuk mengakses fitur admin.'].join('\n');
         return `${header}\n\n${body}\n\n${footer}`;
@@ -156,9 +153,6 @@ async function handleAdminCommand(command, args, userId, platform, options = {})
         '• /ai_usage : Statistik penggunaan token AI',
         '• /broadcast : Kirim pesan ke semua pengguna',
         '• /answer [id] [pesan] : Balas pertanyaan user',
-        '',
-        '📊 <b>Data CS (Spreadsheet)</b>',
-        '<a href="https://docs.google.com/spreadsheets/d/1VYp05FrcpSFMXxUrHLN2mXnC-t9r-XsPh7wl0zBUbrk/edit?usp=sharing">Buka Spreadsheet</a>'
       ].join('\n');
       return `${header}\n\n${body}`;
     }

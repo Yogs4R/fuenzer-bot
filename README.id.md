@@ -61,7 +61,7 @@ Berjalan ganda secara independen namun terintegrasi penuh:
 
 ### 🤖 AI Assistant
 Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melalui integrasi OpenRouter API. Siap menjawab pertanyaan teknis, diskusi, dan coding.
-- Dukungan **Multimodal** (mampu membaca file Gambar, pesan suara/Audio, dan mengekstrak isi Dokumen teks).
+- Dukungan **Multimodal** (mampu membaca file Gambar, dan mengekstrak isi Dokumen teks).
 - Fitur **Penerjemah Bahasa** cepat menggunakan command `/translate`.
 - Dukungan multi-model dengan command pergantian model per pengguna.
 - Metadata penggunaan model di balasan (token usage dan label RPM).
