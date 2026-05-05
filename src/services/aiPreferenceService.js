@@ -13,15 +13,15 @@ const AI_MODELS = {
     context: '131k',
     maxOut: '131k'
   },
-  'elephant': {
-    id: 'openrouter/elephant-alpha',
-    name: 'Elephant Alpha',
+  'nvidia-nano': {
+    id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    name: 'NVIDIA Nemotron 3 Nano Omni',
     type: 'free',
-    description: '100B params, efisien token.',
+    description: 'Model multimodal efisien NVIDIA untuk persepsi dan penalaran agen perusahaan.',
     inputPrice: '-',
     outputPrice: '-',
-    context: '262k',
-    maxOut: '32k'
+    context: '256k',
+    maxOut: '65k'
   },
   'glm-air': {
     id: 'z-ai/glm-4.5-air:free',
@@ -63,26 +63,6 @@ const AI_MODELS = {
     context: '163k',
     maxOut: '163k'
   },
-  'gemini-flash-lite': {
-    id: 'google/gemini-2.5-flash-lite',
-    name: 'Google Gemini 2.5 Flash Lite',
-    type: 'premium',
-    description: 'Ringan, latensi sangat rendah & hemat biaya.',
-    inputPrice: '$0.10/M',
-    outputPrice: '$0.40/M',
-    context: '1M',
-    maxOut: '65k'
-  },
-  'grok-fast': {
-    id: 'x-ai/grok-4.1-fast',
-    name: 'xAI Grok 4.1 Fast',
-    type: 'premium',
-    description: 'Unggul untuk tool calling, customer support, & riset mendalam.',
-    inputPrice: '$0.20/M',
-    outputPrice: '$0.50/M',
-    context: '2M',
-    maxOut: '30k'
-  },
   'mimo-flash': {
     id: 'xiaomi/mimo-v2-flash',
     name: 'Xiaomi Mimo V2 Flash',
@@ -103,26 +83,6 @@ const AI_MODELS = {
     context: '131k',
     maxOut: '131k'
   },
-  'qwen-flash': {
-    id: 'qwen/qwen3.5-flash-02-23',
-    name: 'Qwen 3.5 Flash',
-    type: 'premium',
-    description: 'Arsitektur hybrid (linear attention & MoE), efisien untuk Vison-Language.',
-    inputPrice: '$0.065/M',
-    outputPrice: '$0.26/M',
-    context: '1M',
-    maxOut: '65k'
-  },
-  'qwen-instruct': {
-    id: 'qwen/qwen3-235b-a22b-2507',
-    name: 'Qwen 3 Instruct',
-    type: 'premium',
-    description: '235B MoE (22B aktif), model multilingual untuk instruksi kompleks.',
-    inputPrice: '$0.071/M',
-    outputPrice: '$0.10/M',
-    context: '262k',
-    maxOut: '262k'
-  },
   'llama': {
     id: 'meta-llama/llama-3.1-8b-instruct',
     name: 'Meta Llama 3.1 8B Instruct',
@@ -132,16 +92,6 @@ const AI_MODELS = {
     outputPrice: '$0.05/M',
     context: '131k',
     maxOut: '131k'
-  },
-  'mistral-voxtral': {
-    id: 'mistralai/voxtral-small-24b-2507',
-    name: 'Mistral Voxtral',
-    type: 'premium',
-    description: 'Spesialis dalam transkripsi cepat, alih bahasa, & analisis audio. Input audio dihargai $100/juta detik.',
-    inputPrice: '$0.10/M',
-    outputPrice: '$0.30/M',
-    context: '32k',
-    maxOut: '32k'
   }
 };
 
