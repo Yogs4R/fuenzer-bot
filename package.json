@@ -19,7 +19,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
     "@whiskeysockets/baileys": "^6.7.21",
-    "axios": "^1.15.1",
+    "axios": "^1.16.0",
     "btch-downloader": "^6.0.27",
     "cloudconvert": "^3.0.0",
     "dotenv": "^16.4.5",
