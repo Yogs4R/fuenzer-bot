@@ -18,7 +18,7 @@
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
-    "@whiskeysockets/baileys": "^6.7.21",
+    "@whiskeysockets/baileys": "^6.7.22",
     "axios": "^1.16.0",
     "btch-downloader": "^6.0.27",
     "cloudconvert": "^3.0.0",
