@@ -11,7 +11,10 @@ const handleFinanceCommand = require('../commands/finance/index');
 const { handleAdminCommand } = require('../commands/admin/index');
 const { getHistoryPage } = require('../services/financeService');
 const { isAdmin } = require('../utils/auth');
-const { checkWebsites, formatMonitorMessage, getMonitorWebsiteLinks } = require('../services/monitorService');
+const { getMonitorWebsiteLinks } = require('../services/monitorService');
+const { handleDevopsCommand, buildSystemStatsFooter } = require('../commands/devops/index');
+const { handleWeatherCommand } = require('../commands/weather/index');
+const { handleReligionCommand } = require('../commands/religion/index');
 const { AI_MODELS, buildModelInfoMessage, setActiveModel } = require('../services/aiPreferenceService');
 const { handleImgCommand } = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
@@ -211,53 +214,6 @@ function formatTelegramHtml(rawText) {
     return text;
 }
 
-function formatDuration(seconds) {
-    const totalSeconds = Math.max(0, Math.floor(seconds || 0));
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-
-    const parts = [];
-    if (days > 0) parts.push(`${days}h`);
-    parts.push(`${hours}j`);
-    parts.push(`${minutes}m`);
-    return parts.join(' ');
-}
-
-function getCpuUsagePercent() {
-    const cpus = os.cpus() || [];
-    if (cpus.length === 0) return 0;
-
-    let idle = 0;
-    let total = 0;
-    for (const cpu of cpus) {
-        const times = cpu.times || {};
-        idle += times.idle || 0;
-        total += (times.user || 0) + (times.nice || 0) + (times.sys || 0) + (times.idle || 0) + (times.irq || 0);
-    }
-
-    if (total <= 0) return 0;
-    return Math.round((1 - (idle / total)) * 100);
-}
-
-function getRamUsageText() {
-    const total = os.totalmem();
-    const free = os.freemem();
-    const used = Math.max(total - free, 0);
-    const usedGb = (used / (1024 ** 3)).toFixed(1);
-    const totalGb = (total / (1024 ** 3)).toFixed(1);
-    return `${usedGb}/${totalGb} GB`;
-}
-
-function buildSystemStatsFooter() {
-    return [
-        '—'.repeat(19),
-        `CPU: ${getCpuUsagePercent()}%`,
-        `RAM: ${getRamUsageText()}`,
-        `UPTIME: ${formatDuration(os.uptime())}`,
-        `STATUS: ONLINE`
-    ].join('\n');
-}
 
 function buildAiStatsFooter(aiMeta = {}) {
     const model = aiMeta.modelName || aiMeta.model || '-';
@@ -388,18 +344,15 @@ function buildPdfToolsInfoTelegramBody() {
 
 async function handleUtilityCommand(command, args, userId, platform = 'telegram') {
     if (command === '/cuaca') {
-        const { handleWeatherCommand } = require('../services/weatherService');
         return handleWeatherCommand(command, args, userId, platform);
     }
 
     if (command === '/sholat') {
-        const { handleReligionCommand } = require('../services/religionService');
         return handleReligionCommand(command, args, userId, platform);
     }
 
     if (command === '/me') {
-        const { handleAboutMeCommand } = require('../services/aboutService');
-        return handleAboutMeCommand(command, args, userId, platform);
+        return handleDevopsCommand(command, args, userId, platform);
     }
 
     return 'Perintah tidak dikenali.';
@@ -866,7 +819,7 @@ async function processMenuCommand(ctx, command, userId) {
         case '/info': {
             const header = '<b>INFORMASI FUENZER BOT</b> 🤖';
             const body = `Saya adalah asisten virtual pribadi milik <b>Ridwan Yoga Suryantara</b>.\n\n<b>LAYANAN CS & FEEDBACK</b> 🆘\n• /help : Pusat Bantuan & Feedback\n\n<b>DUKUNGAN BOT</b> ☕\n• /donate : Link dukungan + QR donasi\n\n<b>FITUR KEUANGAN</b> 💰\n• /finance_info : Panduan Lengkap command keuangan\n\n<b>FITUR SISTEM</b> ⚙️\n• /ping : Cek status bot\n• /info : Menampilkan pesan ini\n• /start : Memulai bot\n\n<b>FITUR AI</b> 🧠\nKirim pesan biasa (tanpa awalan /) untuk ngobrol, tanya coding, atau diskusi teknologi.\n<i>(Support deteksi file: Gambar / Dokumen Teks)</i>\n• /model_info : Daftar model AI yang tersedia\n• /switch : Ganti model AI aktif\n\n<b>FITUR TRANSLATE</b> 🌍\n• /translate_info : Panduan Lengkap terjemah kata/kalimat\n\n<b>FITUR UTILITAS</b> 🛠️\n• /short : Pendekkan URL dengan is.gd\n• /research_info : Panduan Lengkap Referensi (buku/jurnal/artikel)\n• /downloader : Panduan Lengkap download (/download & /audio)\n• /remind_info : Panduan Lengkap fitur Reminder pengingat\n• /cuaca : Info cuaca hari ini\n• /sholat : Jadwal sholat hari ini\n• /me : Tentang pembuat bot\n\n<b>FITUR CONVERTER</b> 🖼️\n• /img_info : Panduan Lengkap image tools\n• /pdf_info : Panduan Lengkap PDF tools\n\n<b>FITUR STICKER</b> 🧩\n• /sticker_info : Panduan Lengkap sticker tools\n\n<b>FITUR ADMIN</b> 🛡️\n• /admin : Menu command admin`;
-            const message = `${header}\n\n${body}\n\n${buildSystemStatsFooter()}`;
+            const message = `${header}\n\n${body}\n\n${buildSystemStatsFooter('telegram')}`;
             await ctx.reply(message, {
                 parse_mode: 'HTML',
                 ...buildMainMenuKeyboard()
@@ -921,9 +874,11 @@ async function processMenuCommand(ctx, command, userId) {
             await ctx.reply(`${header}\n\n${body}`, { parse_mode: 'HTML' });
             return;
         }
-        case '/ping':
-            await ctx.reply(`Pong! 🏓\n\n${buildSystemStatsFooter()}`);
+        case '/ping': {
+            const replyText = await handleDevopsCommand(command, [], userId, 'telegram');
+            await ctx.reply(replyText);
             return;
+        }
         case '/saldo':
         case '/catat':
         case '/pemasukan':
@@ -1277,13 +1232,12 @@ function setupTelegramBot() {
 
                 case '/monitor': {
                     try {
-                        if (!isAdmin(userId, 'telegram')) {
-                            await ctx.reply('<b>AKSES DITOLAK</b> ❌\n\nCommand ini khusus admin.', { parse_mode: 'HTML' });
+                        const replyText = await handleDevopsCommand(command, args, userId, 'telegram');
+                        if (replyText.includes('AKSES DITOLAK')) {
+                            await ctx.reply(replyText, { parse_mode: 'HTML' });
                             break;
                         }
 
-                        const { results } = await checkWebsites();
-                        const replyText = formatMonitorMessage(results, null, 'telegram');
                         const linksKeyboard = buildMonitorLinksKeyboard();
                         await sendTelegramReply(ctx, replyText, linksKeyboard || {});
                     } catch (error) {

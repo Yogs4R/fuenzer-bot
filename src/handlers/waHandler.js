@@ -7,7 +7,9 @@ const { askAiDetailed, translateText } = require('../lib/aiClient');
 const handleFinanceCommand = require('../commands/finance/index');
 const { handleAdminCommand } = require('../commands/admin/index');
 const { isAdmin } = require('../utils/auth');
-const { checkWebsites, formatMonitorMessage } = require('../services/monitorService');
+const { handleDevopsCommand, buildSystemStatsFooter } = require('../commands/devops/index');
+const { handleWeatherCommand } = require('../commands/weather/index');
+const { handleReligionCommand } = require('../commands/religion/index');
 const { AI_MODELS, buildModelInfoMessage, setActiveModel } = require('../services/aiPreferenceService');
 const { handleImgCommand } = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
@@ -34,53 +36,6 @@ const MAX_PDF_INPUT_SIZE = 10 * 1024 * 1024;
 const MAX_PDF_LOCAL_INPUT_SIZE = 15 * 1024 * 1024;
 const mergeSessions = {};
 
-function formatDuration(seconds) {
-  const totalSeconds = Math.max(0, Math.floor(seconds || 0));
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-
-  const parts = [];
-  if (days > 0) parts.push(`${days}h`);
-  parts.push(`${hours}j`);
-  parts.push(`${minutes}m`);
-  return parts.join(' ');
-}
-
-function getCpuUsagePercent() {
-  const cpus = os.cpus() || [];
-  if (cpus.length === 0) return 0;
-
-  let idle = 0;
-  let total = 0;
-  for (const cpu of cpus) {
-    const times = cpu.times || {};
-    idle += times.idle || 0;
-    total += (times.user || 0) + (times.nice || 0) + (times.sys || 0) + (times.idle || 0) + (times.irq || 0);
-  }
-
-  if (total <= 0) return 0;
-  return Math.round((1 - (idle / total)) * 100);
-}
-
-function getRamUsageText() {
-  const total = os.totalmem();
-  const free = os.freemem();
-  const used = Math.max(total - free, 0);
-  const usedGb = (used / (1024 ** 3)).toFixed(1);
-  const totalGb = (total / (1024 ** 3)).toFixed(1);
-  return `${usedGb}/${totalGb} GB`;
-}
-
-function buildSystemStatsFooter() {
-  return [
-    '—'.repeat(19),
-    `*CPU:* ${getCpuUsagePercent()}%`,
-    `*RAM:* ${getRamUsageText()}`,
-    `*UPTIME:* ${formatDuration(os.uptime())}`,
-    `*STATUS:* ONLINE`
-  ].join('\n');
-}
 
 function buildAiStatsFooter(aiMeta = {}) {
   const model = aiMeta.modelName || aiMeta.model || '-';
@@ -598,7 +553,7 @@ class WhatsAppHandler {
 
         switch (command) {
           case '/ping':
-            replyText = appendFooter('Pong! 🏓', buildSystemStatsFooter());
+            replyText = await handleDevopsCommand(command, args, userId, 'whatsapp');
             break;
 
           case '/saldo':
@@ -705,14 +660,12 @@ class WhatsAppHandler {
           }
           
           case '/cuaca': {
-            const { handleWeatherCommand } = require('../services/weatherService');
             const weatherReply = await handleWeatherCommand(command, args, msg.key.remoteJid, 'whatsapp');
             replyText = weatherReply;
             break;
           }
           
           case '/sholat': {
-            const { handleReligionCommand } = require('../services/religionService');
             const sholatReply = await handleReligionCommand(command, args, msg.key.remoteJid, 'whatsapp');
             replyText = sholatReply;
             break;
@@ -731,20 +684,13 @@ class WhatsAppHandler {
           }
 
           case '/monitor': {
-            if (!isAdmin(userId, 'whatsapp')) {
-              replyText = '> *AKSES DITOLAK* ❌\n\nCommand ini khusus admin.';
-              break;
-            }
-
-            const { results } = await checkWebsites();
-            const monitorReply = formatMonitorMessage(results, null, 'whatsapp');
+            const monitorReply = await handleDevopsCommand(command, args, userId, 'whatsapp');
             replyText = monitorReply;
             break;
           }
           
           case '/me': {
-            const { handleAboutMeCommand } = require('../services/aboutService');
-            const aboutReply = await handleAboutMeCommand(command, args, msg.key.remoteJid, 'whatsapp');
+            const aboutReply = await handleDevopsCommand(command, args, msg.key.remoteJid, 'whatsapp');
             replyText = aboutReply;
             break;
           }
