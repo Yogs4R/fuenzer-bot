@@ -13,14 +13,7 @@ function formatPercent(value) {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
-function escapeHtml(text) {
-  return String(text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+const { escapeHtml } = require('../../utils/textFormatter');
 
 async function getCommandUsageStats() {
   const { count: totalExecution, error: totalError } = await supabase

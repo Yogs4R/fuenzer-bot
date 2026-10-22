@@ -2,13 +2,7 @@
 const { AI_MODELS, buildModelInfoMessage, setActiveModel, getActiveModel } = require('../../services/aiPreferenceService');
 const { askAiDetailed, translateText } = require('../../lib/aiClient');
 
-function appendFooter(text, footer) {
-  const base = String(text || '').trim();
-  const foot = String(footer || '').trim();
-  if (!base) return foot;
-  if (!foot) return base;
-  return `${base}\n\n${foot}`;
-}
+const { appendFooter } = require('../../utils/textFormatter');
 
 function buildAiStatsFooter(aiMeta = {}, platform = 'whatsapp') {
   const model = aiMeta.modelName || aiMeta.model || '-';
@@ -140,13 +134,8 @@ async function processAiChat(payload, userId, platform = 'whatsapp', extra = {})
   }
 }
 
-module.exports = handleAiCommand;
-module.exports.handleAiCommand = handleAiCommand;
-module.exports.processAiChat = processAiChat;
-module.exports.buildAiStatsFooter = buildAiStatsFooter;
-module.exports.formatAiError = formatAiError;
-module.exports.appendFooter = appendFooter;
-module.exports.AI_MODELS = AI_MODELS;
-module.exports.buildModelInfoMessage = buildModelInfoMessage;
-module.exports.setActiveModel = setActiveModel;
-module.exports.getActiveModel = getActiveModel;
+module.exports = {
+  handleAiCommand,
+  processAiChat,
+  formatAiError
+};

@@ -25,15 +25,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_PDF_INPUT_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_PDF_LOCAL_INPUT_SIZE = 15 * 1024 * 1024; // 15MB
 
-function escapeHtml(text) {
-    if (!text) return '';
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
+const { escapeHtml } = require('../../utils/textFormatter');
 
 async function ensureTempDir() {
     const tempDir = path.join(process.cwd(), 'temp');

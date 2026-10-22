@@ -1,14 +1,7 @@
 // Research reference commands handler (/buku, /jurnal, /artikel)
 const { searchBooks, searchJournals, searchArticles } = require('../../services/researchService');
 
-function escapeHtml(text) {
-  return String(text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+const { escapeHtml } = require('../../utils/textFormatter');
 
 function buildBookRecommendation(keyword, books = [], platform = 'whatsapp') {
   const isTele = platform === 'telegram';
@@ -142,8 +135,6 @@ async function handleResearchCommand(command, args = [], userId = '', platform =
   }
 }
 
-module.exports = handleResearchCommand;
-module.exports.handleResearchCommand = handleResearchCommand;
-module.exports.buildBookRecommendation = buildBookRecommendation;
-module.exports.buildJournalRecommendation = buildJournalRecommendation;
-module.exports.buildArticleRecommendation = buildArticleRecommendation;
+module.exports = {
+  handleResearchCommand
+};

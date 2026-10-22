@@ -3,13 +3,7 @@ const { getQuotaStatus } = require('../../services/quotaService');
 const { buildDonateMessage, getDonateQrImagePaths } = require('../../services/donateService');
 const { buildSystemStatsFooter } = require('../devops/index');
 
-function appendFooter(text, footer) {
-  const base = String(text || '').trim();
-  const foot = String(footer || '').trim();
-  if (!base) return foot;
-  if (!foot) return base;
-  return `${base}\n\n${foot}`;
-}
+const { appendFooter } = require('../../utils/textFormatter');
 
 function formatQuotaLimit(limit) {
   const numericLimit = Number(limit);
@@ -199,17 +193,8 @@ async function handleInfoCommand(command, args = [], userId = '', platform = 'wh
   }
 }
 
-module.exports = handleInfoCommand;
-module.exports.handleInfoCommand = handleInfoCommand;
-module.exports.getFinanceInfo = getFinanceInfo;
-module.exports.getRemindInfo = getRemindInfo;
-module.exports.getTranslateInfo = getTranslateInfo;
-module.exports.getResearchInfo = getResearchInfo;
-module.exports.getDownloaderInfo = getDownloaderInfo;
-module.exports.getImageToolsInfo = getImageToolsInfo;
-module.exports.getPdfToolsInfo = getPdfToolsInfo;
-module.exports.getStickerInfo = getStickerInfo;
-module.exports.getStartMessage = getStartMessage;
-module.exports.getInfoMessage = getInfoMessage;
-module.exports.buildImageToolsQuotaFooter = buildImageToolsQuotaFooter;
-module.exports.buildPdfToolsQuotaFooter = buildPdfToolsQuotaFooter;
+module.exports = {
+  handleInfoCommand,
+  buildDonateMessage,
+  getDonateQrImagePaths
+};

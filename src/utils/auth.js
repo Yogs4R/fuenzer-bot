@@ -1,16 +1,4 @@
-function stripWrappingQuotes(value) {
-  const text = String(value || '').trim();
-  if (!text) return '';
-
-  const hasDoubleQuotes = text.startsWith('"') && text.endsWith('"');
-  const hasSingleQuotes = text.startsWith("'") && text.endsWith("'");
-
-  if (hasDoubleQuotes || hasSingleQuotes) {
-    return text.slice(1, -1).trim();
-  }
-
-  return text;
-}
+const { stripWrappingQuotes } = require('./textFormatter');
 
 function parseCommaSeparatedList(value) {
   return stripWrappingQuotes(value)

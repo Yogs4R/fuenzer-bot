@@ -4,61 +4,11 @@ const handleFinanceCommand = require('./index');
 
 const HISTORY_PAGE_SIZE = 5;
 
-function escapeHtml(text) {
-    if (!text) return '';
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
-function autoLink(text) {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    return String(text || '').replace(urlRegex, (url) => `<a href="${url}">${url}</a>`);
-}
-
-function formatTelegramHtml(rawText) {
-    let text = String(rawText || '').replace(/\r\n/g, '\n').trim();
-
-    const preservedTags = [];
-    const preserveTag = (tag) => {
-        preservedTags.push(tag);
-        return `__HTML_TAG_${preservedTags.length - 1}__`;
-    };
-
-    text = text
-        .replace(/<b>/gi, (tag) => preserveTag(tag))
-        .replace(/<\/b>/gi, (tag) => preserveTag(tag))
-        .replace(/<code>/gi, (tag) => preserveTag(tag))
-        .replace(/<\/code>/gi, (tag) => preserveTag(tag));
-
-    text = escapeHtml(text);
-
-    text = text.replace(/^&gt;\s*\*([^*]+)\*\s*(.*)$/gm, (_match, title, suffix) => {
-        const cleanTitle = title.trim();
-        const cleanSuffix = (suffix || '').trim();
-        return cleanSuffix ? `<b>${cleanTitle}</b> ${cleanSuffix}` : `<b>${cleanTitle}</b>`;
-    });
-
-    text = text.replace(/```([\s\S]*?)```/g, (_match, codeBlock) => codeBlock.trim());
-    text = text.replace(/`([^`\n]+)`/g, '$1');
-    text = text.replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
-    text = text.replace(/(^|\n)-\s+/g, '$1');
-    text = autoLink(text);
-
-    text = text.replace(/__HTML_TAG_(\d+)__/g, (_match, indexText) => {
-        const index = parseInt(indexText, 10);
-        return preservedTags[index] || '';
-    });
-
-    return text;
-}
-
-function formatBodyBold(text) {
-    return String(text || '').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
-}
+const {
+    escapeHtml,
+    formatTelegramHtml,
+    formatBodyBold
+} = require('../../utils/textFormatter');
 
 function buildHistoryKeyboard(page, hasPrev, hasNext) {
     const navButtons = [];
