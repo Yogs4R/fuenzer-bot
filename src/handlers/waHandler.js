@@ -2,14 +2,8 @@ const os = require('os');
 const fs = require('fs/promises');
 const fsSync = require('fs');
 const path = require('path');
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const handleFinanceCommand = require('../commands/finance/index');
-const { handleAdminCommand } = require('../commands/admin/index');
-const { isAdmin } = require('../utils/auth');
-const { handleDevopsCommand, buildSystemStatsFooter } = require('../commands/devops/index');
-const { handleWeatherCommand } = require('../commands/weather/index');
-const { handleReligionCommand } = require('../commands/religion/index');
-const { handleAiCommand, processAiChat, formatAiError, buildAiStatsFooter } = require('../commands/ai/index');
+const { dispatchCommand, updateStatusAnswered } = require('../commands/index');
+const { processAiChat, formatAiError, buildAiStatsFooter } = require('../commands/ai/index');
 const { buildMultimodalPayload } = require('../utils/aiMediaHelper');
 const {
   handleImgCommand,
@@ -18,14 +12,8 @@ const {
   handleStickerCommand,
   handlePdfCommand
 } = require('../commands/converter/index');
-const { handleReminderCommand } = require('../commands/reminder/index');
-const { handleShortCommand } = require('../commands/utility/index');
 const { pdfMergeSessionManager } = require('../utils/sessionManager');
-const { isFfmpegMissingError } = require('../services/stickerService');
 const { getQuotaStatus } = require('../services/quotaService');
-const { handleGoogleCommand, sendToSheet, updateStatusAnswered } = require('../commands/google/index');
-const { handleResearchCommand } = require('../commands/research/index');
-const { handleInfoCommand, buildImageToolsQuotaFooter, buildPdfToolsQuotaFooter } = require('../commands/info/index');
 const { logCommand } = require('../services/logService');
 const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../services/downloaderService');
 const { buildDonateMessage, getDonateQrImagePaths } = require('../services/donateService');
@@ -453,166 +441,51 @@ class WhatsAppHandler {
             await logCommand(realId, 'whatsapp', command);
         }
 
-        switch (command) {
-          case '/ping':
-            replyText = await handleDevopsCommand(command, args, userId, 'whatsapp');
-            break;
+        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedText = quotedMsg ? (
+          quotedMsg.conversation ||
+          quotedMsg.extendedTextMessage?.text ||
+          quotedMsg.imageMessage?.caption ||
+          quotedMsg.videoMessage?.caption ||
+          ''
+        ) : '';
 
-          case '/saldo':
-          case '/catat':
-          case '/pemasukan':
-          case '/laporan_chart':
-          case '/riwayat':
-          case '/hapus':
-          case '/edit': {
-            const financeReply = await handleFinanceCommand(command, args, msg.key.remoteJid, 'whatsapp');
-            if (financeReply) {
-              if (typeof financeReply === 'object' && financeReply.type === 'image') {
-                await this.sock.sendMessage(
-                  msg.key.remoteJid,
-                  {
-                    image: { url: financeReply.url },
-                    caption: formatWhatsAppReply(financeReply.caption || '')
-                  },
-                  { quoted: msg }
-                );
-              } else {
-                await this.sock.sendMessage(
-                  msg.key.remoteJid,
-                  { text: formatWhatsAppReply(financeReply) },
-                  { quoted: msg }
-                );
-              }
-              return;
-            }
-            break;
-          }
-
-          case '/remind': {
-            const remindReply = await handleReminderCommand(args, realId, 'whatsapp');
+        const dispatched = await dispatchCommand(command, args, realId, 'whatsapp', {
+          quotedText,
+          notifyAdmin: async (textToAdmin) => {
             await this.sock.sendMessage(
               msg.key.remoteJid,
-              { text: formatWhatsAppReply(remindReply) },
+              { text: formatWhatsAppReply(String(textToAdmin || '')) },
+              { quoted: msg }
+            );
+          },
+          sendToUser: async (targetId, textToSend) => {
+            const targetJid = toWhatsAppJid(targetId);
+            if (!targetJid) throw new Error('Invalid WhatsApp target');
+            await this.sock.sendMessage(targetJid, { text: String(textToSend || '') });
+          }
+        });
+
+        if (dispatched !== null) {
+          if (command === '/answer' && args[0]) {
+            await updateStatusAnswered(args[0]);
+          }
+
+          if (typeof dispatched === 'object' && dispatched?.type === 'image') {
+            await this.sock.sendMessage(
+              msg.key.remoteJid,
+              {
+                image: { url: dispatched.url },
+                caption: formatWhatsAppReply(dispatched.caption || '')
+              },
               { quoted: msg }
             );
             return;
           }
 
-          case '/translate': {
-            const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-            const quotedText = quotedMsg ? (
-              quotedMsg.conversation ||
-              quotedMsg.extendedTextMessage?.text ||
-              quotedMsg.imageMessage?.caption ||
-              quotedMsg.videoMessage?.caption ||
-              ''
-            ) : '';
-            replyText = await handleAiCommand(command, args, userId, 'whatsapp', { quotedText });
-            break;
-          }
-
-          case '/finance_info':
-          case '/remind_info':
-          case '/translate_info':
-          case '/research_info':
-          case '/downloader': {
-            replyText = await handleInfoCommand(command, args, userId, 'whatsapp');
-            break;
-          }
-          
-          case '/cuaca': {
-            const weatherReply = await handleWeatherCommand(command, args, msg.key.remoteJid, 'whatsapp');
-            replyText = weatherReply;
-            break;
-          }
-          
-          case '/sholat': {
-            const sholatReply = await handleReligionCommand(command, args, msg.key.remoteJid, 'whatsapp');
-            replyText = sholatReply;
-            break;
-          }
-
-          case '/admin': {
-            if (!isAdmin(userId, 'whatsapp')) {
-              replyText = '> *AKSES DITOLAK* ❌\n\nCommand ini khusus admin.';
-              break;
-            }
-
-            const adminReply = await handleAdminCommand('/admin', args, userId, 'whatsapp');
-            replyText = adminReply;
-
-            break;
-          }
-
-          case '/monitor': {
-            const monitorReply = await handleDevopsCommand(command, args, userId, 'whatsapp');
-            replyText = monitorReply;
-            break;
-          }
-          
-          case '/me': {
-            const aboutReply = await handleDevopsCommand(command, args, msg.key.remoteJid, 'whatsapp');
-            replyText = aboutReply;
-            break;
-          }
-
-          case '/buku':
-          case '/jurnal':
-          case '/artikel': {
-            replyText = await handleResearchCommand(command, args, userId, 'whatsapp');
-            break;
-          }
-
-          case '/model_info':
-          case '/switch': {
-            replyText = await handleAiCommand(command, args, userId, 'whatsapp');
-            break;
-          }
-
-          case '/cmd_usage':
-          case '/ai_usage': {
-            if (!isAdmin(userId, 'whatsapp')) {
-              replyText = '> *AKSES DITOLAK* ❌\n\nCommand ini khusus admin.';
-              break;
-            }
-
-            const statsReply = await handleAdminCommand(command, args, userId, 'whatsapp');
-            replyText = statsReply;
-            break;
-          }
-
-          case '/answer':
-          case '/broadcast': {
-            if (!isAdmin(userId, 'whatsapp')) {
-              replyText = '> *AKSES DITOLAK* ❌\n\nCommand ini khusus admin.';
-              break;
-            }
-
-            const broadcastReply = await handleAdminCommand(command, args, userId, 'whatsapp', {
-              notifyAdmin: async (textToAdmin) => {
-                await this.sock.sendMessage(
-                  msg.key.remoteJid,
-                  { text: formatWhatsAppReply(String(textToAdmin || '')) },
-                  { quoted: msg }
-                );
-              },
-              sendToUser: async (targetId, textToSend) => {
-                const targetJid = toWhatsAppJid(targetId);
-                if (!targetJid) {
-                  throw new Error('Invalid WhatsApp target');
-                }
-
-                await this.sock.sendMessage(targetJid, { text: String(textToSend || '') });
-              }
-            });
-
-            if (command === '/answer' && args[0]) {
-              await updateStatusAnswered(args[0]);
-            }
-
-            replyText = broadcastReply;
-            break;
-          }
+          replyText = dispatched;
+        } else {
+          switch (command) {
 
           case '/img': {
             let inputPath = null;
@@ -684,13 +557,6 @@ class WhatsAppHandler {
             break;
           }
 
-          case '/img_info':
-          case '/pdf_info':
-          case '/sticker_info': {
-            replyText = await handleInfoCommand(command, args, userId, 'whatsapp');
-            break;
-          }
-
           case '/tosticker': {
             try {
               const mediaSource = getStickerMediaSource(msg, contextInfo);
@@ -725,19 +591,6 @@ class WhatsAppHandler {
               console.error('Error in /tosticker handler for WhatsApp:', error);
               replyText = `> *❌ ERROR STICKER*\n\nGagal membuat stiker: ${error.message}`;
             }
-            break;
-          }
-
-          case '/start':
-          case '/info': {
-            replyText = await handleInfoCommand(command, args, userId, 'whatsapp');
-            break;
-          }
-
-          case '/help':
-          case '/feedback':
-          case '/ask': {
-            replyText = await handleGoogleCommand(command, args, realId, 'whatsapp');
             break;
           }
 
@@ -1006,137 +859,13 @@ class WhatsAppHandler {
             break;
           }
 
-          case '/short': {
-            replyText = await handleShortCommand(args, 'whatsapp');
-            break;
-          }
-
-          case '/download': {
-            const targetUrl = String(args.join(' ') || '').trim();
-
-            if (!targetUrl) {
-              replyText = '❌ Masukkan link media! Contoh: /download https://www.instagram.com/reel/xxxx';
-              break;
-            }
-
-            try {
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                { text: '⏳ Sedang memproses media, mohon tunggu sebentar...' },
-                { quoted: msg }
-              );
-
-              const mediaUrls = await getDownloadUrl(targetUrl);
-              if (!Array.isArray(mediaUrls) || mediaUrls.length === 0) {
-                throw new Error('DOWNLOAD_FAILED');
-              }
-
-              let successCount = 0;
-              let hasFileTooLarge = false;
-              let hasBufferFailed = false;
-
-              for (const mediaUrl of mediaUrls) {
-                try {
-                  const media = await getMediaBuffer(mediaUrl);
-                  if (media.type === 'video') {
-                    await this.sock.sendMessage(
-                      msg.key.remoteJid,
-                      { video: media.buffer, mimetype: 'video/mp4' },
-                      { quoted: msg }
-                    );
-                  } else {
-                    await this.sock.sendMessage(
-                      msg.key.remoteJid,
-                      { image: media.buffer, mimetype: 'image/jpeg' },
-                      { quoted: msg }
-                    );
-                  }
-
-                  successCount += 1;
-                  await new Promise((resolve) => setTimeout(resolve, 1500));
-                } catch (itemErr) {
-                  console.error('Failed to download one slide on WhatsApp:', itemErr.message);
-                  if (itemErr.message === 'FILE_TOO_LARGE') {
-                    hasFileTooLarge = true;
-                  }
-                  if (itemErr.message === 'DOWNLOAD_BUFFER_FAILED') {
-                    hasBufferFailed = true;
-                  }
-                }
-              }
-
-              if (successCount === 0) {
-                if (hasFileTooLarge) {
-                  throw new Error('FILE_TOO_LARGE');
-                }
-                if (hasBufferFailed) {
-                  throw new Error('DOWNLOAD_BUFFER_FAILED');
-                }
-                throw new Error('DOWNLOAD_FAILED');
-              }
-            } catch (err) {
-              if (err.message === 'FILE_TOO_LARGE') {
-                replyText = '❌ Gagal: Ukuran file terlalu besar (Maksimal 25MB demi stabilitas bot).';
-              } else if (err.message === 'FB_NOT_SUPPORTED') {
-                replyText = '❌ Mohon maaf, fitur download Facebook sedang dalam perbaikan.';
-              } else if (err.message === 'DOWNLOAD_BUFFER_FAILED') {
-                replyText = '❌ Media ditemukan, tapi server sumber menolak koneksi (proxy/anti-hotlink). Coba ulang beberapa saat lagi.';
-              } else {
-                replyText = '❌ Gagal mengunduh. Pastikan link valid dan akun tidak di-private!';
-              }
-            }
-            break;
-          }
-
-          case '/audio': {
-            const targetUrl = String(args.join(' ') || '').trim();
-
-            if (!targetUrl) {
-              replyText = '❌ Masukkan link media! Contoh: /audio https://www.youtube.com/watch?v=xxxx';
-              break;
-            }
-
-            try {
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                { text: '⏳ Sedang memproses audio, mohon tunggu sebentar...' },
-                { quoted: msg }
-              );
-
-              const audioUrl = await getAudioUrl(targetUrl);
-              const audio = await getAudioBuffer(audioUrl);
-
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                {
-                  audio: audio.buffer,
-                  mimetype: audio.mimetype || 'audio/mpeg',
-                  ptt: false
-                },
-                { quoted: msg }
-              );
-            } catch (err) {
-              if (err.message === 'FILE_TOO_LARGE') {
-                replyText = '❌ Gagal: Ukuran file audio terlalu besar (Maksimal 25MB demi stabilitas bot).';
-              } else if (err.message === 'AUDIO_PLATFORM_NOT_SUPPORTED') {
-                replyText = '❌ Saat ini /audio hanya mendukung YouTube dan YouTube Music.';
-              } else if (err.message === 'DOWNLOAD_BUFFER_FAILED') {
-                replyText = '❌ Audio ditemukan, tapi server sumber menolak koneksi (proxy/anti-hotlink). Coba ulang beberapa saat lagi.';
-              } else if (err.message === 'AUDIO_NOT_FOUND') {
-                replyText = '❌ Audio tidak ditemukan dari link tersebut.';
-              } else {
-                replyText = '❌ Gagal mengunduh audio. Pastikan link valid dan akun tidak di-private!';
-              }
-            }
-            break;
-          }
-
           default: {
             const defaultHeader = '> *COMMAND TIDAK DIKENAL* 🤔';
             const defaultBody = `Perintah "${command}" tidak tersedia.\nCoba \`/ping\`, \`/saldo\`, \`/catat\`, \`/pemasukan\`, \`/laporan_chart\`, atau \`/info\`.`;
             replyText = `${defaultHeader}\n\n${defaultBody}`;
           }
         }
+      }
       } else {
         const isImage = !!msg.message?.imageMessage;
         const isDoc = !!msg.message?.documentMessage;

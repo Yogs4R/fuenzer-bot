@@ -6,15 +6,11 @@ const path = require('path');
 const axios = require('axios');
 const bot = require('../lib/telegramClient');
 const { Markup } = require('telegraf');
-const handleFinanceCommand = require('../commands/finance/index');
-const { handleAdminCommand } = require('../commands/admin/index');
+const { dispatchCommand, updateStatusAnswered } = require('../commands/index');
 const { getHistoryPage } = require('../services/financeService');
 const { isAdmin } = require('../utils/auth');
 const { getMonitorWebsiteLinks } = require('../services/monitorService');
-const { handleDevopsCommand, buildSystemStatsFooter } = require('../commands/devops/index');
-const { handleWeatherCommand } = require('../commands/weather/index');
-const { handleReligionCommand } = require('../commands/religion/index');
-const { handleAiCommand, processAiChat, buildAiStatsFooter } = require('../commands/ai/index');
+const { processAiChat, buildAiStatsFooter } = require('../commands/ai/index');
 const {
     handleImgCommand,
     handleRemoveBgCommand,
@@ -22,14 +18,7 @@ const {
     handleStickerCommand,
     handlePdfCommand
 } = require('../commands/converter/index');
-const { handleReminderCommand } = require('../commands/reminder/index');
-const { handleShortCommand } = require('../commands/utility/index');
 const { pdfMergeSessionManager } = require('../utils/sessionManager');
-const { isFfmpegMissingError } = require('../services/stickerService');
-const { getQuotaStatus } = require('../services/quotaService');
-const { handleGoogleCommand, sendToSheet, updateStatusAnswered } = require('../commands/google/index');
-const { handleResearchCommand } = require('../commands/research/index');
-const { handleInfoCommand } = require('../commands/info/index');
 const { logCommand } = require('../services/logService');
 const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../services/downloaderService');
 const { buildDonateMessage, getDonateQrImagePaths } = require('../services/donateService');
@@ -822,99 +811,38 @@ function setupTelegramBot() {
 
             await logCommand(userId, 'telegram', command);
             
-            switch (command) {
-                case '/start':
-                    await processMenuCommand(ctx, '/start', userId);
-                    break;
-                    
-                case '/ping':
-                    await processMenuCommand(ctx, '/ping', userId);
-                    break;
-                    
-                case '/info':
-                    await processMenuCommand(ctx, '/info', userId);
-                    break;
+            const dispatched = await dispatchCommand(command, args, userId, 'telegram', {
+                quotedText: ctx.message?.reply_to_message?.text || ctx.message?.reply_to_message?.caption || '',
+                notifyAdmin: async (textToAdmin) => {
+                    await sendTelegramReply(ctx, String(textToAdmin || ''));
+                },
+                sendToUser: async (targetId, textToSend) => {
+                    const chatId = Number(targetId);
+                    if (!Number.isFinite(chatId)) throw new Error('Invalid Telegram target');
+                    await ctx.telegram.sendMessage(chatId, String(textToSend || ''), { parse_mode: 'HTML' });
+                }
+            });
 
-                case '/donate':
-                    try {
-                        await processMenuCommand(ctx, '/donate', userId);
-                    } catch (error) {
-                        console.error('Error handling /donate command in Telegram:', error);
-                        await ctx.reply(`<b>ERROR DONATE</b> ❌\n\n${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
-                    }
-                    break;
-
-                case '/finance_info':
-                    await processMenuCommand(ctx, '/finance_info', userId);
-                    break;
-
-                case '/research_info':
-                    await processMenuCommand(ctx, '/research_info', userId);
-                    break;
-
-                case '/downloader':
-                    await processMenuCommand(ctx, '/downloader', userId);
-                    break;
-                    
-                case '/remind_info':
-                    await processMenuCommand(ctx, '/remind_info', userId);
-                    break;
-                    
-                case '/remind':
-                    try {
-                        const remindReply = await handleReminderCommand(args, userId, 'telegram');
-                        await sendTelegramReply(ctx, remindReply);
-                    } catch (error) {
-                        await ctx.reply(`<b>ERROR</b> ❌\n\n${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
-                    }
-                    break;
-                    
-                case '/translate': {
-                    let quotedText = '';
-                    if (ctx.message.reply_to_message) {
-                        const replyMsg = ctx.message.reply_to_message;
-                        quotedText = replyMsg.text || replyMsg.caption || '';
-                    }
-
-                    const translatingMsg = await ctx.reply('⏳ Sedang menerjemahkan, mohon tunggu...');
-
-                    try {
-                        const replyText = await handleAiCommand(command, args, userId, 'telegram', { quotedText });
-                        await ctx.telegram.editMessageText(
-                            ctx.chat.id,
-                            translatingMsg.message_id,
-                            null,
-                            replyText
-                        );
-                    } catch (err) {
-                        console.error('Error in /translate:', err);
-                        await ctx.telegram.editMessageText(
-                            ctx.chat.id,
-                            translatingMsg.message_id,
-                            null,
-                            `<b>GAGAL MENERJEMAHKAN</b> ❌\n\nMaaf, terjadi kesalahan: ${escapeHtml(err.message)}`,
-                            { parse_mode: 'HTML' }
-                        );
-                    }
-                    break;
+            if (dispatched !== null) {
+                if (command === '/answer' && args[0]) {
+                    await updateStatusAnswered(args[0]);
                 }
 
-                case '/saldo':
-                case '/catat':
-                case '/pemasukan':
-                case '/laporan_chart':
-                case '/edit':
-                    try {
-                        const replyText = await handleFinanceCommand(command, args, userId, 'telegram');
-                        await sendTelegramReply(ctx, replyText);
-                    } catch (error) {
-                        console.error('Error handling finance command in Telegram:', error);
-                        const errorHeader = '<b>ERROR SISTEM</b> ❌';
-                        const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
-                    }
-                    break;
+                if (command === '/admin' && isAdmin(userId, 'telegram')) {
+                    await sendTelegramReply(ctx, dispatched, buildAdminMenuKeyboard());
+                } else if (command === '/monitor' && !dispatched.includes('AKSES DITOLAK')) {
+                    const linksKeyboard = buildMonitorLinksKeyboard();
+                    await sendTelegramReply(ctx, dispatched, linksKeyboard || {});
+                } else if (command === '/me') {
+                    const linksKeyboard = buildMonitorLinksKeyboard();
+                    await sendTelegramReply(ctx, dispatched, linksKeyboard || {});
+                } else {
+                    await sendTelegramReply(ctx, dispatched);
+                }
+                return;
+            }
 
+            switch (command) {
                 case '/riwayat':
                     try {
                         const requestedPage = args.length > 0 ? parseInt(args[0], 10) : 1;
@@ -925,137 +853,14 @@ function setupTelegramBot() {
                     }
                     break;
 
-                case '/cuaca':
-                case '/sholat':
-                case '/me': {
+                case '/donate':
                     try {
-                        await sendUtilityCommandMessage(ctx, command, userId, args);
+                        await processMenuCommand(ctx, '/donate', userId);
                     } catch (error) {
-                        console.error(`Error handling ${command} command in Telegram:`, error);
-                        const errorHeader = '<b>ERROR SISTEM</b> ❌';
-                        const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
+                        console.error('Error handling /donate command in Telegram:', error);
+                        await ctx.reply(`<b>ERROR DONATE</b> ❌\n\n${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
                     }
                     break;
-                }
-
-                case '/model_info':
-                case '/switch': {
-                    try {
-                        const replyText = await handleAiCommand(command, args, userId, 'telegram');
-                        await ctx.reply(replyText, { parse_mode: 'HTML' });
-                    } catch (error) {
-                        console.error(`Error handling ${command} command in Telegram:`, error);
-                        const errorHeader = '<b>ERROR SISTEM</b> ❌';
-                        const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
-                    }
-                    break;
-                }
-
-                case '/admin': {
-                    try {
-                        if (!isAdmin(userId, 'telegram')) {
-                            await ctx.reply('<b>AKSES DITOLAK</b> ❌\n\nCommand ini khusus admin.', { parse_mode: 'HTML' });
-                            break;
-                        }
-
-                        const replyText = await handleAdminCommand('/admin', args, userId, 'telegram');
-                        await sendTelegramReply(ctx, replyText, buildAdminMenuKeyboard());
-                    } catch (error) {
-                        console.error(`Error handling ${command} command in Telegram:`, error);
-                        const errorHeader = '<b>ERROR SISTEM</b> ❌';
-                        const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
-                    }
-                    break;
-                }
-
-                case '/help':
-                case '/feedback':
-                case '/ask': {
-                    const replyText = await handleGoogleCommand(command, args, userId, 'telegram');
-                    await ctx.reply(replyText, { parse_mode: 'HTML' });
-                    break;
-                }
-
-                case '/monitor': {
-                    try {
-                        const replyText = await handleDevopsCommand(command, args, userId, 'telegram');
-                        if (replyText.includes('AKSES DITOLAK')) {
-                            await ctx.reply(replyText, { parse_mode: 'HTML' });
-                            break;
-                        }
-
-                        const linksKeyboard = buildMonitorLinksKeyboard();
-                        await sendTelegramReply(ctx, replyText, linksKeyboard || {});
-                    } catch (error) {
-                        console.error(`Error handling ${command} command in Telegram:`, error);
-                        const errorHeader = '<b>ERROR SISTEM</b> ❌';
-                        const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
-                    }
-                    break;
-                }
-
-                case '/cmd_usage':
-                case '/ai_usage': {
-                    try {
-                        if (!isAdmin(userId, 'telegram')) {
-                            await ctx.reply('<b>AKSES DITOLAK</b> ❌\n\nCommand ini khusus admin.', { parse_mode: 'HTML' });
-                            break;
-                        }
-
-                        const replyText = await handleAdminCommand(command, args, userId, 'telegram');
-                        await sendTelegramReply(ctx, replyText);
-                    } catch (error) {
-                        console.error(`Error handling ${command} command in Telegram:`, error);
-                        const errorHeader = '<b>ERROR SISTEM</b> ❌';
-                        const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
-                    }
-                    break;
-                }
-
-                case '/answer':
-                case '/broadcast': {
-                    try {
-                        if (!isAdmin(userId, 'telegram')) {
-                            await ctx.reply('<b>AKSES DITOLAK</b> ❌\n\nCommand ini khusus admin.', { parse_mode: 'HTML' });
-                            break;
-                        }
-
-                        const replyText = await handleAdminCommand(command, args, userId, 'telegram', {
-                            notifyAdmin: async (textToAdmin) => {
-                                await sendTelegramReply(ctx, String(textToAdmin || ''));
-                            },
-                            sendToUser: async (targetId, textToSend) => {
-                                const chatId = Number(targetId);
-                                if (!Number.isFinite(chatId)) {
-                                    throw new Error('Invalid Telegram target');
-                                }
-
-                                await ctx.telegram.sendMessage(chatId, String(textToSend || ''), {
-                                    parse_mode: 'HTML'
-                                });
-                            }
-                        });
-
-                        if (command === '/answer' && args[0]) {
-                            await updateStatusAnswered(args[0]);
-                        }
-
-                        if (replyText) {
-                            await sendTelegramReply(ctx, replyText);
-                        }
-                    } catch (error) {
-                        console.error(`Error handling ${command} command in Telegram:`, error);
-                        const errorHeader = '<b>ERROR SISTEM</b> ❌';
-                        const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
-                    }
-                    break;
-                }
 
                 case '/img': {
                     try {
@@ -1218,20 +1023,6 @@ function setupTelegramBot() {
                 case '/topdf':
                 case '/pdf': {
                     await handleTelegramPdfTools(ctx, command, args);
-                    break;
-                }
-
-                case '/short': {
-                    const shortReply = await handleShortCommand(args, 'telegram');
-                    await ctx.reply(shortReply, { parse_mode: 'HTML' });
-                    break;
-                }
-
-                case '/buku':
-                case '/jurnal':
-                case '/artikel': {
-                    const replyText = await handleResearchCommand(command, args, userId, 'telegram');
-                    await ctx.reply(replyText, { parse_mode: 'HTML' });
                     break;
                 }
 
