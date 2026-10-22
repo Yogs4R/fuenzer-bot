@@ -272,32 +272,6 @@ function buildDeleteConfirmKeyboard(transactionId) {
     ]);
 }
 
-
-
-async function handleUtilityCommand(command, args, userId, platform = 'telegram') {
-    if (command === '/cuaca') {
-        return handleWeatherCommand(command, args, userId, platform);
-    }
-
-    if (command === '/sholat') {
-        return handleReligionCommand(command, args, userId, platform);
-    }
-
-    if (command === '/me') {
-        return handleDevopsCommand(command, args, userId, platform);
-    }
-
-    return 'Perintah tidak dikenali.';
-}
-
-async function sendUtilityCommandMessage(ctx, command, userId, args = []) {
-    const replyText = await handleUtilityCommand(command, args, userId, 'telegram');
-    const linksKeyboard = command === '/me' ? buildMonitorLinksKeyboard() : null;
-    await sendTelegramReply(ctx, replyText, linksKeyboard || {});
-}
-
-
-
 async function handleImageConverter(ctx, args) {
     let inputPath = null;
     let outputPath = null;
@@ -651,91 +625,28 @@ async function sendHistoryPageMessage(ctx, userId, page = 1, useEdit = false) {
 }
 
 async function processMenuCommand(ctx, command, userId) {
-    switch (command) {
-        case '/start': {
-            const welcomeHeader = '<b>SELAMAT DATANG DI FUENZER BOT</b> 🤖';
-            const welcomeBody = `Halo <b>${escapeHtml(ctx.from.first_name || 'Pengguna')}</b>! Saya asisten virtual pribadi.\n\nGunakan tombol di bawah untuk akses cepat fitur keuangan.`;
-            await ctx.reply(`${welcomeHeader}\n\n${welcomeBody}`, {
-                parse_mode: 'HTML',
-                ...buildMainMenuKeyboard()
-            });
-            return;
-        }
-        case '/info': {
-            const message = await handleInfoCommand('/info', [], userId, 'telegram');
-            await ctx.reply(message, {
-                parse_mode: 'HTML',
-                ...buildMainMenuKeyboard()
-            });
-            return;
-        }
+    if (command === '/donate') {
+        const donateText = buildDonateMessage('telegram');
+        const { koFi, saweria } = getDonateQrImagePaths();
+        await ctx.reply(donateText, { parse_mode: 'HTML' });
+        await ctx.replyWithPhoto({ source: koFi }, { caption: '🌍 QR Donasi Ko-fi' });
+        await ctx.replyWithPhoto({ source: saweria }, { caption: '🇮🇩 QR Donasi Saweria' });
+        return;
+    }
 
-        case '/help': {
-            const replyText = await handleGoogleCommand('/help', [], userId, 'telegram');
-            await ctx.reply(replyText, { parse_mode: 'HTML' });
-            return;
-        }
+    if (command === '/riwayat') {
+        await sendHistoryPageMessage(ctx, userId, 1, false);
+        return;
+    }
 
-        case '/translate_info':
-        case '/research_info':
-        case '/downloader':
-        case '/remind_info':
-        case '/finance_info':
-        case '/img_info':
-        case '/pdf_info':
-        case '/sticker_info': {
-            const replyText = await handleInfoCommand(command, [], userId, 'telegram');
-            await ctx.reply(replyText, { parse_mode: 'HTML' });
-            return;
-        }
-
-        case '/donate': {
-            const donateText = buildDonateMessage('telegram');
-            const { koFi, saweria } = getDonateQrImagePaths();
-
-            await ctx.reply(donateText, { parse_mode: 'HTML' });
-            await ctx.replyWithPhoto({ source: koFi }, { caption: '🌍 QR Donasi Ko-fi' });
-            await ctx.replyWithPhoto({ source: saweria }, { caption: '🇮🇩 QR Donasi Saweria' });
-            return;
-        }
-        case '/ping': {
-            const replyText = await handleDevopsCommand(command, [], userId, 'telegram');
-            await ctx.reply(replyText);
-            return;
-        }
-        case '/saldo':
-        case '/catat':
-        case '/pemasukan':
-        case '/laporan_chart':
-        case '/edit': {
-            const parts = ctx.message?.text?.trim()?.split(' ') || [command];
-            const args = parts.slice(1);
-            const replyPayload = await handleFinanceCommand(command, args, userId, 'telegram');
-            await sendTelegramReply(ctx, replyPayload);
-            return;
-        }
-        case '/cuaca':
-        case '/sholat':
-        case '/me': {
-            const parts = ctx.message?.text?.trim()?.split(' ') || [command];
-            const args = parts.slice(1);
-            await sendUtilityCommandMessage(ctx, command, userId, args);
-            return;
-        }
-        case '/model_info':
-        case '/switch': {
-            const parts = ctx.message?.text?.trim()?.split(' ') || [command];
-            const args = parts.slice(1);
-            const replyText = await handleAiCommand(command, args, userId, 'telegram');
-            await ctx.reply(replyText, { parse_mode: 'HTML' });
-            return;
-        }
-        case '/riwayat':
-            await sendHistoryPageMessage(ctx, userId, 1, false);
-            return;
-
-        default:
-            return;
+    const reply = await dispatchCommand(command, [], userId, 'telegram');
+    if (reply !== null) {
+        const keyboard = (command === '/start' || command === '/info')
+            ? buildMainMenuKeyboard()
+            : (command === '/me' || command === '/monitor')
+                ? buildMonitorLinksKeyboard()
+                : {};
+        await sendTelegramReply(ctx, reply, keyboard);
     }
 }
 
@@ -1190,7 +1101,7 @@ function setupTelegramBot() {
                     
                     if (mapped === '/me') {
                         await ctx.answerCbQuery();
-                        await sendUtilityCommandMessage(ctx, '/me', userId, []);
+                        await processMenuCommand(ctx, '/me', userId);
                         return;
                     }
 
