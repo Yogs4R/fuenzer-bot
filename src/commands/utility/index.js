@@ -1,13 +1,6 @@
-// Utility command handler (shortener, downloader, audio)
+// Utility command handler (shortener)
 const { shortenUrl } = require('../../services/shortenerService');
-const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../../services/downloaderService');
-
-function escapeHtml(text) {
-    return String(text || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
+const { escapeHtml } = require('../../utils/textFormatter');
 
 async function handleShortCommand(args, platform = 'telegram') {
     const originalUrl = String(args.join(' ') || '').trim();
@@ -38,9 +31,5 @@ async function handleShortCommand(args, platform = 'telegram') {
 }
 
 module.exports = {
-    handleShortCommand,
-    getDownloadUrl,
-    getAudioUrl,
-    getMediaBuffer,
-    getAudioBuffer
+    handleShortCommand
 };

@@ -70,25 +70,6 @@ async function getSholat(kota) {
     }
 }
 
-async function handleReligionCommand(command, args, userId, platform) {
-    if (command !== '/sholat') {
-        return 'Perintah tidak dikenali.';
-    }
-    
-    if (args.length === 0) {
-        const header = '> *ERROR FORMAT* ❌';
-        const body = formatBulletList([
-            'Gunakan format: /sholat <nama_kota>',
-            'Contoh: /sholat Jakarta'
-        ]);
-        return `${header}\n\n${body}`;
-    }
-    
-    const kota = args.join(' ');
-    return await getSholat(kota);
-}
-
 module.exports = {
-    getSholat,
-    handleReligionCommand
+    getSholat
 };

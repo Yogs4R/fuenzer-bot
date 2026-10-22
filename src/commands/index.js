@@ -6,7 +6,7 @@ const { handleWeatherCommand } = require('./weather/index');
 const { handleReligionCommand } = require('./religion/index');
 const { handleAiCommand } = require('./ai/index');
 const { handleReminderCommand } = require('./reminder/index');
-const { handleGoogleCommand, sendToSheet, updateStatusAnswered } = require('./google/index');
+const { handleGoogleCommand, updateStatusAnswered } = require('./google/index');
 const { handleResearchCommand } = require('./research/index');
 const { handleInfoCommand } = require('./info/index');
 const { handleShortCommand } = require('./utility/index');
@@ -132,24 +132,5 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
 
 module.exports = {
     dispatchCommand,
-    handleFinanceCommand,
-    handleAdminCommand,
-    handleDevopsCommand,
-    handleWeatherCommand,
-    handleReligionCommand,
-    handleAiCommand,
-    handleReminderCommand,
-    handleGoogleCommand,
-    handleResearchCommand,
-    handleInfoCommand,
-    handleShortCommand,
-    handleDownloadCommand,
-    handleAudioCommand,
-    handleImgCommand,
-    handleRemoveBgCommand,
-    handleHtmlToImageCommand,
-    handleStickerCommand,
-    handlePdfCommand,
-    sendToSheet,
     updateStatusAnswered
 };

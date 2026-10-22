@@ -95,10 +95,8 @@ async function handleDevopsCommand(command, args = [], userId = '', platform = '
   }
 }
 
-module.exports = handleDevopsCommand;
-module.exports.handleDevopsCommand = handleDevopsCommand;
-module.exports.buildSystemStatsFooter = buildSystemStatsFooter;
-module.exports.formatDuration = formatDuration;
-module.exports.getCpuUsagePercent = getCpuUsagePercent;
-module.exports.getRamUsageText = getRamUsageText;
-module.exports.getMonitorWebsiteLinks = getMonitorWebsiteLinks;
+module.exports = {
+  handleDevopsCommand,
+  formatMonitorMessage,
+  buildSystemStatsFooter
+};

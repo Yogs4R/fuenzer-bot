@@ -38,7 +38,7 @@ async function handleGoogleCommand(command, args = [], userId = '', platform = '
   }
 }
 
-module.exports = handleGoogleCommand;
-module.exports.handleGoogleCommand = handleGoogleCommand;
-module.exports.sendToSheet = sendToSheet;
-module.exports.updateStatusAnswered = updateStatusAnswered;
+module.exports = {
+  handleGoogleCommand,
+  updateStatusAnswered
+};

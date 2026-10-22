@@ -40,26 +40,6 @@ async function getCuaca(kota) {
         return '> *ERROR SISTEM* ❌\n\nTerjadi kesalahan saat mengambil data cuaca. Silakan coba lagi nanti.';
     }
 }
-
-async function handleWeatherCommand(command, args, userId, platform) {
-    if (command !== '/cuaca') {
-        return 'Perintah tidak dikenali.';
-    }
-    
-    if (args.length === 0) {
-        const header = '> *ERROR FORMAT* ❌';
-        const body = formatBulletList([
-            'Gunakan format: /cuaca <nama_kota>',
-            'Contoh: /cuaca Jakarta'
-        ]);
-        return `${header}\n\n${body}`;
-    }
-    
-    const kota = args.join(' ');
-    return await getCuaca(kota);
-}
-
 module.exports = {
-    getCuaca,
-    handleWeatherCommand
+    getCuaca
 };
