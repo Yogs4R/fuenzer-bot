@@ -98,3 +98,12 @@ temp/
 credentials/
 auth/
 .aider*
+
+
+# BMAD
+_bmad/
+_bmad-output/
+.agent/
+
+# Others
+.fallow/
