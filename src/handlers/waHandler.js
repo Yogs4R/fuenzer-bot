@@ -1,76 +1,22 @@
-const os = require('os');
-const fs = require('fs/promises');
-const fsSync = require('fs');
-const path = require('path');
+const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { dispatchCommand, updateStatusAnswered } = require('../commands/index');
-const { processAiChat, formatAiError, buildAiStatsFooter } = require('../commands/ai/index');
+const { processAiChat, formatAiError } = require('../commands/ai/index');
 const { buildMultimodalPayload } = require('../utils/aiMediaHelper');
-const {
-  handleImgCommand,
-  handleRemoveBgCommand,
-  handleHtmlToImageCommand,
-  handleStickerCommand,
-  handlePdfCommand
-} = require('../commands/converter/index');
-const { pdfMergeSessionManager } = require('../utils/sessionManager');
-const { getQuotaStatus } = require('../services/quotaService');
 const { logCommand } = require('../services/logService');
-const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../services/downloaderService');
-const { buildDonateMessage, getDonateQrImagePaths } = require('../services/donateService');
-const { MAX_FILE_SIZE } = require('../services/converterService');
-const MAX_PDF_INPUT_SIZE = 10 * 1024 * 1024;
-const MAX_PDF_LOCAL_INPUT_SIZE = 15 * 1024 * 1024;
-
-
-
-
-function appendFooter(text, footer) {
-  const base = String(text || '').trim();
-  const foot = String(footer || '').trim();
-  if (!base) return foot;
-  if (!foot) return base;
-  return `${base}\n\n${foot}`;
-}
-
-function formatWhatsAppReply(text) {
-  const lines = String(text || '').split('\n');
-  const isBoxLine = (line) => /^[┌├└]\s/.test(String(line || '').trim());
-
-  const bodyBoxIndexes = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    if (isBoxLine(lines[i])) {
-      bodyBoxIndexes.push(i);
-    }
-  }
-
-  if (bodyBoxIndexes.length === 0) {
-    return String(text || '');
-  }
-
-  const lastBodyBoxIndex = bodyBoxIndexes[bodyBoxIndexes.length - 1];
-  const firstFooterLineIndex = lines.findIndex((line, index) => index > lastBodyBoxIndex && String(line || '').trim().length > 0);
-
-  if (firstFooterLineIndex === -1) {
-    return String(text || '');
-  }
-
-  const formatted = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-
-    if (i === firstFooterLineIndex) {
-      if (formatted.length > 0 && String(formatted[formatted.length - 1]).trim().length > 0) {
-        formatted.push('');
-      }
-      formatted.push('—'.repeat(19));
-    }
-
-    formatted.push(line);
-  }
-
-  return formatted.join('\n');
-}
-
+const { pdfMergeSessionManager } = require('../utils/sessionManager');
+const {
+  isWhatsAppPdfDocument,
+  getMessageContextInfo,
+  formatWhatsAppReply,
+  handleWhatsAppImageConverter,
+  handleWhatsAppSticker,
+  handleWhatsAppRemoveBg,
+  handleWhatsAppScreenshot,
+  handleWhatsAppPdf,
+  handleWhatsAppPdfMergeUpload,
+  handleWhatsAppDownloader,
+  sendWhatsAppDonation
+} = require('./adapters/waMediaAdapter');
 
 function normalizeWhatsAppId(value) {
   return String(value || '')
@@ -81,14 +27,8 @@ function normalizeWhatsAppId(value) {
 
 function toWhatsAppJid(value) {
   const raw = String(value || '').trim();
-  if (!raw) {
-    return '';
-  }
-
-  if (raw.includes('@g.us')) {
-    return raw;
-  }
-
+  if (!raw) return '';
+  if (raw.includes('@g.us')) return raw;
   const normalized = normalizeWhatsAppId(raw);
   return normalized ? `${normalized}@s.whatsapp.net` : '';
 }
@@ -106,197 +46,14 @@ function resolveWhatsAppSenderJid(msg, fallbackUserId = '') {
     if (!raw || raw.endsWith('@g.us') || raw.includes('@lid')) {
       continue;
     }
-
     const jid = toWhatsAppJid(raw);
-    if (jid) {
-      return jid;
-    }
+    if (jid) return jid;
   }
-
   return '';
 }
 
 function escapeRegex(value) {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function toFileSizeBytes(value) {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'bigint') {
-    return Number(value);
-  }
-
-  if (value && typeof value === 'object') {
-    if (typeof value.toNumber === 'function') {
-      return value.toNumber();
-    }
-
-    if (typeof value.low === 'number') {
-      return value.low;
-    }
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function getExtensionFromFileName(fileName) {
-  const ext = path.extname(String(fileName || '')).replace('.', '').toLowerCase();
-  return ext || '';
-}
-
-function getExtensionFromMimeType(mimeType) {
-  const mime = String(mimeType || '').toLowerCase();
-  const map = {
-    'application/pdf': 'pdf',
-    'application/msword': 'doc',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-    'application/vnd.ms-excel': 'xls',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-    'application/vnd.ms-powerpoint': 'ppt',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
-    'text/plain': 'txt',
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-    'video/mp4': 'mp4'
-  };
-
-  return map[mime] || '';
-}
-
-function getMimeTypeFromExtension(ext) {
-  const normalizedExt = String(ext || '').toLowerCase();
-  const map = {
-    pdf: 'application/pdf',
-    doc: 'application/msword',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    txt: 'text/plain',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    webp: 'image/webp'
-  };
-
-  return map[normalizedExt] || 'application/octet-stream';
-}
-
-function isWhatsAppPdfDocument(documentMessage) {
-  if (!documentMessage) {
-    return false;
-  }
-
-  const extFromName = getExtensionFromFileName(documentMessage.fileName);
-  const mimeType = String(documentMessage.mimetype || '').toLowerCase();
-  return extFromName === 'pdf' || mimeType.includes('pdf');
-}
-
-async function ensureTempDir() {
-  const tempDir = path.join(process.cwd(), 'temp');
-  await fs.mkdir(tempDir, { recursive: true });
-  return tempDir;
-}
-
-function safeUnlinkSync(filePath) {
-  try {
-    if (filePath && fsSync.existsSync(filePath)) {
-      fsSync.unlinkSync(filePath);
-    }
-  } catch (error) {
-    console.error('Failed to delete temp file:', filePath, error);
-  }
-}
-
-function getMessageContextInfo(msg) {
-  return msg.message?.extendedTextMessage?.contextInfo
-    || msg.message?.buttonsResponseMessage?.contextInfo
-    || msg.message?.templateButtonReplyMessage?.contextInfo
-    || msg.message?.imageMessage?.contextInfo
-    || msg.message?.videoMessage?.contextInfo
-    || msg.message?.documentMessage?.contextInfo
-    || null;
-}
-
-function unwrapMessageContent(message) {
-  let current = message || {};
-
-  while (true) {
-    if (current?.ephemeralMessage?.message) {
-      current = current.ephemeralMessage.message;
-      continue;
-    }
-
-    if (current?.viewOnceMessage?.message) {
-      current = current.viewOnceMessage.message;
-      continue;
-    }
-
-    if (current?.viewOnceMessageV2?.message) {
-      current = current.viewOnceMessageV2.message;
-      continue;
-    }
-
-    if (current?.viewOnceMessageV2Extension?.message) {
-      current = current.viewOnceMessageV2Extension.message;
-      continue;
-    }
-
-    break;
-  }
-
-  return current;
-}
-
-function getStickerMediaSource(msg, contextInfo) {
-  const directMessage = unwrapMessageContent(msg.message);
-  const directImage = directMessage?.imageMessage;
-  const directVideo = directMessage?.videoMessage;
-
-  if (directImage) {
-    return {
-      mediaType: 'image',
-      mediaMessage: msg,
-      seconds: 0
-    };
-  }
-
-  if (directVideo) {
-    return {
-      mediaType: 'video',
-      mediaMessage: msg,
-      seconds: Number(directVideo.seconds || 0)
-    };
-  }
-
-  const quotedRaw = contextInfo?.quotedMessage;
-  if (!quotedRaw) {
-    return null;
-  }
-
-  const quotedMessage = unwrapMessageContent(quotedRaw);
-  const quotedImage = quotedMessage?.imageMessage;
-  const quotedVideo = quotedMessage?.videoMessage;
-
-  if (!quotedImage && !quotedVideo) {
-    return null;
-  }
-
-  return {
-    mediaType: quotedVideo ? 'video' : 'image',
-    mediaMessage: {
-      key: {
-        remoteJid: msg.key.remoteJid,
-        id: contextInfo?.stanzaId || msg.key.id,
-        participant: contextInfo?.participant || msg.key.participant,
-        fromMe: false
-      },
-      message: quotedMessage
-    },
-    seconds: Number(quotedVideo?.seconds || 0)
-  };
 }
 
 function cleanMentionFromGroupText(text, mentionIds = []) {
@@ -310,9 +67,7 @@ function cleanMentionFromGroupText(text, mentionIds = []) {
     cleanText = cleanText.replace(mentionRegex, ' ');
   }
 
-  // Handle case where mentions are at the beginning of the message followed by a command (e.g. "@bot /command")
   cleanText = cleanText.replace(/^(@\S+\s+)+(?=\/)/, '');
-
   return cleanText.replace(/\s{2,}/g, ' ').trim();
 }
 
@@ -360,14 +115,11 @@ class WhatsAppHandler {
       const hasPdfDocument = isWhatsAppPdfDocument(incomingDocumentMsg);
       const hasActiveMergeSession = pdfMergeSessionManager.hasSession(userId);
       const isBotMentioned = mentionedJids.some((jid) => {
-        // Hapus @s.whatsapp.net atau @lid beserta suffix device (:x)
         const normalizedJid = normalizeWhatsAppId(jid);
         return normalizedJid === botNumber || normalizedJid === botLid;
       });
       const isReplyToBot = normalizeWhatsAppId(contextInfo?.participant) === botNumber;
-      
-      // In group chats, bot only responds if bot is mentioned, or it's a reply to bot's message
-      // If it does not these requirements, ignore the entire message
+
       if (isGroup && !isBotMentioned && !isReplyToBot && !(hasActiveMergeSession && hasPdfDocument)) {
         return;
       }
@@ -383,49 +135,9 @@ class WhatsAppHandler {
 
       let replyText = '';
 
+      // PDF merge interactive session inbound receiver
       if (hasPdfDocument && hasActiveMergeSession) {
-        let downloadPath = null;
-
-        try {
-          const fileSizeBytes = toFileSizeBytes(incomingDocumentMsg.fileLength);
-          if (fileSizeBytes > MAX_PDF_LOCAL_INPUT_SIZE) {
-            await this.sock.sendMessage(
-              msg.key.remoteJid,
-              { text: '> *❌ Gagal*\n\nUkuran file maksimal 15MB per PDF untuk merge.' },
-              { quoted: msg }
-            );
-            return;
-          }
-
-          const timestamp = Date.now();
-          const tempDir = await ensureTempDir();
-          const nextIndex = pdfMergeSessionManager.getSessionFiles(userId).length + 1;
-          downloadPath = path.join(tempDir, `input_merge_${timestamp}_${nextIndex}.pdf`);
-
-          const buffer = await downloadMediaMessage(
-            msg,
-            'buffer',
-            {},
-            { reuploadRequest: this.sock.updateMediaMessage }
-          );
-          await fs.writeFile(downloadPath, buffer);
-          const totalFiles = pdfMergeSessionManager.addFileToSession(userId, downloadPath);
-
-          await this.sock.sendMessage(
-            msg.key.remoteJid,
-            { text: `📄 File ke-${totalFiles} diterima! Kirim lagi atau ketik \`/pdf merge done\`.` },
-            { quoted: msg }
-          );
-        } catch (error) {
-          safeUnlinkSync(downloadPath);
-          console.error('Error saat menerima file merge PDF WhatsApp:', error);
-          await this.sock.sendMessage(
-            msg.key.remoteJid,
-            { text: `> *ERROR PDF MERGE* ❌\n\n${error.message}` },
-            { quoted: msg }
-          );
-        }
-
+        await handleWhatsAppPdfMergeUpload(this.sock, msg, incomingDocumentMsg, userId);
         return;
       }
 
@@ -436,9 +148,8 @@ class WhatsAppHandler {
 
         const realId = resolveWhatsAppSenderJid(msg, userId);
 
-        // Log Command with Real Sender ID
         if (command && realId) {
-            await logCommand(realId, 'whatsapp', command);
+          await logCommand(realId, 'whatsapp', command);
         }
 
         const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
@@ -483,389 +194,46 @@ class WhatsAppHandler {
             return;
           }
 
-          replyText = dispatched;
+          replyText = typeof dispatched === 'string' ? dispatched : (dispatched.message || '');
         } else {
           switch (command) {
-
-          case '/img': {
-            let inputPath = null;
-            let outputPath = null;
-
-            try {
-              const imageMsg = msg.message?.imageMessage;
-              if (!imageMsg) {
-                replyText = '> *❌ ERROR CONVERTER*\n\nBalas pesan dengan gambar untuk menggunakan converter.';
-                break;
-              }
-
-              const fileSizeBytes = imageMsg.fileLength || 0;
-              if (fileSizeBytes > MAX_FILE_SIZE) {
-                replyText = '> *❌ Gagal*\n\nUkuran gambar maksimal 5MB!';
-                break;
-              }
-
-              const timestamp = Date.now();
-              const tempDir = await ensureTempDir();
-              inputPath = path.join(tempDir, `input_${timestamp}.jpg`);
-              outputPath = path.join(tempDir, `output_${timestamp}.jpg`);
-
-              const buffer = await downloadMediaMessage(
-                msg,
-                'buffer',
-                {},
-                { reuploadRequest: this.sock.updateMediaMessage }
-              );
-              await fs.writeFile(inputPath, buffer);
-
-              const action = String(args[0] || '').toLowerCase().trim();
-              if (action === 'to' && args[1]) {
-                const format = String(args[1]).toLowerCase();
-                const formatMap = { 'jpg': '.jpg', 'jpeg': '.jpg', 'png': '.png', 'webp': '.webp' };
-                const newExt = formatMap[format] || '.jpg';
-                outputPath = path.join(tempDir, `output_${timestamp}${newExt}`);
-              }
-
-              const result = await handleImgCommand(args, inputPath, outputPath, 'whatsapp');
-              replyText = result.message;
-
-              const outputExists = await fs.stat(outputPath).catch(() => null);
-              if (outputExists && result.success) {
-                const fileBuffer = await fs.readFile(outputPath);
-                const mediaType = outputPath.endsWith('.png') ? 'image/png' : outputPath.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
-                if (action === 'to') {
-                  await this.sock.sendMessage(msg.key.remoteJid, {
-                    document: fileBuffer,
-                    mimetype: mediaType,
-                    fileName: path.basename(outputPath),
-                    caption: '✅ File hasil konversi siap!'
-                  });
-                } else {
-                  await this.sock.sendMessage(msg.key.remoteJid, {
-                    image: fileBuffer,
-                    mimetype: mediaType,
-                    caption: '✅ Gambar siap!'
-                  });
-                }
-              }
-            } catch (error) {
-              console.error('Error in /img handler for WhatsApp:', error);
-              replyText = `> *❌ ERROR CONVERTER*\n\nGagal memproses gambar: ${error.message}`;
-            } finally {
-              if (inputPath) await fs.unlink(inputPath).catch(() => {});
-              if (outputPath) await fs.unlink(outputPath).catch(() => {});
-            }
-            break;
-          }
-
-          case '/tosticker': {
-            try {
-              const mediaSource = getStickerMediaSource(msg, contextInfo);
-              if (!mediaSource) {
-                replyText = '> *❌ FORMAT SALAH*\n\nKirim gambar/video atau balas gambar/video dengan command `/tosticker`.';
-                break;
-              }
-
-              if (mediaSource.mediaType === 'video' && mediaSource.seconds > 5) {
-                replyText = '❌ Gagal: Durasi video maksimal 5 detik!';
-                break;
-              }
-
-              const mediaBuffer = await downloadMediaMessage(
-                mediaSource.mediaMessage,
-                'buffer',
-                {},
-                { reuploadRequest: this.sock.updateMediaMessage }
-              );
-
-              const stickerRes = await handleStickerCommand(mediaBuffer, mediaSource.mediaType === 'video', 'whatsapp');
-              if (stickerRes.success) {
-                await this.sock.sendMessage(
-                  msg.key.remoteJid,
-                  { sticker: stickerRes.buffer },
-                  { quoted: msg }
-                );
-              } else {
-                replyText = stickerRes.message;
-              }
-            } catch (error) {
-              console.error('Error in /tosticker handler for WhatsApp:', error);
-              replyText = `> *❌ ERROR STICKER*\n\nGagal membuat stiker: ${error.message}`;
-            }
-            break;
-          }
-
-          case '/donate': {
-            try {
-              const donateText = buildDonateMessage('whatsapp');
-              const { koFi, saweria } = getDonateQrImagePaths();
-
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                { text: formatWhatsAppReply(donateText) },
-                { quoted: msg }
-              );
-
-              const koFiBuffer = await fs.readFile(koFi);
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                {
-                  image: koFiBuffer,
-                  mimetype: 'image/png',
-                  caption: '🌍 QR Donasi Ko-fi'
-                },
-                { quoted: msg }
-              );
-
-              const saweriaBuffer = await fs.readFile(saweria);
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                {
-                  image: saweriaBuffer,
-                  mimetype: 'image/png',
-                  caption: '🇮🇩 QR Donasi Saweria'
-                },
-                { quoted: msg }
-              );
-            } catch (error) {
-              console.error('Error in /donate handler for WhatsApp:', error);
-              replyText = `❌ Gagal menampilkan info donasi: ${error.message}`;
+            case '/img':
+              replyText = await handleWhatsAppImageConverter(this.sock, msg, args);
               break;
+
+            case '/tosticker':
+              replyText = await handleWhatsAppSticker(this.sock, msg, contextInfo);
+              break;
+
+            case '/hapusbg':
+              replyText = await handleWhatsAppRemoveBg(this.sock, msg);
+              break;
+
+            case '/ss':
+              replyText = await handleWhatsAppScreenshot(this.sock, msg, args);
+              break;
+
+            case '/topdf':
+            case '/pdf':
+              replyText = await handleWhatsAppPdf(this.sock, msg, command, args, userId);
+              break;
+
+            case '/download':
+            case '/audio':
+              replyText = await handleWhatsAppDownloader(this.sock, msg, command, args);
+              break;
+
+            case '/donate':
+              replyText = await sendWhatsAppDonation(this.sock, msg);
+              break;
+
+            default: {
+              const defaultHeader = '> *COMMAND TIDAK DIKENAL* 🤔';
+              const defaultBody = `Perintah "${command}" tidak tersedia.\nCoba \`/ping\`, \`/saldo\`, \`/catat\`, \`/pemasukan\`, \`/laporan_chart\`, atau \`/info\`.`;
+              replyText = `${defaultHeader}\n\n${defaultBody}`;
             }
-
-            return;
-          }
-
-          case '/hapusbg': {
-            let inputPath = null;
-            let outputPath = null;
-
-            try {
-              const imageMsg = msg.message?.imageMessage;
-              if (!imageMsg) {
-                replyText = '> *❌ ERROR REMOVE BG*\n\nBalas pesan dengan gambar untuk menghapus background.';
-                break;
-              }
-
-              const fileSizeBytes = imageMsg.fileLength || 0;
-              if (fileSizeBytes > MAX_FILE_SIZE) {
-                replyText = '> *❌ Gagal*\n\nUkuran gambar maksimal 5MB!';
-                break;
-              }
-
-              const timestamp = Date.now();
-              const tempDir = await ensureTempDir();
-              inputPath = path.join(tempDir, `input_bg_${timestamp}.jpg`);
-              outputPath = path.join(tempDir, `output_bg_${timestamp}.png`);
-
-              const buffer = await downloadMediaMessage(
-                msg,
-                'buffer',
-                {},
-                { reuploadRequest: this.sock.updateMediaMessage }
-              );
-              await fs.writeFile(inputPath, buffer);
-
-              const bgRes = await handleRemoveBgCommand(inputPath, outputPath, 'whatsapp');
-              if (bgRes.success) {
-                const fileBuffer = await fs.readFile(outputPath);
-                await this.sock.sendMessage(
-                  msg.key.remoteJid,
-                  {
-                    image: fileBuffer,
-                    mimetype: 'image/png',
-                    caption: bgRes.caption
-                  },
-                  { quoted: msg }
-                );
-              } else {
-                replyText = bgRes.message;
-              }
-            } catch (error) {
-              console.error('Error in /hapusbg handler for WhatsApp:', error);
-              replyText = `> *ERROR REMOVE BG*\n\n❌ Error: ${error.message}`;
-            } finally {
-              if (inputPath) await fs.unlink(inputPath).catch(() => {});
-              if (outputPath) await fs.unlink(outputPath).catch(() => {});
-            }
-            break;
-          }
-
-          case '/ss': {
-            let outputPath = null;
-
-            try {
-              const url = args.join(' ').trim();
-              const timestamp = Date.now();
-              const tempDir = await ensureTempDir();
-              outputPath = path.join(tempDir, `output_ss_${timestamp}.jpg`);
-
-              const ssRes = await handleHtmlToImageCommand(url, outputPath, 'whatsapp');
-              if (ssRes.success) {
-                const fileBuffer = await fs.readFile(outputPath);
-                await this.sock.sendMessage(
-                  msg.key.remoteJid,
-                  {
-                    image: fileBuffer,
-                    mimetype: 'image/jpeg',
-                    caption: ssRes.caption
-                  },
-                  { quoted: msg }
-                );
-              } else {
-                replyText = ssRes.message;
-              }
-            } catch (error) {
-              console.error('Error in /ss handler for WhatsApp:', error);
-              replyText = `> *ERROR SCREENSHOT*\n\n❌ Error: ${error.message}`;
-            } finally {
-              if (outputPath) await fs.unlink(outputPath).catch(() => {});
-            }
-            break;
-          }
-
-          case '/topdf':
-          case '/pdf': {
-            let inputPath = null;
-            let outputPath = null;
-
-            try {
-              const action = String(args[0] || '').toLowerCase().trim();
-              if (command === '/pdf' && action === 'merge') {
-                const timestamp = Date.now();
-                const tempDir = await ensureTempDir();
-                outputPath = path.join(tempDir, `merged_${timestamp}.pdf`);
-
-                const pdfRes = await handlePdfCommand({
-                  command,
-                  args,
-                  outputPath,
-                  userId,
-                  platform: 'whatsapp'
-                });
-
-                if (pdfRes.type === 'message') {
-                  replyText = pdfRes.message;
-                } else if (pdfRes.success) {
-                  const fileBuffer = await fs.readFile(outputPath);
-                  await this.sock.sendMessage(
-                    msg.key.remoteJid,
-                    {
-                      document: fileBuffer,
-                      mimetype: 'application/pdf',
-                      fileName: path.basename(outputPath),
-                      caption: pdfRes.caption
-                    },
-                    { quoted: msg }
-                  );
-                }
-                break;
-              }
-
-              const documentMsg = msg.message?.documentMessage;
-              const imageMsg = msg.message?.imageMessage;
-              const videoMsg = msg.message?.videoMessage;
-              let source = null;
-
-              if (documentMsg) {
-                source = {
-                  mediaMessage: documentMsg,
-                  inputExt: getExtensionFromFileName(documentMsg.fileName) || getExtensionFromMimeType(documentMsg.mimetype) || 'bin',
-                  fileSize: toFileSizeBytes(documentMsg.fileLength)
-                };
-              } else if (imageMsg) {
-                source = {
-                  mediaMessage: imageMsg,
-                  inputExt: getExtensionFromMimeType(imageMsg.mimetype) || 'jpg',
-                  fileSize: toFileSizeBytes(imageMsg.fileLength)
-                };
-              } else if (videoMsg) {
-                source = {
-                  mediaMessage: videoMsg,
-                  inputExt: getExtensionFromMimeType(videoMsg.mimetype) || 'mp4',
-                  fileSize: toFileSizeBytes(videoMsg.fileLength)
-                };
-              }
-
-              if (!source) {
-                replyText = command === '/topdf'
-                  ? '> *❌ FILE TIDAK DITEMUKAN*\n\nKirim dokumen/media dengan caption `/topdf`.'
-                  : '> *❌ FILE TIDAK DITEMUKAN*\n\nKirim file PDF dengan caption `/pdf compress` atau `/pdf to <format>`.';
-                break;
-              }
-
-              const isLocalPdf = action === 'rotate' || action === 'extract';
-              const maxSize = isLocalPdf ? MAX_PDF_LOCAL_INPUT_SIZE : MAX_PDF_INPUT_SIZE;
-              if (source.fileSize > maxSize) {
-                replyText = `> *❌ Gagal: Ukuran file maksimal ${isLocalPdf ? '15MB' : '10MB'}!*`;
-                break;
-              }
-
-              const isPdfInput = source.inputExt === 'pdf' || String(documentMsg?.mimetype || '').toLowerCase().includes('pdf');
-              if (command === '/pdf' && !isPdfInput) {
-                replyText = '> *❌ FORMAT SALAH*\n\nCommand `/pdf` hanya untuk file PDF.';
-                break;
-              }
-
-              let outputFormat = 'pdf';
-              if (action === 'to' && args[1]) {
-                outputFormat = String(args[1]).replace(/^\./, '').toLowerCase();
-              }
-
-              const timestamp = Date.now();
-              const tempDir = await ensureTempDir();
-              inputPath = path.join(tempDir, `input_${timestamp}.${source.inputExt}`);
-              outputPath = path.join(tempDir, `output_${timestamp}.${outputFormat}`);
-
-              const buffer = await downloadMediaMessage(
-                msg,
-                'buffer',
-                {},
-                { reuploadRequest: this.sock.updateMediaMessage }
-              );
-              await fs.writeFile(inputPath, buffer);
-
-              const pdfRes = await handlePdfCommand({
-                command,
-                args,
-                inputPath,
-                outputPath,
-                inputExt: source.inputExt,
-                userId,
-                platform: 'whatsapp'
-              });
-
-              if (pdfRes.type === 'message') {
-                replyText = pdfRes.message;
-              } else if (pdfRes.success) {
-                const fileBuffer = await fs.readFile(outputPath);
-                await this.sock.sendMessage(
-                  msg.key.remoteJid,
-                  {
-                    document: fileBuffer,
-                    mimetype: getMimeTypeFromExtension(pdfRes.outputFormat || 'pdf'),
-                    fileName: path.basename(outputPath),
-                    caption: pdfRes.caption
-                  },
-                  { quoted: msg }
-                );
-              }
-            } catch (error) {
-              console.error(`Error in ${command} handler for WhatsApp:`, error);
-              replyText = `> *ERROR PDF TOOLS*\n\n${error.message}`;
-            } finally {
-              safeUnlinkSync(inputPath);
-              safeUnlinkSync(outputPath);
-            }
-            break;
-          }
-
-          default: {
-            const defaultHeader = '> *COMMAND TIDAK DIKENAL* 🤔';
-            const defaultBody = `Perintah "${command}" tidak tersedia.\nCoba \`/ping\`, \`/saldo\`, \`/catat\`, \`/pemasukan\`, \`/laporan_chart\`, atau \`/info\`.`;
-            replyText = `${defaultHeader}\n\n${defaultBody}`;
           }
         }
-      }
       } else {
         const isImage = !!msg.message?.imageMessage;
         const isDoc = !!msg.message?.documentMessage;
