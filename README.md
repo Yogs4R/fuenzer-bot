@@ -482,7 +482,7 @@ The `/ask` and `/feedback` features require a Web App URL from Google Apps Scrip
       return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.toString()}))
         .setMimeType(ContentService.MimeType.JSON);
     }
-  }
+   }
    ```
 7. Click **Deploy > New deployment**.
 8. Select **Web app** as the deployment type. Set "Who has access" to **Anyone**.

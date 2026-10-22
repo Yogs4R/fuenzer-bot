@@ -482,7 +482,7 @@ Fitur `/ask` dan `/feedback` membutuhkan URL Web App dari Google Apps Script (GA
       return ContentService.createTextOutput(JSON.stringify({"status": "error", "message": error.toString()}))
         .setMimeType(ContentService.MimeType.JSON);
     }
-  }
+   }
    ```
 7. Klik **Terapkan (Deploy) > Deployment baru**.
 8. Pilih jenis **Aplikasi Web (Web App)**. Set "Akses" ke **Siapa saja (Anyone)**.
