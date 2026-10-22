@@ -169,7 +169,18 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
 
 ---
 
-## 8. Dedicated Browserbase Integration (Separate Command)
+## 8. AI Agent Harness (Natural Language Tool Calling & Butler Interface)
+
+* **Concept:** In addition to classic slash commands (`/catat`, `/balance`, `/weather`), users can converse with Fuenzer Bot naturally in casual language (e.g. *"Bro, catetin tadi beli kopi 35rb sama cek cuaca di Jaksel"* or *"Hey, log $12 for lunch and remind me to call John in 1 hour"*).
+* **Architecture:**
+  * Uses OpenRouter / Gemma native function-calling / structured tool schemas.
+  * Maps natural language intents directly to existing pure domain services (`financeService.addTransaction`, `weatherService.getWeather`, `reminderService.addReminder`).
+  * Because domain services were cleanly decoupled in recent refactoring, the AI Harness acts as a pure orchestrator (`src/services/aiHarnessService.js`) without touching transport sockets.
+* **Friendly Persona:** Returns empathetic, warm, and concise replies in the user's preferred language (`en` or `id`), maintaining the relaxed "sloth butler" tone.
+
+---
+
+## 9. Dedicated Browserbase Integration (Separate Command)
 
 * **Architecture Placement:** Independent module in `src/commands/` and `src/services/browserbaseService.js`.
 * **Purpose:** Cloud-based headless browser automation for web tasks (scraping, anti-bot navigation, visual capture, or data retrieval) triggered via a distinct command (e.g., `/browse` or `/extract`).
@@ -177,26 +188,29 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
 
 ---
 
-## 9. Implementation Roadmap (Deadline: October 25, 2026)
+## 10. Implementation Roadmap (Deadline: October 25, 2026)
 
-- [ ] **Phase 1: Security, Storage & Buffer Ingestion**
+- [ ] **Phase 1: Internationalization (i18n) & Bilingual Command Aliases**
+  - Implement lightweight i18n utility (`src/utils/i18n.js`) with English (`en`) default and Indonesian (`id`) translations (`src/locales/`).
+  - Register bilingual aliases for all existing commands across handlers (e.g. `/balance` ↔ `/saldo`).
+  - Implement `/lang [en|id]` preference management command and persist to user profile.
+- [ ] **Phase 2: Security, Storage & Buffer Ingestion**
   - Implement AES-256-GCM encryption/decryption module in `src/utils/crypto.js`.
   - Create `chat_buffer` and `user_summarize_settings` tables in Supabase.
   - Implement `chatBufferService.js` to encrypt and enqueue incoming group messages.
-- [ ] **Phase 2: Summarizer Service with Gemma & Cron**
+- [ ] **Phase 3: Summarizer Service with Gemma & Cron**
   - Implement `summarizeService.js` calling Gemma API with structured prompts (decrypting buffer on read).
   - Setup automated daily execution and 24-hour purge cron using `node-cron`.
-- [ ] **Phase 3: ElevenLabs Audio Briefing**
+- [ ] **Phase 4: ElevenLabs Audio Briefing**
   - Connect ElevenLabs TTS to synthesize the executive summary.
   - Send voice notes natively to WhatsApp & Telegram.
-- [ ] **Phase 4: Internationalization (i18n) & Command Aliases**
-  - Implement lightweight i18n utility with English (`en`) default and Indonesian (`id`) translations.
-  - Register bilingual aliases for all existing commands across handlers.
-  - Implement `/lang` preference management command.
-- [ ] **Phase 5: Discord & Slack Listeners (Omnichannel Expansion)**
+- [ ] **Phase 5: AI Agent Harness (Natural Language Tool Calling)**
+  - Implement `aiHarnessService.js` with tool definitions for finance, reminders, and weather.
+  - Connect conversational prompt pipeline to allow conversational command execution with friendly replies.
+- [ ] **Phase 6: Discord & Slack Listeners (Omnichannel Expansion)**
   - Add basic message listeners in Discord.js and Slack Bolt.
-- [ ] **Phase 6: Browserbase Dedicated Command**
+- [ ] **Phase 7: Browserbase Dedicated Command**
   - Implement standalone browser automation command.
-- [ ] **Phase 7: English Documentation & DEV Submission**
-  - Update `README.md` in English highlighting the "Slow and Steady" architecture and AES-256 privacy.
+- [ ] **Phase 8: English Documentation & DEV Submission**
+  - Update `README.md` in English highlighting the "Slow and Steady" architecture, AES-256 privacy, and AI Agent Harness.
   - Draft submission for DEV Challenge Week 3.

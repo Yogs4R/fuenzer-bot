@@ -91,6 +91,9 @@ The following architectural decisions are binding across all modules and future 
 * **`[AD-10] Bilingual Internationalization (i18n) & Command Aliasing:`**
   * *Rule:* The bot core defaults to English (`en`) for international hackathon evaluation, with Indonesian (`id`) toggleable per-user/group via `/lang [en|id]`. Command routers must register 1-to-1 bilingual aliases (e.g., `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`) to preserve full backwards-compatibility.
   * *Prevents:* Breaking existing Indonesian user workflows while providing a native English experience for international judges.
+* **`[AD-11] AI Agent Harness & Domain Service Tool-Calling:`**
+  * *Rule:* The bot supports an AI Agent Harness (`src/services/aiHarnessService.js`) enabling users to execute actions via casual natural conversation. The AI harness translates conversational intents into standardized Tool/Function Calling schemas and dispatches execution solely to pure domain services (`src/services/*`), never directly touching transport sockets. Responses are returned in a friendly, conversational tone matching the configured language (`en` or `id`).
+  * *Prevents:* Tight coupling between LLM tool-calling and chat client transports, ensuring bot features can be invoked either via classic slash commands or through conversational AI.
 
 ---
 
@@ -123,6 +126,7 @@ fuenzer-bot/
 │   │   ├── csService.js       # Google Sheets customer service sync
 │   │   ├── monitorService.js  # OS metrics & HTTP website health ping
 │   │   ├── downloaderService.js # Social media video/audio extractors
+│   │   ├── aiHarnessService.js# (Upcoming) Natural language tool-calling & butler harness
 │   │   └── summarizeService.js# (Upcoming) Gemma prompt builder & ElevenLabs voice synth
 │   ├── jobs/                  # Background Cron Daemons
 │   │   ├── serverMonitor.js   # Periodic website uptime polling

@@ -45,7 +45,8 @@ Personal omni-channel productivity bot running concurrently on WhatsApp (Baileys
 
 ## Active Architecture & Roadmap Directives (DEV Challenge Week 3)
 
-- **Detailed Specifications:** Refer to [`docs/PLANNING.md`](./docs/PLANNING.md) for feature planning and [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for system architecture invariants (`[AD-01]` through `[AD-10]`).
+- **Detailed Specifications:** Refer to [`docs/PLANNING.md`](./docs/PLANNING.md) for feature planning and [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for system architecture invariants (`[AD-01]` through `[AD-11]`).
 - **Data Privacy & Encryption:** Any sensitive conversational or financial text persisted to Supabase (`chat_buffer`, transaction details) must be encrypted at rest using **AES-256-GCM** via `src/utils/crypto.js` in format `iv:authTag:ciphertext`. Decryption is strictly application-side.
 - **Ephemeral Chat Retention:** Summarized messages in `chat_buffer` have a 24-hour grace period retention (`is_summarized = TRUE AND created_at < NOW() - INTERVAL '24 hours'`) before automated purge. Inactive/unsummarized messages expire after a 7-day TTL.
 - **Internationalization (i18n) & Aliasing:** The bot defaults to English (`en`) for international evaluation with Indonesian (`id`) toggle via `/lang [en|id]`. All commands must maintain bilingual aliases (e.g., `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`) without breaking legacy workflows.
+- **AI Agent Harness:** Natural language command execution via Tool Calling (`aiHarnessService.js`) invoking domain services (`financeService`, `reminderService`, `weatherService`) with friendly, localized responses.
