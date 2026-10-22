@@ -6,7 +6,6 @@ const path = require('path');
 const axios = require('axios');
 const bot = require('../lib/telegramClient');
 const { Markup } = require('telegraf');
-const { askAiDetailed, translateText } = require('../lib/aiClient');
 const handleFinanceCommand = require('../commands/finance/index');
 const { handleAdminCommand } = require('../commands/admin/index');
 const { getHistoryPage } = require('../services/financeService');
@@ -15,7 +14,7 @@ const { getMonitorWebsiteLinks } = require('../services/monitorService');
 const { handleDevopsCommand, buildSystemStatsFooter } = require('../commands/devops/index');
 const { handleWeatherCommand } = require('../commands/weather/index');
 const { handleReligionCommand } = require('../commands/religion/index');
-const { AI_MODELS, buildModelInfoMessage, setActiveModel } = require('../services/aiPreferenceService');
+const { handleAiCommand, processAiChat, buildAiStatsFooter } = require('../commands/ai/index');
 const { handleImgCommand } = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
 const { createSticker, isFfmpegMissingError } = require('../services/stickerService');
@@ -216,19 +215,7 @@ function formatTelegramHtml(rawText) {
 }
 
 
-function buildAiStatsFooter(aiMeta = {}) {
-    const model = aiMeta.modelName || aiMeta.model || '-';
-    const tokenIn = aiMeta.usage?.promptTokenCount ?? 0;
-    const tokenOut = aiMeta.usage?.candidatesTokenCount ?? 0;
-    const rpmLabel = aiMeta.rpm?.label || '-';
 
-    return [
-        '—'.repeat(19),
-        `Model: ${model}`,
-        `Token In: ${tokenIn} | Token Out: ${tokenOut}`,
-        `RPM: ${rpmLabel}`
-    ].join('\n');
-}
 
 function appendFooter(text, footer) {
     const base = String(text || '').trim();
@@ -793,26 +780,12 @@ async function processMenuCommand(ctx, command, userId) {
             await sendUtilityCommandMessage(ctx, command, userId, args);
             return;
         }
-        case '/model_info': {
-            await ctx.reply(buildModelInfoMessage('telegram'), { parse_mode: 'HTML' });
-            return;
-        }
+        case '/model_info':
         case '/switch': {
-            const alias = String(args[0] || '').trim().toLowerCase();
-
-            if (!alias) {
-                await ctx.reply('❌ Ketik alias modelnya! Contoh: /switch elephant. Cek /model_info.');
-                return;
-            }
-
-            if (!AI_MODELS[alias]) {
-                const knownAliases = Object.keys(AI_MODELS).join(', ');
-                await ctx.reply(`❌ Alias model tidak ditemukan. Alias tersedia: ${knownAliases}. Cek /model_info.`);
-                return;
-            }
-
-            await setActiveModel(userId, 'telegram', alias);
-            await ctx.reply(`✅ Berhasil! Otak AI kamu sekarang menggunakan ${AI_MODELS[alias].name}.`);
+            const parts = ctx.message?.text?.trim()?.split(' ') || [command];
+            const args = parts.slice(1);
+            const replyText = await handleAiCommand(command, args, userId, 'telegram');
+            await ctx.reply(replyText, { parse_mode: 'HTML' });
             return;
         }
         case '/riwayat':
@@ -943,30 +916,22 @@ function setupTelegramBot() {
                     }
                     break;
                     
-                case '/translate':
-                    const lang = args[0];
-                    const optionalText = args.slice(1).join(' ');
-                    let targetText = optionalText;
-
+                case '/translate': {
+                    let quotedText = '';
                     if (ctx.message.reply_to_message) {
                         const replyMsg = ctx.message.reply_to_message;
-                        targetText = replyMsg.text || replyMsg.caption || targetText;
-                    }
-
-                    if (!lang || !targetText || !targetText.trim()) {
-                        await ctx.reply(`<b>FORMAT SALAH</b> ❌\n\nGunakan: <code>/translate [kode_bahasa] [teks]</code>\nAtau reply pesan dengan <code>/translate [kode_bahasa]</code>.\n\nContoh: <code>/translate en Halo dunia</code>`, { parse_mode: 'HTML' });
-                        break;
+                        quotedText = replyMsg.text || replyMsg.caption || '';
                     }
 
                     const translatingMsg = await ctx.reply('⏳ Sedang menerjemahkan, mohon tunggu...');
 
                     try {
-                        const translatedText = await translateText(lang, targetText);
+                        const replyText = await handleAiCommand(command, args, userId, 'telegram', { quotedText });
                         await ctx.telegram.editMessageText(
                             ctx.chat.id,
                             translatingMsg.message_id,
                             null,
-                            `Terjemahan ke ${lang}:\n${translatedText}`
+                            replyText
                         );
                     } catch (err) {
                         console.error('Error in /translate:', err);
@@ -979,6 +944,7 @@ function setupTelegramBot() {
                         );
                     }
                     break;
+                }
 
                 case '/saldo':
                 case '/catat':
@@ -1020,37 +986,13 @@ function setupTelegramBot() {
                     break;
                 }
 
-                case '/model_info': {
-                    try {
-                        await ctx.reply(buildModelInfoMessage('telegram'), { parse_mode: 'HTML' });
-                    } catch (error) {
-                        console.error('Error handling /model_info command in Telegram:', error);
-                        const errorHeader = '<b>ERROR SISTEM</b> ❌';
-                        const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
-                    }
-                    break;
-                }
-
+                case '/model_info':
                 case '/switch': {
                     try {
-                        const alias = String(args[0] || '').trim().toLowerCase();
-
-                        if (!alias) {
-                            await ctx.reply('❌ Ketik alias modelnya! Contoh: /switch elephant. Cek /model_info.');
-                            break;
-                        }
-
-                        if (!AI_MODELS[alias]) {
-                            const knownAliases = Object.keys(AI_MODELS).join(', ');
-                            await ctx.reply(`❌ Alias model tidak ditemukan. Alias tersedia: ${knownAliases}. Cek /model_info.`);
-                            break;
-                        }
-
-                        await setActiveModel(userId, 'telegram', alias);
-                        await ctx.reply(`✅ Berhasil! Otak AI kamu sekarang menggunakan ${AI_MODELS[alias].name}.`);
+                        const replyText = await handleAiCommand(command, args, userId, 'telegram');
+                        await ctx.reply(replyText, { parse_mode: 'HTML' });
                     } catch (error) {
-                        console.error('Error handling /switch command in Telegram:', error);
+                        console.error(`Error handling ${command} command in Telegram:`, error);
                         const errorHeader = '<b>ERROR SISTEM</b> ❌';
                         const errorBody = `Terjadi kesalahan saat memproses perintah: ${escapeHtml(error.message)}`;
                         await ctx.reply(`${errorHeader}\n\n${errorBody}`, { parse_mode: 'HTML' });
@@ -1487,41 +1429,10 @@ function setupTelegramBot() {
                 return;
             }
             
-            try {
-                const aiResult = await askAiDetailed(text, userId, 'telegram');
-                const withAiFooter = appendFooter(aiResult.text, buildAiStatsFooter(aiResult));
-                const formattedReply = formatTelegramHtml(withAiFooter);
-                const finalReply = formatBodyBold(formattedReply);
-                await ctx.reply(finalReply, { parse_mode: 'HTML' });
-            } catch (error) {
-                console.error('Error from OpenRouter AI in Telegram:', error);
-                
-                let errorHeader, errorBody;
-                const message = String(error?.message || '');
-                if (message.includes('429 Rate Limit')) {
-                    errorHeader = '<b>RATE LIMIT AI</b> ⏳';
-                    errorBody = 'Maaf, request AI sedang padat (429 Rate Limit).\nSilakan coba lagi beberapa saat.';
-                } else if (message.includes('401 Unauthorized') || message.includes('403 Forbidden')) {
-                    errorHeader = '<b>AKSES AI DITOLAK</b> 🔒';
-                    errorBody = 'Maaf, akses AI ditolak (401/403).\nAdmin perlu memeriksa API key OpenRouter.';
-                } else if (message.includes('tidak ditemukan di OpenRouter')) {
-                    errorHeader = '<b>MODEL AI TIDAK DITEMUKAN</b> 🔍';
-                    errorBody = 'Maaf, model AI yang dipakai sedang tidak tersedia.\nCoba lagi nanti.';
-                } else if (message.includes('API key OpenRouter')) {
-                    errorHeader = '<b>API KEY AI TIDAK VALID</b> 🔑';
-                    errorBody = 'Maaf, konfigurasi OpenRouter belum lengkap atau tidak valid.\nAdmin telah diberitahu.';
-                } else if (message.includes('Server OpenRouter sedang gangguan')) {
-                    errorHeader = '<b>SERVER AI GANGGUAN</b> 🛠️';
-                    errorBody = 'Maaf, server AI sedang gangguan.\nSilakan coba lagi nanti.';
-                } else {
-                    errorHeader = '<b>ERROR AI</b> ❌';
-                    errorBody = 'Maaf, otak AI sedang gangguan.\nCoba lagi nanti atau gunakan perintah sistem (/ping, /saldo).';
-                }
-                const errorText = appendFooter(`${errorHeader}\n\n${errorBody}`, buildAiStatsFooter({ model: '-', usage: { promptTokenCount: 0, candidatesTokenCount: 0 }, rpm: { label: '-' } }));
-                const formattedError = formatTelegramHtml(errorText);
-                const finalError = formatBodyBold(formattedError);
-                await ctx.reply(finalError, { parse_mode: 'HTML' });
-            }
+            const chatResult = await processAiChat(text, userId, 'telegram');
+            const formattedReply = formatTelegramHtml(chatResult.fullText);
+            const finalReply = formatBodyBold(formattedReply);
+            await ctx.reply(finalReply, { parse_mode: 'HTML' });
         }
     });
 

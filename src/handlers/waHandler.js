@@ -3,14 +3,14 @@ const fs = require('fs/promises');
 const fsSync = require('fs');
 const path = require('path');
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-const { askAiDetailed, translateText } = require('../lib/aiClient');
 const handleFinanceCommand = require('../commands/finance/index');
 const { handleAdminCommand } = require('../commands/admin/index');
 const { isAdmin } = require('../utils/auth');
 const { handleDevopsCommand, buildSystemStatsFooter } = require('../commands/devops/index');
 const { handleWeatherCommand } = require('../commands/weather/index');
 const { handleReligionCommand } = require('../commands/religion/index');
-const { AI_MODELS, buildModelInfoMessage, setActiveModel } = require('../services/aiPreferenceService');
+const { handleAiCommand, processAiChat, formatAiError, buildAiStatsFooter } = require('../commands/ai/index');
+const { buildMultimodalPayload } = require('../utils/aiMediaHelper');
 const { handleImgCommand } = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
 const { createSticker, isFfmpegMissingError } = require('../services/stickerService');
@@ -38,19 +38,7 @@ const MAX_PDF_LOCAL_INPUT_SIZE = 15 * 1024 * 1024;
 const mergeSessions = {};
 
 
-function buildAiStatsFooter(aiMeta = {}) {
-  const model = aiMeta.modelName || aiMeta.model || '-';
-  const tokenIn = aiMeta.usage?.promptTokenCount ?? 0;
-  const tokenOut = aiMeta.usage?.candidatesTokenCount ?? 0;
-  const rpmLabel = aiMeta.rpm?.label || '-';
 
-  return [
-    '—'.repeat(19),
-    `*Model:* ${model}`,
-    `*Token In:* ${tokenIn} | *Token Out:* ${tokenOut}`,
-    `*RPM:* ${rpmLabel}`
-  ].join('\n');
-}
 
 function appendFooter(text, footer) {
   const base = String(text || '').trim();
@@ -515,30 +503,15 @@ class WhatsAppHandler {
           }
 
           case '/translate': {
-            const lang = args[0];
-            const optionalText = args.slice(1).join(' ');
-            let targetText = optionalText;
-
             const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-            if (quotedMsg) {
-              targetText = quotedMsg.conversation ||
-                           quotedMsg.extendedTextMessage?.text ||
-                           quotedMsg.imageMessage?.caption ||
-                           quotedMsg.videoMessage?.caption ||
-                           targetText;
-            }
-
-            if (!lang || !targetText || !targetText.trim()) {
-              replyText = '> *FORMAT SALAH* ❌\n\nGunakan: `/translate [kode_bahasa] [teks]`\nAtau reply pesan dengan `/translate [kode_bahasa]`.\n\nContoh: `/translate en Halo dunia`';
-            } else {
-              try {
-                const translatedText = await translateText(lang, targetText);
-                replyText = `Terjemahan ke ${lang}:\n${translatedText}`;
-              } catch (err) {
-                console.error('Error in /translate:', err);
-                replyText = `> *GAGAL MENERJEMAHKAN* ❌\n\nMaaf, terjadi kesalahan: ${err.message}`;
-              }
-            }
+            const quotedText = quotedMsg ? (
+              quotedMsg.conversation ||
+              quotedMsg.extendedTextMessage?.text ||
+              quotedMsg.imageMessage?.caption ||
+              quotedMsg.videoMessage?.caption ||
+              ''
+            ) : '';
+            replyText = await handleAiCommand(command, args, userId, 'whatsapp', { quotedText });
             break;
           }
 
@@ -594,31 +567,9 @@ class WhatsAppHandler {
             break;
           }
 
-          case '/model_info': {
-            replyText = buildModelInfoMessage('whatsapp');
-            break;
-          }
-
+          case '/model_info':
           case '/switch': {
-            const alias = String(args[0] || '').trim().toLowerCase();
-            if (!alias) {
-              replyText = '❌ Ketik alias modelnya! Contoh: /switch elephant. Cek /model_info.';
-              break;
-            }
-
-            if (!AI_MODELS[alias]) {
-              const knownAliases = Object.keys(AI_MODELS).join(', ');
-              replyText = `❌ Alias model tidak ditemukan. Alias tersedia: ${knownAliases}. Cek /model_info.`;
-              break;
-            }
-
-            try {
-              await setActiveModel(userId, 'whatsapp', alias);
-              replyText = `✅ Berhasil! Otak AI kamu sekarang menggunakan ${AI_MODELS[alias].name}.`;
-            } catch (error) {
-              console.error('Error handling /switch command in WhatsApp:', error);
-              replyText = `❌ Gagal menyimpan model AI: ${error.message}`;
-            }
+            replyText = await handleAiCommand(command, args, userId, 'whatsapp');
             break;
           }
 
@@ -1357,76 +1308,24 @@ class WhatsAppHandler {
               const fileLength = msg.message?.imageMessage?.fileLength || 
                                  msg.message?.documentMessage?.fileLength;
               const fileSizeBytes = Number(fileLength) || 0;
-
-              if (isImage) {
-                if (fileSizeBytes > 5 * 1024 * 1024) {
-                   throw new Error('⛔ Ukuran gambar terlalu besar! Maksimal 5 MB.');
-                }
-                const buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: this.sock.updateMediaMessage });
-                const base64Data = buffer.toString('base64');
-                const promptUser = cleanText || "Tolong jelaskan gambar ini.";
-                const mimeType = msg.message.imageMessage.mimetype || 'image/jpeg';
-                aiPayload = [
-                  { type: "text", text: promptUser },
-                  { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } }
-                ];
-              } else if (isDoc) {
-                if (fileSizeBytes > 10 * 1024 * 1024) {
-                   throw new Error('⛔ Ukuran dokumen terlalu besar! Maksimal 10 MB.');
-                }
-                const docMsg = msg.message.documentMessage;
-                const mimetype = docMsg.mimetype || '';
-                const fileName = docMsg.fileName || '';
-                
-                const isText = mimetype.includes('text') || mimetype.includes('json') || mimetype.includes('csv');
-                const isTextExt = fileName.endsWith('.js') || fileName.endsWith('.md') || fileName.endsWith('.txt') || fileName.endsWith('.csv') || fileName.endsWith('.json');
-                
-                if (isText || isTextExt) {
-                  const buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: this.sock.updateMediaMessage });
-                  const fileContent = buffer.toString('utf-8');
-                  aiPayload = `[Isi File Terlampir:\n${fileContent}\n]\n\n${cleanText}`;
-                } else {
-                  throw new Error('⛔ Mohon maaf, untuk saat ini Fuenzer Bot lebih optimal membaca file berbentuk gambar atau teks (.txt).');
-                }
-              }
+              const buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: this.sock.updateMediaMessage });
+              const docMsg = msg.message?.documentMessage;
+              aiPayload = buildMultimodalPayload({
+                isImage,
+                isDoc,
+                fileSizeBytes,
+                buffer,
+                mimeType: isImage ? (msg.message.imageMessage?.mimetype || 'image/jpeg') : (docMsg?.mimetype || ''),
+                fileName: docMsg?.fileName || '',
+                cleanText
+              });
             }
 
-            const aiResult = await askAiDetailed(aiPayload, userId, 'whatsapp', realId);
-            replyText = appendFooter(aiResult.text, buildAiStatsFooter(aiResult));
+            const chatResult = await processAiChat(aiPayload, userId, 'whatsapp', { realId });
+            replyText = chatResult.fullText;
           } catch (error) {
-            console.error('Error dari OpenRouter AI:', error);
-
-            let errorHeader;
-            let errorBody;
-            const message = String(error?.message || '');
-            if (message.startsWith('⛔') || message.includes('400 Bad Request: ⛔')) {
-              replyText = message.includes('400 Bad Request:') ? message.split('400 Bad Request: ')[1].trim() : message;
-            } else {
-              if (message.includes('429 Rate Limit')) {
-                errorHeader = '> *RATE LIMIT AI* ⏳';
-                errorBody = 'Maaf, request AI sedang padat (429 Rate Limit).\nSilakan coba lagi beberapa saat.';
-              } else if (message.includes('401 Unauthorized') || message.includes('403 Forbidden')) {
-                errorHeader = '> *AKSES AI DITOLAK* 🔒';
-                errorBody = 'Maaf, akses AI ditolak (401/403).\nAdmin perlu memeriksa API key OpenRouter.';
-              } else if (message.includes('tidak ditemukan di OpenRouter')) {
-                errorHeader = '> *MODEL AI TIDAK DITEMUKAN* 🔍';
-                errorBody = 'Maaf, model AI yang dipakai sedang tidak tersedia.\nCoba lagi nanti.';
-              } else if (message.includes('API key OpenRouter')) {
-                errorHeader = '> *API KEY AI TIDAK VALID* 🔑';
-                errorBody = 'Maaf, konfigurasi OpenRouter belum lengkap atau tidak valid.\nAdmin telah diberitahu.';
-              } else if (message.includes('Server OpenRouter sedang gangguan')) {
-                errorHeader = '> *SERVER AI GANGGUAN* 🛠️';
-                errorBody = 'Maaf, server AI sedang gangguan.\nSilakan coba lagi nanti.';
-              } else {
-                errorHeader = '> *ERROR AI* 🤯';
-                errorBody = 'Maaf, otak AI sedang gangguan.\nCoba lagi nanti atau gunakan perintah sistem (/ping, /saldo).';
-              }
-
-              replyText = appendFooter(
-                `${errorHeader}\n\n${errorBody}`,
-                buildAiStatsFooter({ model: '-', usage: { promptTokenCount: 0, candidatesTokenCount: 0 }, rpm: { label: '-' } })
-              );
-            }
+            console.error('Error saat memproses AI di WhatsApp:', error);
+            replyText = formatAiError(error, 'whatsapp');
           }
         }
       }
