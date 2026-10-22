@@ -20,11 +20,12 @@ const { handleImgCommand } = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
 const { createSticker, isFfmpegMissingError } = require('../services/stickerService');
 const { getQuotaStatus } = require('../services/quotaService');
-const { updateStatusAnswered } = require('../services/csService');
+const { handleGoogleCommand, sendToSheet, updateStatusAnswered } = require('../commands/google/index');
+const { handleResearchCommand } = require('../commands/research/index');
+const { handleInfoCommand } = require('../commands/info/index');
 const { logCommand } = require('../services/logService');
 const { shortenUrl } = require('../services/shortenerService');
 const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../services/downloaderService');
-const { searchBooks, searchJournals, searchArticles } = require('../services/researchService');
 const { buildDonateMessage, getDonateQrImagePaths } = require('../services/donateService');
 const {
     MAX_FILE_SIZE,
@@ -299,48 +300,7 @@ function buildDeleteConfirmKeyboard(transactionId) {
     ]);
 }
 
-function formatQuotaLimit(limit) {
-    const numericLimit = Number(limit);
-    return Number.isFinite(numericLimit) && numericLimit > 0 ? String(numericLimit) : 'Unlimited';
-}
 
-function formatQuotaUsageText(status) {
-    const usage = Number(status?.usage || 0);
-    const limitText = formatQuotaLimit(status?.limit);
-    return limitText === 'Unlimited' ? String(usage) : `${usage}/${limitText}`;
-}
-
-async function buildImageToolsQuotaFooter() {
-    const [removeBgStatus, htmlToImageStatus] = await Promise.all([
-        getQuotaStatus('removebg', 50, false),
-        getQuotaStatus('html2img', 50, false)
-    ]);
-
-    return [
-        '—'.repeat(19),
-        `REMOVEBG: Usage: ${formatQuotaUsageText(removeBgStatus)} | Limit: ${formatQuotaLimit(removeBgStatus.limit)}`,
-        `html2img: Usage: ${formatQuotaUsageText(htmlToImageStatus)} | Limit: ${formatQuotaLimit(htmlToImageStatus.limit)}`
-    ].join('\n');
-}
-
-async function buildPdfToolsQuotaFooter() {
-    const cloudConvertStatus = await getQuotaStatus('cloudconvert', 10, true);
-    const cloudConvertLimit = formatQuotaLimit(cloudConvertStatus.limit);
-    const cloudConvertUsage = formatQuotaUsageText(cloudConvertStatus);
-
-    return [
-        '—'.repeat(19),
-        `CloudConvert: Usage: ${cloudConvertUsage} | Limit: ${cloudConvertLimit}`
-    ].join('\n');
-}
-
-function buildImageToolsInfoTelegramBody() {
-    return `Konversi, edit, hapus background, dan screenshot web.\n\n<b>MODE 1 - BALAS FOTO:</b>\n1. Balas pesan dengan gambar/foto\n2. Kirim salah satu command berikut\n\n<pre>/img compress\n/img resize WxH\n/img to format\n/img rotate deg\n/hapusbg</pre>\n\n<b>MODE 2 - SCREENSHOT WEB:</b>\n<pre>/ss https://example.com</pre>\n\n<b>KETERANGAN:</b>\n• /img compress : Kompres ukuran gambar\n• /img resize WxH : Ubah ukuran (contoh: 500x500)\n• /img to format : Format didukung jpg, png, jpeg, webp\n• /img rotate deg : Sudut didukung 90, 180, 270\n• /hapusbg : Hapus background (kuota 50/bulan)\n• /ss &lt;url&gt; : Screenshot website (kuota 50/bulan)\n\n<b>CATATAN REMOVE BG:</b>\nGratis hanya preview rendah (maks 0,25 MP).\n\n<b>BATASAN FILE FOTO:</b> Maks 5MB`;
-}
-
-function buildPdfToolsInfoTelegramBody() {
-    return `Konversi, optimasi, rotasi, ekstrak, dan merge halaman PDF.\n\n<b>MODE 1 - KE PDF:</b>\n1. Balas/kirim dokumen atau media\n2. Kirim command:\n\n<pre>/topdf</pre>\n\n<b>MODE 2 - DARI PDF:</b>\nBalas/kirim file PDF, lalu gunakan:\n\n<pre>/pdf compress\n/pdf to format\n/pdf rotate deg\n/pdf extract 1-3,5</pre>\n\n<b>MODE 3 - MERGE BANYAK PDF:</b>\n<pre>/pdf merge start\n(kirim file PDF satu per satu)\n/pdf merge done\n/pdf merge cancel</pre>\n\n<b>KETERANGAN:</b>\n• /topdf : Konversi file ke PDF (CloudConvert)\n• /pdf compress : Kompres ukuran PDF (CloudConvert)\n• /pdf to format : Konversi PDF ke format lain (CloudConvert)\n• /pdf rotate deg : Rotasi semua halaman PDF (lokal)\n• /pdf extract pages : Ambil halaman tertentu (lokal)\n• /pdf merge start|done|cancel : Gabung banyak PDF (lokal)\n\n<b>CONTOH:</b>\n• <code>/pdf to docx</code>\n• <code>/pdf rotate 90</code>\n• <code>/pdf extract 1-3,5</code>\n• <code>/pdf merge start</code>\n\n<b>BATASAN:</b>\n• CloudConvert: max 10MB, kuota 10 request/hari\n• Proses lokal (rotate/extract/merge): max 15MB per file`;
-}
 
 async function handleUtilityCommand(command, args, userId, platform = 'telegram') {
     if (command === '/cuaca') {
@@ -364,51 +324,7 @@ async function sendUtilityCommandMessage(ctx, command, userId, args = []) {
     await sendTelegramReply(ctx, replyText, linksKeyboard || {});
 }
 
-function buildBookRecommendationMessage(keyword, books = []) {
-    const safeKeyword = escapeHtml(String(keyword || '').trim());
-    const lines = [`📚 REKOMENDASI BUKU: ${safeKeyword}`];
 
-    books.slice(0, 5).forEach((book, index) => {
-        lines.push('');
-        lines.push(`${index + 1}. ${escapeHtml(String(book?.title || '-'))}`);
-        lines.push(`   👤 Penulis: ${escapeHtml(String(book?.author || '-'))}`);
-        lines.push(`   📅 Tahun: ${escapeHtml(String(book?.year || '-'))}`);
-        lines.push(`   🔗 Link: ${escapeHtml(String(book?.url || 'https://openlibrary.org'))}`);
-    });
-
-    return lines.join('\n');
-}
-
-function buildJournalRecommendationMessage(keyword, journals = []) {
-    const safeKeyword = escapeHtml(String(keyword || '').trim());
-    const lines = [`🎓 REFERENSI JURNAL: ${safeKeyword}`];
-
-    journals.slice(0, 5).forEach((item, index) => {
-        lines.push('');
-        lines.push(`${index + 1}. ${escapeHtml(String(item?.title || '-'))}`);
-        lines.push(`   👤 Penulis: ${escapeHtml(String(item?.author || '-'))}`);
-        lines.push(`   📚 Jurnal: ${escapeHtml(String(item?.journal || '-'))}`);
-        lines.push(`   📅 Tahun: ${escapeHtml(String(item?.year || '-'))}`);
-        lines.push(`   🔗 DOI: ${escapeHtml(String(item?.doiUrl || '-'))}`);
-    });
-
-    return lines.join('\n');
-}
-
-function buildArticleRecommendationMessage(keyword, articles = []) {
-    const safeKeyword = escapeHtml(String(keyword || '').trim());
-    const lines = [`📰 REFERENSI ARTIKEL: ${safeKeyword}`];
-
-    articles.slice(0, 5).forEach((item, index) => {
-        lines.push('');
-        lines.push(`${index + 1}. ${escapeHtml(String(item?.title || '-'))}`);
-        lines.push(`   👤 Penulis: ${escapeHtml(String(item?.author || '-'))}`);
-        lines.push(`   📅 Tahun: ${escapeHtml(String(item?.year || '-'))}`);
-        lines.push(`   🔗 Link: ${escapeHtml(String(item?.link || '-'))}`);
-    });
-
-    return lines.join('\n');
-}
 
 async function handleImageConverter(ctx, args) {
     let inputPath = null;
@@ -817,9 +733,7 @@ async function processMenuCommand(ctx, command, userId) {
             return;
         }
         case '/info': {
-            const header = '<b>INFORMASI FUENZER BOT</b> 🤖';
-            const body = `Saya adalah asisten virtual pribadi milik <b>Ridwan Yoga Suryantara</b>.\n\n<b>LAYANAN CS & FEEDBACK</b> 🆘\n• /help : Pusat Bantuan & Feedback\n\n<b>DUKUNGAN BOT</b> ☕\n• /donate : Link dukungan + QR donasi\n\n<b>FITUR KEUANGAN</b> 💰\n• /finance_info : Panduan Lengkap command keuangan\n\n<b>FITUR SISTEM</b> ⚙️\n• /ping : Cek status bot\n• /info : Menampilkan pesan ini\n• /start : Memulai bot\n\n<b>FITUR AI</b> 🧠\nKirim pesan biasa (tanpa awalan /) untuk ngobrol, tanya coding, atau diskusi teknologi.\n<i>(Support deteksi file: Gambar / Dokumen Teks)</i>\n• /model_info : Daftar model AI yang tersedia\n• /switch : Ganti model AI aktif\n\n<b>FITUR TRANSLATE</b> 🌍\n• /translate_info : Panduan Lengkap terjemah kata/kalimat\n\n<b>FITUR UTILITAS</b> 🛠️\n• /short : Pendekkan URL dengan is.gd\n• /research_info : Panduan Lengkap Referensi (buku/jurnal/artikel)\n• /downloader : Panduan Lengkap download (/download & /audio)\n• /remind_info : Panduan Lengkap fitur Reminder pengingat\n• /cuaca : Info cuaca hari ini\n• /sholat : Jadwal sholat hari ini\n• /me : Tentang pembuat bot\n\n<b>FITUR CONVERTER</b> 🖼️\n• /img_info : Panduan Lengkap image tools\n• /pdf_info : Panduan Lengkap PDF tools\n\n<b>FITUR STICKER</b> 🧩\n• /sticker_info : Panduan Lengkap sticker tools\n\n<b>FITUR ADMIN</b> 🛡️\n• /admin : Menu command admin`;
-            const message = `${header}\n\n${body}\n\n${buildSystemStatsFooter('telegram')}`;
+            const message = await handleInfoCommand('/info', [], userId, 'telegram');
             await ctx.reply(message, {
                 parse_mode: 'HTML',
                 ...buildMainMenuKeyboard()
@@ -828,37 +742,24 @@ async function processMenuCommand(ctx, command, userId) {
         }
 
         case '/help': {
-            const header = '<b>Pusat Bantuan & Feedback</b> 🆘';
-            const body = `Jika kamu menemukan bug atau punya pertanyaan seputar fitur bot, gunakan fitur CS ini:\n\n1. <code>/feedback [pesan]</code> : Berikan saran, kritik, atau laporan bug ke tim Fuenzer.\n2. <code>/ask [pesan]</code> : Tanyakan apa saja ke Admin terkait operasional bot.\n\nContoh:\n<code>/feedback Fitur translate error saat menerjemahkan ke bahasa Korea</code>\n<code>/ask Bagaimana cara upgrade kuota premium?</code>`;
-            await ctx.reply(`${header}\n\n${body}`, { parse_mode: 'HTML' });
+            const replyText = await handleGoogleCommand('/help', [], userId, 'telegram');
+            await ctx.reply(replyText, { parse_mode: 'HTML' });
             return;
         }
 
-        case '/translate_info': {
-            const header = '<b>TRANSLATE TOOLS</b> 🌍';
-            const body = `Panduan menggunakan fitur terjemahan AI.\n\n<b>COMMAND INTI:</b>\n• <code>/translate &lt;kode_bahasa&gt; &lt;teks&gt;</code>\n• Atau <b>reply</b> pesan yang ingin diterjemahkan dengan <code>/translate &lt;kode_bahasa&gt;</code>\n\n<b>DAFTAR KODE BAHASA (Ketikkan 2 huruf ini):</b>\n• <code>en</code> : English (Inggris)\n• <code>id</code> : Indonesia\n• <code>jv</code> : Javanese (Jawa)\n• <code>su</code> : Sundanese (Sunda)\n• <code>ms</code> : Malay (Melayu)\n• <code>ar</code> : Arabic (Arab)\n• <code>ja</code> : Japanese (Jepang)\n• <code>ko</code> : Korean (Korea)\n• <code>zh</code> : Chinese (Mandarin)\n• <code>hi</code> : Hindi (India)\n• <code>ru</code> : Russian (Rusia)\n• <code>es</code> : Spanish (Spanyol)\n• <code>fr</code> : French (Perancis)\n• <code>de</code> : German (Jerman)\n• <code>it</code> : Italian (Italia)\n• <code>nl</code> : Dutch (Belanda)\n• <code>pt</code> : Portuguese (Portugis)\n• <code>th</code> : Thai (Thailand)\n• <code>vi</code> : Vietnamese (Vietnam)\n\n<b>CONTOH CEPAT:</b>\n• <code>/translate en Halo dunia, apa kabar?</code>\n• <code>/translate ar Selamat pagi</code>\n\n<b>TIPS:</b>\n• AI otomatis mendeteksi bahasa asli dari teks yang Anda berikan, Anda hanya perlu menentukan bahasa tujuannya.`;
-            await ctx.reply(`${header}\n\n${body}`, { parse_mode: 'HTML' });
+        case '/translate_info':
+        case '/research_info':
+        case '/downloader':
+        case '/remind_info':
+        case '/finance_info':
+        case '/img_info':
+        case '/pdf_info':
+        case '/sticker_info': {
+            const replyText = await handleInfoCommand(command, [], userId, 'telegram');
+            await ctx.reply(replyText, { parse_mode: 'HTML' });
             return;
         }
 
-        case '/research_info': {
-            const header = '<b>RESEARCH TOOLS</b> 📚';
-            const body = `Panduan Lengkap fitur riset Referensi buku, jurnal, dan artikel ilmiah.\n\n<b>COMMAND INTI:</b>\n• /buku &lt;keyword&gt; : Cari rekomendasi buku dari Open Library\n• /jurnal &lt;keyword&gt; : Cari referensi jurnal/artikel ilmiah dari Crossref\n• /artikel &lt;keyword&gt; : Cari artikel ilmiah dari OpenAlex\n\n<b>CONTOH CEPAT:</b>\n• <code>/buku atomic habits</code>\n• <code>/jurnal machine learning</code>\n• <code>/artikel deep learning healthcare</code>\n\n<b>OUTPUT /buku:</b>\n• Judul buku\n• Nama penulis\n• Tahun terbit pertama\n• Link Open Library\n\n<b>OUTPUT /jurnal:</b>\n• Judul artikel/jurnal\n• Nama penulis\n• Nama jurnal\n• Tahun terbit\n• Link DOI\n\n<b>OUTPUT /artikel:</b>\n• Judul artikel\n• Penulis (maks. 3 nama)\n• Tahun\n• Link PDF open access (jika tersedia) atau halaman artikel\n\n<b>TIPS:</b>\n• /jurnal bisa dipakai juga untuk cari artikel ilmiah berbasis kata kunci\n• Pakai kata kunci spesifik agar hasil lebih relevan\n• Jika hasil kurang pas, coba variasi bahasa Inggris/Indonesia`;
-            await ctx.reply(`${header}\n\n${body}`, { parse_mode: 'HTML' });
-            return;
-        }
-        case '/downloader': {
-            const header = '<b>DOWNLOADER TOOLS</b> ⬇️';
-            const body = `Panduan Lengkap untuk download media dan audio.\n\n<b>COMMAND DOWNLOAD:</b>\n• /download &lt;url&gt; : Download media sosial (video/foto)\n• /audio &lt;url&gt; : Download audio dari YouTube/YouTube Music\n\n<b>CONTOH CEPAT:</b>\n• <code>/download https://www.instagram.com/reel/xxxx</code>\n• <code>/audio https://www.youtube.com/watch?v=xxxx</code>\n\n<b>SUPPORT PLATFORM:</b>\n• /download hanya support: Instagram, Twitter/X, YouTube, dan TikTok\n• /audio hanya support: YouTube dan YouTube Music\n\n<b>CATATAN:</b>\n• Jika media terlalu besar atau sumber menolak koneksi, coba ulang beberapa saat lagi`;
-            await ctx.reply(`${header}\n\n${body}`, { parse_mode: 'HTML' });
-            return;
-        }
-        case '/remind_info': {
-            const header = '<b>REMINDER TOOLS</b> ⏰';
-            const body = `Panduan lengkap fitur pengingat (Reminder) Fuenzer Bot.\n\n<b>COMMAND INTI:</b>\n• /remind add &lt;waktu&gt; &lt;pesan&gt; : Buat pengingat sekali jalan\n• /remind loop &lt;waktu&gt; &lt;pesan&gt; : Buat pengingat berulang\n• /remind list : Tampilkan semua pengingat yang aktif\n• /remind hapus &lt;id&gt; : Hapus pengingat berdasarkan ID\n• /remind edit &lt;id&gt; &lt;waktu&gt; &lt;pesan&gt; : Edit pengingat\n\n<b>FORMAT WAKTU (Support Ms):</b>\n• Detik: <code>5s</code>, <code>30s</code>, <code>60s</code>\n• Menit: <code>1m</code>, <code>15m</code>, <code>30m</code>\n• Jam: <code>1h</code>, <code>2h</code>, <code>12h</code>\n• Hari: <code>1d</code>, <code>2d</code>, <code>7d</code>\n\n<b>CONTOH CEPAT:</b>\n• <code>/remind add 15m angkat jemuran</code>\n• <code>/remind loop 1d minum vitamin pagi</code>\n• <code>/remind edit A1B2C 2h minum vitamin siang</code>\n• <code>/remind hapus A1B2C</code>\n\n<b>TIPS:</b>\n• Gunakan <code>/remind list</code> untuk melihat ID unik dari pengingat.\n• Pengingat berulang akan selalu berjalan dengan interval yang telah ditentukan kecuali dihapus.`;
-            await ctx.reply(`${header}\n\n${body}`, { parse_mode: 'HTML' });
-            return;
-        }
         case '/donate': {
             const donateText = buildDonateMessage('telegram');
             const { koFi, saweria } = getDonateQrImagePaths();
@@ -866,12 +767,6 @@ async function processMenuCommand(ctx, command, userId) {
             await ctx.reply(donateText, { parse_mode: 'HTML' });
             await ctx.replyWithPhoto({ source: koFi }, { caption: '🌍 QR Donasi Ko-fi' });
             await ctx.replyWithPhoto({ source: saweria }, { caption: '🇮🇩 QR Donasi Saweria' });
-            return;
-        }
-        case '/finance_info': {
-            const header = '<b>FINANCE TOOLS</b> 💰';
-            const body = `Panduan lengkap fitur keuangan Fuenzer Bot.\n\n<b>COMMAND INTI:</b>\n• /saldo : Lihat ringkasan saldo terbaru\n• /catat &lt;nominal&gt; &lt;keterangan&gt; : Catat pengeluaran\n• /pemasukan &lt;nominal&gt; &lt;keterangan&gt; : Catat pemasukan\n• /laporan_chart : Tampilkan grafik laporan\n• /riwayat [halaman] : Riwayat transaksi (paging 5 data)\n• /edit &lt;id&gt; &lt;field&gt; &lt;nilai&gt; : Ubah transaksi\n• /hapus &lt;id&gt; : Hapus transaksi (dengan konfirmasi)\n\n<b>CONTOH CEPAT:</b>\n• <code>/catat 25000 makan siang</code>\n• <code>/pemasukan 150000 freelance logo</code>\n• <code>/riwayat 2</code>\n• <code>/edit 123e4567 nominal 30000</code>\n• <code>/hapus 123e4567</code>\n\n<b>TIPS:</b>\n• Gunakan /riwayat untuk ambil ID transaksi sebelum /edit atau /hapus\n• Tulisan nominal tanpa titik/koma agar lebih aman diproses`;
-            await ctx.reply(`${header}\n\n${body}`, { parse_mode: 'HTML' });
             return;
         }
         case '/ping': {
@@ -923,28 +818,7 @@ async function processMenuCommand(ctx, command, userId) {
         case '/riwayat':
             await sendHistoryPageMessage(ctx, userId, 1, false);
             return;
-        case '/img_info': {
-            const header = '<b>IMAGE TOOLS</b> 🖼️';
-            const body = buildImageToolsInfoTelegramBody();
-            const footer = await buildImageToolsQuotaFooter();
-            const message = appendFooter(`${header}\n\n${body}`, footer);
-            await ctx.reply(message, { parse_mode: 'HTML' });
-            return;
-        }
-        case '/pdf_info': {
-            const header = '<b>PDF TOOLS</b> 📄';
-            const body = buildPdfToolsInfoTelegramBody();
-            const footer = await buildPdfToolsQuotaFooter();
-            const message = appendFooter(`${header}\n\n${body}`, footer);
-            await ctx.reply(message, { parse_mode: 'HTML' });
-            return;
-        }
-        case '/sticker_info': {
-            const header = '<b>STICKER TOOLS</b> 🧩';
-            const body = 'Panduan Lengkap sticker tools.\n\n/tosticker : Ubah gambar/video (max 5 dtk) jadi stiker.';
-            await ctx.reply(`${header}\n\n${body}`, { parse_mode: 'HTML' });
-            return;
-        }
+
         default:
             return;
     }
@@ -1203,30 +1077,10 @@ function setupTelegramBot() {
                 }
 
                 case '/help':
-                    await processMenuCommand(ctx, '/help', userId);
-                    break;
-
-                case '/feedback': {
-                    const pesan = args.join(' ').trim();
-                    if (!pesan) {
-                        await ctx.reply('Silakan tuliskan pesan feedback setelah command.\nContoh: <code>/feedback bot ini sangat membantu!</code>', { parse_mode: 'HTML' });
-                        break;
-                    }
-                    const { sendToSheet } = require('../services/csService');
-                    await sendToSheet('FEEDBACK', userId, pesan);
-                    await ctx.reply('✅ Terima kasih! Feedback kamu telah masuk ke sistem Fuenzer Studio.', { parse_mode: 'HTML' });
-                    break;
-                }
-
+                case '/feedback':
                 case '/ask': {
-                    const pesan = args.join(' ').trim();
-                    if (!pesan) {
-                        await ctx.reply('Silakan tuliskan pertanyaan setelah command.\nContoh: <code>/ask kapan fitur baru rilis?</code>', { parse_mode: 'HTML' });
-                        break;
-                    }
-                    const { sendToSheet } = require('../services/csService');
-                    await sendToSheet('ASK', userId, pesan);
-                    await ctx.reply('✅ Pertanyaan kamu telah dikirim ke Admin. Harap tunggu balasannya ya!', { parse_mode: 'HTML' });
+                    const replyText = await handleGoogleCommand(command, args, userId, 'telegram');
+                    await ctx.reply(replyText, { parse_mode: 'HTML' });
                     break;
                 }
 
@@ -1512,84 +1366,11 @@ function setupTelegramBot() {
                     break;
                 }
 
-                case '/buku': {
-                    const keyword = String(args.join(' ') || '').trim();
-
-                    if (!keyword) {
-                        await ctx.reply('❌ Masukkan kata kunci buku! Contoh: /buku atomic habits');
-                        break;
-                    }
-
-                    try {
-                        await ctx.reply('⏳ Sedang mencari referensi buku...');
-
-                        const books = await searchBooks(keyword);
-                        if (!Array.isArray(books) || books.length === 0) {
-                            await ctx.reply(`📚 REKOMENDASI BUKU: ${escapeHtml(keyword)}\n\nTidak ada hasil ditemukan. Coba keyword lain.`, { parse_mode: 'HTML' });
-                            break;
-                        }
-
-                        const message = buildBookRecommendationMessage(keyword, books);
-                        await ctx.reply(message, { parse_mode: 'HTML' });
-                    } catch (error) {
-                        console.error('Error handling /buku command in Telegram:', error);
-                        const detailedMessage = String(error?.message || '').trim();
-                        await ctx.reply(detailedMessage || '❌ Gagal mencari buku. Coba lagi beberapa saat.');
-                    }
-                    break;
-                }
-
-                case '/jurnal': {
-                    const keyword = String(args.join(' ') || '').trim();
-
-                    if (!keyword) {
-                        await ctx.reply('❌ Masukkan kata kunci jurnal/artikel! Contoh: /jurnal machine learning');
-                        break;
-                    }
-
-                    try {
-                        await ctx.reply('⏳ Sedang mencari referensi jurnal/artikel...');
-
-                        const journals = await searchJournals(keyword);
-                        if (!Array.isArray(journals) || journals.length === 0) {
-                            await ctx.reply(`🎓 REFERENSI JURNAL: ${escapeHtml(keyword)}\n\nTidak ada hasil ditemukan. Coba keyword lain.`, { parse_mode: 'HTML' });
-                            break;
-                        }
-
-                        const message = buildJournalRecommendationMessage(keyword, journals);
-                        await ctx.reply(message, { parse_mode: 'HTML' });
-                    } catch (error) {
-                        console.error('Error handling /jurnal command in Telegram:', error);
-                        const detailedMessage = String(error?.message || '').trim();
-                        await ctx.reply(detailedMessage || '❌ Gagal mencari jurnal. Coba lagi beberapa saat.');
-                    }
-                    break;
-                }
-
+                case '/buku':
+                case '/jurnal':
                 case '/artikel': {
-                    const keyword = String(args.join(' ') || '').trim();
-
-                    if (!keyword) {
-                        await ctx.reply('❌ Masukkan kata kunci artikel! Contoh: /artikel machine learning');
-                        break;
-                    }
-
-                    try {
-                        await ctx.reply('⏳ Sedang mencari artikel ilmiah...');
-
-                        const articles = await searchArticles(keyword);
-                        if (!Array.isArray(articles) || articles.length === 0) {
-                            await ctx.reply(`📰 REFERENSI ARTIKEL: ${escapeHtml(keyword)}\n\nTidak ada hasil ditemukan. Coba keyword lain.`, { parse_mode: 'HTML' });
-                            break;
-                        }
-
-                        const message = buildArticleRecommendationMessage(keyword, articles);
-                        await ctx.reply(message, { parse_mode: 'HTML' });
-                    } catch (error) {
-                        console.error('Error handling /artikel command in Telegram:', error);
-                        const detailedMessage = String(error?.message || '').trim();
-                        await ctx.reply(detailedMessage || '❌ Gagal mencari artikel ilmiah. Coba lagi beberapa saat.');
-                    }
+                    const replyText = await handleResearchCommand(command, args, userId, 'telegram');
+                    await ctx.reply(replyText, { parse_mode: 'HTML' });
                     break;
                 }
 

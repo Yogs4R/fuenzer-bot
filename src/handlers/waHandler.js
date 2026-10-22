@@ -15,11 +15,12 @@ const { handleImgCommand } = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
 const { createSticker, isFfmpegMissingError } = require('../services/stickerService');
 const { getQuotaStatus } = require('../services/quotaService');
-const { sendToSheet, updateStatusAnswered } = require('../services/csService');
+const { handleGoogleCommand, sendToSheet, updateStatusAnswered } = require('../commands/google/index');
+const { handleResearchCommand } = require('../commands/research/index');
+const { handleInfoCommand, buildImageToolsQuotaFooter, buildPdfToolsQuotaFooter } = require('../commands/info/index');
 const { logCommand } = require('../services/logService');
 const { shortenUrl } = require('../services/shortenerService');
 const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../services/downloaderService');
-const { searchBooks, searchJournals, searchArticles } = require('../services/researchService');
 const { buildDonateMessage, getDonateQrImagePaths } = require('../services/donateService');
 const {
   MAX_FILE_SIZE,
@@ -98,89 +99,6 @@ function formatWhatsAppReply(text) {
   return formatted.join('\n');
 }
 
-function formatQuotaLimit(limit) {
-  const numericLimit = Number(limit);
-  return Number.isFinite(numericLimit) && numericLimit > 0 ? String(numericLimit) : 'Unlimited';
-}
-
-function formatQuotaUsageText(status) {
-  const usage = Number(status?.usage || 0);
-  const limitText = formatQuotaLimit(status?.limit);
-  return limitText === 'Unlimited' ? String(usage) : `${usage}/${limitText}`;
-}
-
-async function buildImageToolsQuotaFooter() {
-  const [removeBgStatus, htmlToImageStatus] = await Promise.all([
-    getQuotaStatus('removebg', 50, false),
-    getQuotaStatus('html2img', 50, false)
-  ]);
-
-  const removeBgLimit = formatQuotaLimit(removeBgStatus.limit);
-  const htmlToImageLimit = formatQuotaLimit(htmlToImageStatus.limit);
-
-  return [
-    '—'.repeat(19),
-    `*RemoveBG:* Usage: ${formatQuotaUsageText(removeBgStatus)} | Limit: ${removeBgLimit}`,
-    `*html2img:* Usage: ${formatQuotaUsageText(htmlToImageStatus)} | Limit: ${htmlToImageLimit}`
-  ].join('\n');
-}
-
-async function buildPdfToolsQuotaFooter() {
-  const cloudConvertStatus = await getQuotaStatus('cloudconvert', 10, true);
-  const cloudConvertLimit = formatQuotaLimit(cloudConvertStatus.limit);
-  const cloudConvertUsage = formatQuotaUsageText(cloudConvertStatus);
-
-  return [
-    '—'.repeat(19),
-    `*CloudConvert:* Usage: ${cloudConvertUsage} | Limit: ${cloudConvertLimit}`
-  ].join('\n');
-}
-
-function buildBookRecommendationText(keyword, books = []) {
-  const safeKeyword = String(keyword || '').trim();
-  const lines = [`📚 REKOMENDASI BUKU: ${safeKeyword}`];
-
-  books.slice(0, 5).forEach((book, index) => {
-    lines.push('');
-    lines.push(`${index + 1}. ${String(book?.title || '-')}`);
-    lines.push(`   👤 Penulis: ${String(book?.author || '-')}`);
-    lines.push(`   📅 Tahun: ${String(book?.year || '-')}`);
-    lines.push(`   🔗 Link: ${String(book?.url || 'https://openlibrary.org')}`);
-  });
-
-  return lines.join('\n');
-}
-
-function buildJournalRecommendationText(keyword, journals = []) {
-  const safeKeyword = String(keyword || '').trim();
-  const lines = [`🎓 REFERENSI JURNAL: ${safeKeyword}`];
-
-  journals.slice(0, 5).forEach((item, index) => {
-    lines.push('');
-    lines.push(`${index + 1}. ${String(item?.title || '-')}`);
-    lines.push(`   👤 Penulis: ${String(item?.author || '-')}`);
-    lines.push(`   📚 Jurnal: ${String(item?.journal || '-')}`);
-    lines.push(`   📅 Tahun: ${String(item?.year || '-')}`);
-    lines.push(`   🔗 DOI: ${String(item?.doiUrl || '-')}`);
-  });
-
-  return lines.join('\n');
-}
-
-function buildArticleRecommendationText(keyword, articles = []) {
-  const safeKeyword = String(keyword || '').trim();
-  const lines = [`📰 REFERENSI ARTIKEL: ${safeKeyword}`];
-
-  articles.slice(0, 5).forEach((item, index) => {
-    lines.push('');
-    lines.push(`${index + 1}. ${String(item?.title || '-')}`);
-    lines.push(`   👤 Penulis: ${String(item?.author || '-')}`);
-    lines.push(`   📅 Tahun: ${String(item?.year || '-')}`);
-    lines.push(`   🔗 Link: ${String(item?.link || '-')}`);
-  });
-
-  return lines.join('\n');
-}
 
 function normalizeWhatsAppId(value) {
   return String(value || '')
@@ -624,38 +542,12 @@ class WhatsAppHandler {
             break;
           }
 
-          case '/finance_info': {
-            const header = '> *FINANCE TOOLS* 💰';
-            const body = `Panduan lengkap fitur keuangan Fuenzer Bot.\n\n*COMMAND INTI:*\n- /saldo : Lihat ringkasan saldo terbaru\n- /catat <nominal> <keterangan> : Catat pengeluaran\n- /pemasukan <nominal> <keterangan> : Catat pemasukan\n- /laporan_chart : Tampilkan grafik laporan\n- /riwayat [halaman] : Riwayat transaksi (paging 5 data)\n- /edit <id> <field> <nilai> : Ubah transaksi\n- /hapus <id> : Hapus transaksi (dengan konfirmasi)\n\n*CONTOH CEPAT:*\n- /catat 25000 makan siang\n- /pemasukan 150000 freelance logo\n- /riwayat 2\n- /edit 123e4567 nominal 30000\n- /hapus 123e4567\n\n*TIPS:*\n- Gunakan /riwayat untuk ambil ID transaksi sebelum /edit atau /hapus\n- Tulisan nominal tanpa titik/koma agar lebih aman diproses`;
-            replyText = `${header}\n\n${body}`;
-            break;
-          }
-
-          case '/remind_info': {
-            const header = '> *REMINDER TOOLS* ⏰';
-            const body = `Panduan lengkap fitur pengingat (Reminder) Fuenzer Bot.\n\n*COMMAND INTI:*\n- /remind add <waktu> <pesan> : Buat pengingat sekali jalan\n- /remind loop <waktu> <pesan> : Buat pengingat berulang\n- /remind list : Tampilkan semua pengingat yang aktif\n- /remind hapus <id> : Hapus pengingat berdasarkan ID\n- /remind edit <id> <waktu> <pesan> : Edit pengingat\n\n*FORMAT WAKTU (Support Ms):*\n- Detik: \`5s\`, \`30s\`, \`60s\`\n- Menit: \`1m\`, \`15m\`, \`30m\`\n- Jam: \`1h\`, \`2h\`, \`12h\`\n- Hari: \`1d\`, \`2d\`, \`7d\`\n\n*CONTOH CEPAT:*\n- /remind add 15m angkat jemuran\n- /remind loop 1d minum vitamin pagi\n- /remind edit A1B2C 2h minum vitamin siang\n- /remind hapus A1B2C\n\n*TIPS:*\n- Gunakan \`/remind list\` untuk melihat ID unik dari pengingat Anda. ID ini digunakan saat Anda ingin mengedit atau menghapus pengingat.\n- Pengingat berulang (loop) akan selalu berjalan dengan interval yang telah ditentukan kecuali dihapus.`;
-            replyText = `${header}\n\n${body}`;
-            break;
-          }
-
-          case '/translate_info': {
-            const header = '> *TRANSLATE TOOLS* 🌍';
-            const body = `Panduan menggunakan fitur terjemahan AI.\n\n*COMMAND INTI:*\n- \`/translate <kode_bahasa> <teks>\`\n- Atau *reply* pesan yang ingin diterjemahkan dengan \`/translate <kode_bahasa>\`\n\n*DAFTAR KODE BAHASA (Ketikkan 2 huruf ini):*\n- \`en\` : English (Inggris)\n- \`id\` : Indonesia\n- \`jv\` : Javanese (Jawa)\n- \`su\` : Sundanese (Sunda)\n- \`ms\` : Sundanese (Sunda)\n- \`ar\` : Arabic (Arab)\n- \`ja\` : Japanese (Jepang)\n- \`ko\` : Korean (Korea)\n- \`zh\` : Chinese (Mandarin)\n- \`hi\` : Hindi (India)\n- \`ru\` : Russian (Rusia)\n- \`es\` : Spanish (Spanyol)\n- \`fr\` : French (Perancis)\n- \`de\` : German (Jerman)\n- \`it\` : Italian (Italia)\n- \`nl\` : Dutch (Belanda)\n- \`pt\` : Portuguese (Portugis)\n- \`th\` : Thai (Thailand)\n- \`vi\` : Vietnamese (Vietnam)\n\n*CONTOH CEPAT:*\n- \`/translate en Halo dunia, apa kabar?\`\n- \`/translate ar Selamat pagi\`\n\n*TIPS:*\n- AI otomatis mendeteksi bahasa asli dari teks yang Anda berikan, Anda hanya perlu menentukan bahasa tujuannya.`;
-            replyText = `${header}\n\n${body}`;
-            break;
-          }
-
-          case '/research_info': {
-            const header = '> *RESEARCH TOOLS* 📚';
-            const body = `Panduan Lengkap fitur riset Referensi buku, jurnal, dan artikel ilmiah.\n\n*COMMAND INTI:*\n- /buku <keyword> : Cari rekomendasi buku dari Open Library\n- /jurnal <keyword> : Cari referensi jurnal/artikel ilmiah dari Crossref\n- /artikel <keyword> : Cari artikel ilmiah dari OpenAlex\n\n*CONTOH CEPAT:*\n- /buku atomic habits\n- /jurnal machine learning\n- /artikel deep learning healthcare\n\n*OUTPUT /buku:*\n- Judul buku\n- Nama penulis\n- Tahun terbit pertama\n- Link Open Library\n\n*OUTPUT /jurnal:*\n- Judul artikel/jurnal\n- Nama penulis\n- Nama jurnal\n- Tahun terbit\n- Link DOI\n\n*OUTPUT /artikel:*\n- Judul artikel\n- Penulis (maks. 3 nama)\n- Tahun\n- Link PDF open access (jika tersedia) atau halaman artikel\n\n*TIPS:*\n- /jurnal bisa dipakai juga untuk cari artikel ilmiah berbasis kata kunci\n- Pakai kata kunci spesifik agar hasil lebih relevan\n- Jika hasil kurang pas, coba variasi bahasa Inggris/Indonesia`;
-            replyText = `${header}\n\n${body}`;
-            break;
-          }
-
+          case '/finance_info':
+          case '/remind_info':
+          case '/translate_info':
+          case '/research_info':
           case '/downloader': {
-            const header = '> *DOWNLOADER TOOLS* ⬇️';
-            const body = `Panduan Lengkap untuk download media dan audio.\n\n*COMMAND DOWNLOAD:*\n- /download <url> : Download media sosial (video/foto)\n- /audio <url> : Download audio dari YouTube/YouTube Music\n\n*CONTOH CEPAT:*\n- /download https://www.instagram.com/reel/xxxx\n- /audio https://www.youtube.com/watch?v=xxxx\n\n*SUPPORT PLATFORM:*\n- /download hanya support: Instagram, Twitter/X, YouTube, dan TikTok\n- /audio hanya support: YouTube dan YouTube Music\n\n*CATATAN:*\n- Jika media terlalu besar atau sumber menolak koneksi, coba ulang beberapa saat lagi`;
-            replyText = `${header}\n\n${body}`;
+            replyText = await handleInfoCommand(command, args, userId, 'whatsapp');
             break;
           }
           
@@ -695,93 +587,10 @@ class WhatsAppHandler {
             break;
           }
 
-          case '/buku': {
-            const keyword = String(args.join(' ') || '').trim();
-
-            if (!keyword) {
-              replyText = '❌ Masukkan kata kunci buku! Contoh: /buku atomic habits';
-              break;
-            }
-
-            try {
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                { text: '⏳ Sedang mencari referensi buku...' },
-                { quoted: msg }
-              );
-
-              const books = await searchBooks(keyword);
-              if (!Array.isArray(books) || books.length === 0) {
-                replyText = `📚 REKOMENDASI BUKU: ${keyword}\n\nTidak ada hasil ditemukan. Coba keyword lain.`;
-                break;
-              }
-
-              replyText = buildBookRecommendationText(keyword, books);
-            } catch (error) {
-              console.error('Error in /buku handler for WhatsApp:', error);
-              const detailedMessage = String(error?.message || '').trim();
-              replyText = detailedMessage || '❌ Gagal mencari buku. Coba lagi beberapa saat.';
-            }
-            break;
-          }
-
-          case '/jurnal': {
-            const keyword = String(args.join(' ') || '').trim();
-
-            if (!keyword) {
-              replyText = '❌ Masukkan kata kunci jurnal/artikel! Contoh: /jurnal machine learning';
-              break;
-            }
-
-            try {
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                { text: '⏳ Sedang mencari referensi jurnal/artikel...' },
-                { quoted: msg }
-              );
-
-              const journals = await searchJournals(keyword);
-              if (!Array.isArray(journals) || journals.length === 0) {
-                replyText = `🎓 REFERENSI JURNAL: ${keyword}\n\nTidak ada hasil ditemukan. Coba keyword lain.`;
-                break;
-              }
-
-              replyText = buildJournalRecommendationText(keyword, journals);
-            } catch (error) {
-              console.error('Error in /jurnal handler for WhatsApp:', error);
-              const detailedMessage = String(error?.message || '').trim();
-              replyText = detailedMessage || '❌ Gagal mencari jurnal. Coba lagi beberapa saat.';
-            }
-            break;
-          }
-
+          case '/buku':
+          case '/jurnal':
           case '/artikel': {
-            const keyword = String(args.join(' ') || '').trim();
-
-            if (!keyword) {
-              replyText = '❌ Masukkan kata kunci artikel! Contoh: /artikel machine learning';
-              break;
-            }
-
-            try {
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                { text: '⏳ Sedang mencari artikel ilmiah...' },
-                { quoted: msg }
-              );
-
-              const articles = await searchArticles(keyword);
-              if (!Array.isArray(articles) || articles.length === 0) {
-                replyText = `📰 REFERENSI ARTIKEL: ${keyword}\n\nTidak ada hasil ditemukan. Coba keyword lain.`;
-                break;
-              }
-
-              replyText = buildArticleRecommendationText(keyword, articles);
-            } catch (error) {
-              console.error('Error in /artikel handler for WhatsApp:', error);
-              const detailedMessage = String(error?.message || '').trim();
-              replyText = detailedMessage || '❌ Gagal mencari artikel ilmiah. Coba lagi beberapa saat.';
-            }
+            replyText = await handleResearchCommand(command, args, userId, 'whatsapp');
             break;
           }
 
@@ -928,24 +737,10 @@ class WhatsAppHandler {
             break;
           }
 
-          case '/img_info': {
-            const header = '> *IMAGE TOOLS* 🖼️';
-            const body = `Konversi, edit, hapus background, dan screenshot web.\n\n*MODE 1 - BALAS FOTO:*\n1. Balas pesan dengan gambar/foto\n2. Kirim salah satu command berikut\n\n\`\`\`\n/img compress\n/img resize WxH\n/img to format\n/img rotate deg\n/hapusbg\n\`\`\`\n\n*MODE 2 - SCREENSHOT WEB:*\n\`\`\`\n/ss https://example.com\n\`\`\`\n\n*KETERANGAN:*\n- /img compress : Kompres ukuran gambar\n- /img resize WxH : Ubah ukuran (contoh: 500x500)\n- /img to format : Format didukung jpg, png, jpeg, webp\n- /img rotate deg : Sudut didukung 90, 180, 270\n- /hapusbg : Hapus background (kuota 50/bulan)\n- /ss <url> : Screenshot website (kuota 50/bulan)\n\n*CATATAN REMOVE BG:*\nGratis hanya preview rendah (maks 0,25 MP).\n\n*BATASAN FILE FOTO:* Maks 5MB`;
-            const footer = await buildImageToolsQuotaFooter();
-            replyText = appendFooter(`${header}\n\n${body}`, footer);
-            break;
-          }
-
-          case '/pdf_info': {
-            const header = '> *PDF TOOLS* 📄';
-            const body = `Konversi, optimasi, rotasi, ekstrak, dan merge halaman PDF.\n\n*MODE 1 - KE PDF:*\nKirim dokumen/media dengan caption:\n\n\`\`\`\n/topdf\n\`\`\`\n\n*MODE 2 - DARI PDF:*\nKirim file PDF dengan caption:\n\n\`\`\`\n/pdf compress\n/pdf to format\n/pdf rotate deg\n/pdf extract 1-3,5\n\`\`\`\n\n*MODE 3 - MERGE BANYAK PDF:*\n\`\`\`\n/pdf merge start\n(kirim file PDF satu per satu)\n/pdf merge done\n/pdf merge cancel\n\`\`\`\n\n*KETERANGAN:*\n- /topdf : Konversi file ke PDF (CloudConvert)\n- /pdf compress : Kompres ukuran PDF (CloudConvert)\n- /pdf to format : Konversi PDF ke format lain (CloudConvert)\n- /pdf rotate deg : Rotasi semua halaman PDF (lokal)\n- /pdf extract pages : Ambil halaman tertentu (lokal)\n- /pdf merge start|done|cancel : Gabung banyak PDF (lokal)\n\n*CONTOH:*\n- /pdf to docx\n- /pdf rotate 90\n- /pdf extract 1-3,5\n- /pdf merge start\n\n*BATASAN:*\n- CloudConvert: max 10MB, kuota 10 request/hari\n- Proses lokal (rotate/extract/merge): max 15MB per file`;
-            const footer = await buildPdfToolsQuotaFooter();
-            replyText = appendFooter(`${header}\n\n${body}`, footer);
-            break;
-          }
-
+          case '/img_info':
+          case '/pdf_info':
           case '/sticker_info': {
-            replyText = '> *STICKER TOOLS* 🧩\n\nPanduan Lengkap sticker tools.\n\n\`/tosticker\` : Ubah gambar/video (max 5 dtk) jadi stiker.';
+            replyText = await handleInfoCommand(command, args, userId, 'whatsapp');
             break;
           }
 
@@ -987,44 +782,16 @@ class WhatsAppHandler {
             break;
           }
 
-          case '/start': {
-            const startHeader = '> *SELAMAT DATANG DI FUENZER BOT* 🤖';
-            const startBody = `Halo! Saya adalah asisten virtual pribadi.\n\nGunakan /info untuk melihat daftar perintah lengkap.\n\nBot ini dapat membantu Anda dengan:\n• Manajemen keuangan (/saldo, /catat, dll)\n• Percakapan AI (langsung ketik pesan)\n• Dan berbagai fitur lainnya!`;
-            replyText = `${startHeader}\n\n${startBody}`;
-            break;
-          }
-
-          case '/help': {
-            replyText = `*PUSAT BANTUAN & FEEDBACK* 🆘\n\nJika kamu menemukan bug atau punya pertanyaan seputar fitur bot, gunakan fitur CS ini:\n\n1. \`/feedback [pesan]\` : Berikan saran, kritik, atau laporan bug ke tim Fuenzer.\n2. \`/ask [pesan]\` : Tanyakan apa saja ke Admin terkait operasional bot.\n\nContoh:\n\`/feedback Fitur translate error saat menerjemahkan ke bahasa Korea\`\n\`/ask Bagaimana cara upgrade kuota premium?\``;
-            break;
-          }
-
-          case '/feedback': {
-            const pesan = args.join(' ').trim();
-            if (!pesan) {
-              replyText = 'Silakan tuliskan pesan feedback setelah command.\nContoh: `/feedback bot ini sangat membantu!`';
-              break;
-            }
-            await sendToSheet('FEEDBACK', realId, pesan);
-            replyText = '✅ Terima kasih! Feedback kamu telah masuk ke sistem Fuenzer Studio.';
-            break;
-          }
-
-          case '/ask': {
-            const pesan = args.join(' ').trim();
-            if (!pesan) {
-              replyText = 'Silakan tuliskan pertanyaan setelah command.\nContoh: `/ask kapan fitur baru rilis?`';
-              break;
-            }
-            await sendToSheet('ASK', realId, pesan);
-            replyText = '✅ Pertanyaan kamu telah dikirim ke Admin. Harap tunggu balasannya ya!';
-            break;
-          }
-
+          case '/start':
           case '/info': {
-            const header = '> *INFORMASI FUENZER BOT* 🤖';
-            const body = `Saya adalah asisten virtual pribadi milik Ridwan Yoga Suryantara.\n\n🆘 *LAYANAN CS & FEEDBACK*\n- \`/help\`           : Pusat Bantuan & Feedback\n\n☕ *DUKUNGAN BOT*\n- \`/donate\`         : Link dukungan + QR donasi\n\n📋 *FITUR KEUANGAN* 💰\n- \`/finance_info\`   : Panduan Lengkap command keuangan\n\n📋 *FITUR SISTEM* ⚙️\n- \`/ping\`           : Cek status bot\n- \`/info\`           : Menampilkan pesan ini\n- \`/start\`          : Memulai bot\n\n💡 *FITUR AI* 🧠\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol, bertanya seputar coding, teknologi, atau sekadar bertukar pikiran!\n*(Support deteksi file: Gambar / Dokumen Teks)*\n- \`/model_info\`     : Daftar model AI yang tersedia\n- \`/switch\`         : Ganti model AI aktif\n\n🌍 *FITUR TRANSLATE*\n- \`/translate_info\` : Panduan Lengkap terjemah kata/kalimat\n\n🛠️ *FITUR UTILITAS*\n- \`/short\`          : Pendekkan URL dengan is.gd\n- \`/research_info\`  : Panduan Lengkap Referensi (buku/jurnal/artikel)\n- \`/downloader\`     : Panduan Lengkap download (/download & /audio)\n- \`/remind_info\`    : Panduan Lengkap fitur Reminder pengingat\n- \`/cuaca\`          : Info cuaca hari ini\n- \`/sholat\`         : Jadwal sholat hari ini\n- \`/me\`             : Tentang pembuat bot\n\n🖼️ *FITUR CONVERTER* 📄\n- \`/img_info\`       : Panduan Lengkap image tools\n- \`/pdf_info\`       : Panduan Lengkap PDF tools\n\n🧩 *FITUR STICKER*\n- \`/sticker_info\`   : Panduan Lengkap sticker tools\n\n🛡️ *FITUR ADMIN*\n- \`/admin\`          : Menu command admin`;
-            replyText = appendFooter(`${header}\n\n${body}`, buildSystemStatsFooter());
+            replyText = await handleInfoCommand(command, args, userId, 'whatsapp');
+            break;
+          }
+
+          case '/help':
+          case '/feedback':
+          case '/ask': {
+            replyText = await handleGoogleCommand(command, args, realId, 'whatsapp');
             break;
           }
 

@@ -77,8 +77,7 @@ async function handleDevopsCommand(command, args = [], userId = '', platform = '
       return await handleAboutMeCommand(command, args, userId, platform);
     }
 
-    case '/monitor':
-    case '/checkweb': {
+    case '/monitor': {
       if (!isAdmin(userId, platform)) {
         return platform === 'whatsapp'
           ? '> *AKSES DITOLAK* ❌\n\nCommand ini khusus admin.'
