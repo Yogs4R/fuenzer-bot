@@ -1,6 +1,6 @@
 // Comprehensive information and guide command handler
 const { getQuotaStatus } = require('../../services/quotaService');
-const { buildDonateMessage, getDonateQrImagePaths } = require('../../services/donateService');
+const { buildDonateMessage } = require('../../services/donateService');
 const { buildSystemStatsFooter } = require('../devops/index');
 
 const { appendFooter } = require('../../utils/textFormatter');
@@ -178,15 +178,8 @@ async function handleInfoCommand(command, args = [], userId = '', platform = 'wh
     case '/info':
       return getInfoMessage(platform);
 
-    case '/donate': {
-      const donateText = buildDonateMessage(platform);
-      const qrPaths = getDonateQrImagePaths();
-      return {
-        type: 'donate',
-        text: donateText,
-        qrPaths
-      };
-    }
+    case '/donate':
+      return buildDonateMessage(platform);
 
     default:
       return 'Perintah panduan tidak dikenali.';
@@ -195,6 +188,5 @@ async function handleInfoCommand(command, args = [], userId = '', platform = 'wh
 
 module.exports = {
   handleInfoCommand,
-  buildDonateMessage,
-  getDonateQrImagePaths
+  buildDonateMessage
 };

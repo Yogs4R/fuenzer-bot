@@ -1,11 +1,9 @@
-const path = require('path');
-
 const SAWERIA_URL = 'https://saweria.co/fuenzer';
 const KOFI_URL = 'https://ko-fi.com/fuenzer';
 
 function buildDonateMessage(platform = 'whatsapp') {
     if (platform === 'telegram') {
-    return `<b>☕ DUKUNG FUENZER BOT</b>
+        return `<b>☕ DUKUNG FUENZER BOT</b>
 
 Halo! Senang rasanya Fuenzer Bot bisa membantumu. 🤖✨
 
@@ -35,16 +33,8 @@ Fuenzer Bot berjalan 24/7 di server cloud menggunakan model AI canggih yang memb
 Dukunganmu menjaga bot ini tetap hidup. Terima kasih! ❤️`;
 }
 
-function getDonateQrImagePaths() {
-    return {
-        koFi: path.join(process.cwd(), 'assets', 'images', 'ko-fi.png'),
-        saweria: path.join(process.cwd(), 'assets', 'images', 'saweria.png')
-    };
-}
-
 module.exports = {
     buildDonateMessage,
-    getDonateQrImagePaths,
     SAWERIA_URL,
     KOFI_URL
 };

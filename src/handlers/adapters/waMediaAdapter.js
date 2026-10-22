@@ -14,10 +14,6 @@ const {
   handleDownloadCommand,
   handleAudioCommand
 } = require('../../commands/downloader/index');
-const {
-  buildDonateMessage,
-  getDonateQrImagePaths
-} = require('../../commands/info/index');
 const { pdfMergeSessionManager } = require('../../utils/sessionManager');
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -621,45 +617,6 @@ async function handleWhatsAppDownloader(sock, msg, command, args) {
   return null;
 }
 
-async function sendWhatsAppDonation(sock, msg) {
-  try {
-    const donateText = buildDonateMessage('whatsapp');
-    const { koFi, saweria } = getDonateQrImagePaths();
-
-    await sock.sendMessage(
-      msg.key.remoteJid,
-      { text: formatWhatsAppReply(donateText) },
-      { quoted: msg }
-    );
-
-    const koFiBuffer = await fs.readFile(koFi);
-    await sock.sendMessage(
-      msg.key.remoteJid,
-      {
-        image: koFiBuffer,
-        mimetype: 'image/png',
-        caption: '🌍 QR Donasi Ko-fi'
-      },
-      { quoted: msg }
-    );
-
-    const saweriaBuffer = await fs.readFile(saweria);
-    await sock.sendMessage(
-      msg.key.remoteJid,
-      {
-        image: saweriaBuffer,
-        mimetype: 'image/png',
-        caption: '🇮🇩 QR Donasi Saweria'
-      },
-      { quoted: msg }
-    );
-    return null;
-  } catch (error) {
-    console.error('Error in sendWhatsAppDonation:', error);
-    return `❌ Gagal menampilkan info donasi: ${error.message}`;
-  }
-}
-
 module.exports = {
   MAX_FILE_SIZE,
   MAX_PDF_INPUT_SIZE,
@@ -681,6 +638,5 @@ module.exports = {
   handleWhatsAppScreenshot,
   handleWhatsAppPdf,
   handleWhatsAppPdfMergeUpload,
-  handleWhatsAppDownloader,
-  sendWhatsAppDonation
+  handleWhatsAppDownloader
 };

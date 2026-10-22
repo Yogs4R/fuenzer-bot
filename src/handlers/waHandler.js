@@ -14,8 +14,7 @@ const {
   handleWhatsAppScreenshot,
   handleWhatsAppPdf,
   handleWhatsAppPdfMergeUpload,
-  handleWhatsAppDownloader,
-  sendWhatsAppDonation
+  handleWhatsAppDownloader
 } = require('./adapters/waMediaAdapter');
 
 function normalizeWhatsAppId(value) {
@@ -221,10 +220,6 @@ class WhatsAppHandler {
             case '/download':
             case '/audio':
               replyText = await handleWhatsAppDownloader(this.sock, msg, command, args);
-              break;
-
-            case '/donate':
-              replyText = await sendWhatsAppDonation(this.sock, msg);
               break;
 
             default: {

@@ -15,10 +15,6 @@ const {
     handleDownloadCommand,
     handleAudioCommand
 } = require('../../commands/downloader/index');
-const {
-    buildDonateMessage,
-    getDonateQrImagePaths
-} = require('../../commands/info/index');
 const { pdfMergeSessionManager } = require('../../utils/sessionManager');
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -512,20 +508,6 @@ async function handleTelegramDownloader(ctx, command, args) {
     }
 }
 
-async function sendTelegramDonation(ctx) {
-    try {
-        const donateText = buildDonateMessage('telegram');
-        const { koFi, saweria } = getDonateQrImagePaths();
-
-        await ctx.reply(donateText, { parse_mode: 'HTML' });
-        await ctx.replyWithPhoto({ source: koFi }, { caption: '🌍 QR Donasi Ko-fi' });
-        await ctx.replyWithPhoto({ source: saweria }, { caption: '🇮🇩 QR Donasi Saweria' });
-    } catch (error) {
-        console.error('Error in sendTelegramDonation:', error);
-        await ctx.reply(`<b>ERROR DONATE</b> ❌\n\n${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
-    }
-}
-
 module.exports = {
     MAX_FILE_SIZE,
     MAX_PDF_INPUT_SIZE,
@@ -543,6 +525,5 @@ module.exports = {
     handleTelegramScreenshot,
     handleTelegramPdfTools,
     handleTelegramPdfMergeUpload,
-    handleTelegramDownloader,
-    sendTelegramDonation
+    handleTelegramDownloader
 };

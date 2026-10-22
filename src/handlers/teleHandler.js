@@ -18,8 +18,7 @@ const {
     handleTelegramScreenshot,
     handleTelegramPdfTools,
     handleTelegramPdfMergeUpload,
-    handleTelegramDownloader,
-    sendTelegramDonation
+    handleTelegramDownloader
 } = require('./adapters/teleMediaAdapter');
 
 const {
@@ -87,11 +86,6 @@ async function sendTelegramReply(ctx, payload, extra = {}) {
 }
 
 async function processMenuCommand(ctx, command, userId) {
-    if (command === '/donate') {
-        await sendTelegramDonation(ctx);
-        return;
-    }
-
     if (command === '/riwayat') {
         await handleTeleRiwayat(ctx, userId, []);
         return;
@@ -172,10 +166,6 @@ function setupTelegramBot() {
 
                 case '/hapus':
                     await handleTeleHapusConfirmation(ctx, args);
-                    break;
-
-                case '/donate':
-                    await sendTelegramDonation(ctx);
                     break;
 
                 case '/img':
