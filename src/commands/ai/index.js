@@ -1,6 +1,6 @@
 // AI commands and reasoning isolation handler
 const { AI_MODELS, buildModelInfoMessage, setActiveModel, getActiveModel } = require('../../services/aiPreferenceService');
-const { askAiDetailed, translateText } = require('../../lib/aiClient');
+const { askAiDetailed, translateText } = require('../../lib/openrouterClient');
 
 const { appendFooter } = require('../../utils/textFormatter');
 
