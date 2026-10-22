@@ -81,18 +81,24 @@ Fuenzer Bot uses a unified adapter pattern (`MessageAdapter`) to normalize incom
 
 ---
 
-## 5. Storage & Database Schema (Supabase)
+## 5. Storage, Encryption & Privacy Policy (Supabase)
 
-To maintain privacy and prevent bloating, messages are stored only temporarily in Supabase until processed:
+To guarantee end-to-end user privacy and prevent storage bloating, messages are encrypted at rest and stored only temporarily in Supabase:
 
+### A. Field-Level AES-256-GCM Encryption
+* **Industry Standard Security:** Sensitive message content (`message_text`, `chat_name`, `sender_name`) must be encrypted prior to insertion into Supabase using **AES-256-GCM** via `src/utils/crypto.js`.
+* **Payload Structure:** Stored as `iv:authTag:ciphertext` (hex-encoded string). 
+* **Key Management:** Encrypted and decrypted with a 32-byte secret key (`ENCRYPTION_KEY`) in environment variables. Even direct database inspection reveals zero plain text conversation data.
+
+### B. Database Schema
 ```sql
 CREATE TABLE chat_buffer (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     platform VARCHAR(30) NOT NULL,       -- 'whatsapp', 'telegram', 'discord', 'slack'
     chat_id VARCHAR(100) NOT NULL,       -- Group/Room identifier
-    chat_name VARCHAR(150),              -- Readable group title
-    sender_name VARCHAR(100),            -- Sender display name
-    message_text TEXT NOT NULL,          -- Message body
+    chat_name TEXT,                      -- AES-256-GCM encrypted group title
+    sender_name TEXT,                    -- AES-256-GCM encrypted sender display name
+    message_text TEXT NOT NULL,          -- AES-256-GCM encrypted message body
     is_summarized BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -103,30 +109,67 @@ CREATE TABLE user_summarize_settings (
     is_active BOOLEAN DEFAULT TRUE,
     schedule_time VARCHAR(5) DEFAULT '08:00', -- 24h format
     voice_note_enabled BOOLEAN DEFAULT TRUE,
+    language VARCHAR(5) DEFAULT 'en',         -- 'en' (default) or 'id'
     last_run_at TIMESTAMPTZ
 );
 ```
 
+### C. Ephemeral Retention & 24-Hour Grace Period Purge
+* **Post-Summarization Grace Period (24 Hours):** Once messages are processed and delivered as the morning summary, they are marked `is_summarized = TRUE`. A 24-hour retention buffer is maintained to allow re-summarization or manual audit before being permanently expunged.
+* **Automated Cleanup Query:**
+  ```sql
+  -- Daily cron deletes summarized messages older than 24 hours
+  DELETE FROM chat_buffer 
+  WHERE is_summarized = TRUE 
+    AND created_at < NOW() - INTERVAL '24 hours';
+
+  -- Fallback TTL deletes inactive unsummarized messages older than 7 days
+  DELETE FROM chat_buffer 
+  WHERE is_summarized = FALSE 
+    AND created_at < NOW() - INTERVAL '7 days';
+  ```
+
 ---
 
-## 6. Open-Weight Model (Gemma) & ElevenLabs Integration
+## 6. Internationalization (i18n) & Bilingual Command Aliasing
+
+To deliver an exceptional experience for the international DEV Challenge Week 3 jury while maintaining full backwards-compatibility for existing Indonesian users:
+
+### A. Default Language: English (`en`)
+* All command responses, help texts, system alerts, and AI morning briefing prompts default to **English (`en`)**.
+* Users and group admins can toggle their preferred language at any time using:
+  * `/lang en` or `/language en`: Set language to English.
+  * `/lang id` or `/language id`: Set language to Indonesian (Bahasa Indonesia).
+  * `/lang`: Check current language setting.
+
+### B. Bilingual Command Aliasing
+Command modules in `src/commands/` support simultaneous English and Indonesian triggers through command aliasing:
+* **Finance:** `/balance` ↔ `/saldo`, `/record` / `/expense` ↔ `/catat` / `/pengeluaran`, `/income` ↔ `/pemasukan`, `/history` ↔ `/riwayat`, `/delete` ↔ `/hapus`
+* **Weather:** `/weather` ↔ `/cuaca`, `/earthquake` ↔ `/gempa`
+* **Religion:** `/prayer` ↔ `/jadwalsholat`, `/qibla` ↔ `/kiblat`
+* **DevOps:** `/system` ↔ `/sistem`, `/ping`, `/checkweb`
+* **Summarizer:** `/summarize` ↔ `/ringkas`
+
+---
+
+## 7. Open-Weight Model (Gemma) & ElevenLabs Integration
 
 * **Model:** `google/gemma-4-26b-a4b-it` (or `google/gemma-2-9b-it:free`) via OpenRouter / Groq API.
 * **Why Serverless:** Zero local RAM/GPU footprint on the Azure VM; high throughput and instant latency.
 * **Prompt Structure:**
   * System prompt instructing Gemma to be an executive, casual "sloth butler".
   * Strict extraction of:
-    1. **Summary:** 2–3 sentences max.
+    1. **Summary:** 2–3 sentences max (localized to user's configured language, default English).
     2. **Urgent Items:** Bullet points with `@mention` or actionable commitments.
     3. **Filtered Ratio:** E.g., *"Analyzed 412 messages: 88% casual banter, 12% important topics."*
 * **ElevenLabs Pipeline:**
-  * Takes the 2–3 sentence summary.
+  * Takes the 2–3 sentence executive summary.
   * Generates audio via ElevenLabs TTS API using a calm, soothing voice.
   * Sends directly as a native voice message / audio attachment to Telegram & WhatsApp.
 
 ---
 
-## 7. Dedicated Browserbase Integration (Separate Command)
+## 8. Dedicated Browserbase Integration (Separate Command)
 
 * **Architecture Placement:** Independent module in `src/commands/` and `src/services/browserbaseService.js`.
 * **Purpose:** Cloud-based headless browser automation for web tasks (scraping, anti-bot navigation, visual capture, or data retrieval) triggered via a distinct command (e.g., `/browse` or `/extract`).
@@ -134,21 +177,26 @@ CREATE TABLE user_summarize_settings (
 
 ---
 
-## 8. Implementation Roadmap (Deadline: October 25, 2026)
+## 9. Implementation Roadmap (Deadline: October 25, 2026)
 
-- [ ] **Phase 1: Database & Buffer Service**
+- [ ] **Phase 1: Security, Storage & Buffer Ingestion**
+  - Implement AES-256-GCM encryption/decryption module in `src/utils/crypto.js`.
   - Create `chat_buffer` and `user_summarize_settings` tables in Supabase.
-  - Implement `chatBufferService.js` to enqueue incoming group messages.
+  - Implement `chatBufferService.js` to encrypt and enqueue incoming group messages.
 - [ ] **Phase 2: Summarizer Service with Gemma & Cron**
-  - Implement `summarizeService.js` calling Gemma API with structured prompts.
-  - Setup automated daily execution using `node-cron`.
+  - Implement `summarizeService.js` calling Gemma API with structured prompts (decrypting buffer on read).
+  - Setup automated daily execution and 24-hour purge cron using `node-cron`.
 - [ ] **Phase 3: ElevenLabs Audio Briefing**
   - Connect ElevenLabs TTS to synthesize the executive summary.
   - Send voice notes natively to WhatsApp & Telegram.
-- [ ] **Phase 4: Discord & Slack Listeners (Omnichannel Expansion)**
+- [ ] **Phase 4: Internationalization (i18n) & Command Aliases**
+  - Implement lightweight i18n utility with English (`en`) default and Indonesian (`id`) translations.
+  - Register bilingual aliases for all existing commands across handlers.
+  - Implement `/lang` preference management command.
+- [ ] **Phase 5: Discord & Slack Listeners (Omnichannel Expansion)**
   - Add basic message listeners in Discord.js and Slack Bolt.
-- [ ] **Phase 5: Browserbase Dedicated Command**
+- [ ] **Phase 6: Browserbase Dedicated Command**
   - Implement standalone browser automation command.
-- [ ] **Phase 6: English Documentation & DEV Submission**
-  - Update `README.md` in English highlighting the "Slow and Steady" architecture.
+- [ ] **Phase 7: English Documentation & DEV Submission**
+  - Update `README.md` in English highlighting the "Slow and Steady" architecture and AES-256 privacy.
   - Draft submission for DEV Challenge Week 3.

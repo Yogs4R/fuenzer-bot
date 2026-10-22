@@ -73,9 +73,9 @@ The following architectural decisions are binding across all modules and future 
 * **`[AD-04] Resilient WhatsApp Reconnect Loop:`**
   * *Rule:* Disconnection events emitted by Baileys (`connection.update` with `connection === 'close'`) must trigger a non-blocking exponential/randomized backoff reconnect (10–20 seconds) in `src/index.js`.
   * *Prevents:* Bot termination during WhatsApp server maintenance or IP address renewal.
-* **`[AD-05] 7-Day Rolling Retention for Chat Buffer:`**
-  * *Rule:* Buffered group chats in Supabase (`chat_buffer`) must be marked `is_summarized = TRUE` upon delivery of the morning briefing. A daily automated cleanup task removes records where `is_summarized = TRUE AND created_at < NOW() - INTERVAL '7 days'`.
-  * *Prevents:* Database table bloating while preserving a 7-day window for auditing or re-summarization.
+* **`[AD-05] Ephemeral 24-Hour Retention for Summarized Chat Buffer:`**
+  * *Rule:* Buffered group chats in Supabase (`chat_buffer`) must be marked `is_summarized = TRUE` upon delivery of the morning briefing. A daily automated cleanup task removes records where `is_summarized = TRUE AND created_at < NOW() - INTERVAL '24 hours'`. Unsummarized messages from inactive groups are purged after a 7-day fallback TTL.
+  * *Prevents:* Database table bloating and privacy exposure while preserving a 24-hour grace period for auditing or re-summarization.
 * **`[AD-06] Platform-Specific Markdown Formatting:`**
   * *Rule:* Outgoing text messages must be passed through `formatWhatsAppReply()` (asterisks `*bold*`, underscores `_italic_`) or formatted with HTML tags (`<b>`, `<i>`, `<code>`) for Telegram.
   * *Prevents:* Raw markdown syntax rendering awkwardly across disparate chat clients.
@@ -85,6 +85,12 @@ The following architectural decisions are binding across all modules and future 
 * **`[AD-08] Automated Remote Deployment on Main Push:`**
   * *Rule:* Any push to branch `main` triggers GitHub Actions (`.github/workflows/deploy.yml`), executing SSH commands to pull changes, run `npm install`, and restart the PM2 daemon (`pm2 restart fuenzerbot`).
   * *Prevents:* Manual SSH deployment overhead and service downtime.
+* **`[AD-09] Field-Level Encryption at Rest (AES-256-GCM):`**
+  * *Rule:* Sensitive user conversation data in Supabase (`chat_buffer.message_text`, `chat_buffer.chat_name`, `chat_buffer.sender_name`) and sensitive ledger notes must be encrypted prior to insertion via `src/utils/crypto.js` using AES-256-GCM (`iv:authTag:ciphertext`). Decryption occurs only at the application layer prior to AI summarization or user delivery.
+  * *Prevents:* Plaintext exposure of user messages and privacy leaks inside cloud database tables.
+* **`[AD-10] Bilingual Internationalization (i18n) & Command Aliasing:`**
+  * *Rule:* The bot core defaults to English (`en`) for international hackathon evaluation, with Indonesian (`id`) toggleable per-user/group via `/lang [en|id]`. Command routers must register 1-to-1 bilingual aliases (e.g., `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`) to preserve full backwards-compatibility.
+  * *Prevents:* Breaking existing Indonesian user workflows while providing a native English experience for international judges.
 
 ---
 
@@ -128,8 +134,13 @@ fuenzer-bot/
 │   │   ├── supabaseClient.js  # Supabase client singleton
 │   │   ├── openrouterClient.js# OpenRouter / Gemma client
 │   │   └── googleClient.js    # Google API auth & Sheets client
+│   ├── locales/               # Localization strings (i18n)
+│   │   ├── en.json            # English translations (default)
+│   │   └── id.json            # Indonesian translations
 │   └── utils/
 │       ├── auth.js            # Admin privilege validator (`isAdmin`)
+│       ├── crypto.js          # Field-level AES-256-GCM encryption/decryption
+│       ├── i18n.js            # Language switcher & translator helper
 │       ├── formatter.js       # Currency, bullet lists, markdown adapters
 │       ├── fileManager.js     # Temp file allocation & cleanup
 │       └── logger.js          # Pino structured logger
@@ -178,15 +189,16 @@ sequenceDiagram
     actor User as User Private DM
 
     Cron->>Buffer: Query unsummarized messages (is_summarized = false)
-    Buffer-->>Cron: Return buffered messages (300+ items)
-    Cron->>Gemma: POST /chat/completions (Strict Sloth Prompt)
+    Buffer-->>Cron: Return encrypted messages (iv:authTag:ciphertext)
+    Cron->>Cron: Decrypt messages using AES-256-GCM
+    Cron->>Gemma: POST /chat/completions (Strict Sloth Prompt in user's language)
     Gemma-->>Cron: 1. Sloth TL;DR (3 lines)<br/>2. Action Items<br/>3. Noise Ratio
     Cron->>Eleven: POST /v1/text-to-speech (Calm persona)
     Eleven-->>Cron: Audio binary buffer (audio/ogg)
     Cron->>Bot: Dispatch briefing text & voice note
     Bot->>User: Send text summary & native voice note to DM
     Cron->>Buffer: UPDATE chat_buffer SET is_summarized = true
-    Cron->>Buffer: DELETE FROM chat_buffer WHERE is_summarized = true AND created_at < NOW() - 7 days
+    Cron->>Buffer: DELETE FROM chat_buffer WHERE is_summarized = true AND created_at < NOW() - 24 hours
 ```
 
 ---
@@ -242,9 +254,9 @@ erDiagram
         uuid id PK
         string platform
         string chat_id
-        string chat_name
-        string sender_name
-        text message_text
+        text chat_name "AES-256-GCM Encrypted"
+        text sender_name "AES-256-GCM Encrypted"
+        text message_text "AES-256-GCM Encrypted"
         boolean is_summarized
         timestamptz created_at
     }
@@ -254,6 +266,7 @@ erDiagram
         boolean is_active
         string schedule_time
         boolean voice_note_enabled
+        string language "Default: 'en', Options: 'en', 'id'"
         timestamptz last_run_at
     }
 ```
@@ -262,11 +275,17 @@ erDiagram
 1. **Indexes:**
    - `idx_transactions_user_created`: `CREATE INDEX ON transactions (user_id, created_at DESC);`
    - `idx_chat_buffer_unsummarized`: `CREATE INDEX ON chat_buffer (is_summarized, created_at) WHERE is_summarized = FALSE;`
-2. **7-Day Rolling Purge:**
+2. **Ephemeral Retention & Purge Policies:**
    - Supported via Node.js cron or PostgreSQL scheduled query:
    ```sql
+   -- Purge summarized records after 24-hour grace period
    DELETE FROM chat_buffer 
    WHERE is_summarized = TRUE 
+     AND created_at < NOW() - INTERVAL '24 hours';
+
+   -- Purge stale unsummarized records from inactive groups after 7 days
+   DELETE FROM chat_buffer 
+   WHERE is_summarized = FALSE 
      AND created_at < NOW() - INTERVAL '7 days';
    ```
 
