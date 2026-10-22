@@ -1,38 +1,82 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="WhatsApp" />
-  <img src="https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram" />
-  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
-  <img src="https://img.shields.io/badge/AI_Powered-OpenRouter-blue?style=for-the-badge" alt="AI Powered" />
+  <img src="assets/images/banner.png" alt="Fuenzer Bot Banner" width="70%" />
+</p>
+
+<h1 align="center">Fuenzer Bot</h1>
+
+<p align="center">
+  <b>The Autonomous Omni-Channel Personal Productivity Assistant</b><br>
+  Runs concurrently on WhatsApp & Telegram · Powered by Node.js, Supabase, and Serverless AI
 </p>
 
 <p align="center">
-  <img src="assets/images/banner.png" alt="Fuenzer Bot Banner" width="100%" />
+  <a href="https://github.com/Yogs4R/fuenzer-bot/releases"><img src="https://img.shields.io/github/v/release/Yogs4R/fuenzer-bot?style=flat-square&color=blue" alt="Release" /></a>
+  <a href="https://github.com/Yogs4R/fuenzer-bot/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Yogs4R/fuenzer-bot/ci.yml?style=flat-square&label=CI" alt="CI Status" /></a>
+  <img src="https://img.shields.io/badge/Node.js-20_LTS-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/WhatsApp-Baileys-25D366?style=flat-square&logo=whatsapp&logoColor=white" alt="WhatsApp" />
+  <img src="https://img.shields.io/badge/Telegram-Telegraf-2CA5E0?style=flat-square&logo=telegram&logoColor=white" alt="Telegram" />
+  <img src="https://img.shields.io/badge/Database-Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" />
 </p>
 
-<h1 align="center">Personal Bot Core - Fuenzer Bot</h1>
+<p align="center">
+  <a href="#what-is-fuenzer-bot">About</a> •
+  <a href="#preview">Preview</a> •
+  <a href="#features">Features</a> •
+  <a href="#command-reference-table">Commands</a> •
+  <a href="#installation">Installation</a> •
+  <a href="docs/ARCHITECTURE.md">Architecture</a> •
+  <a href="docs/CICD.md">CI/CD</a> •
+  <a href="docs/PRD.md">PRD</a>
+</p>
 
 <h4 align="center">
-    <a href="README.md">English</a> | <a href="README.id.md">Indonesia</a>
+  <a href="README.md">English</a> | <a href="README.id.md">Bahasa Indonesia</a>
 </h4>
 
 <p align="center">
-  <a href="https://ko-fi.com/fuenzer">
+  <a href="https://ko-fi.com/fuenzer" target="_blank" rel="noopener noreferrer">
     <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support via Ko-fi" />
   </a>
-  <a href="https://saweria.co/fuenzer">
+  &nbsp;&nbsp;
+  <a href="https://saweria.co/fuenzer" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/Saweria-Dukung%20Fuenzer%20Bot-FF6B00?style=for-the-badge&logo=buymeacoffee&logoColor=white" alt="Support via Saweria" />
   </a>
 </p>
 
-Fuenzer Bot is a standalone virtual assistant that runs in parallel on WhatsApp and Telegram. Designed to increase daily productivity by combining financial management, artificial intelligence, media file processing, and personal server monitoring.
+---
+
+## What is Fuenzer Bot?
+
+**Fuenzer Bot** is a high-availability, standalone virtual assistant engineered to increase daily productivity by bringing financial management, multi-modal AI reasoning, document processing, and server monitoring directly into your everyday chat apps (WhatsApp & Telegram) with zero context switching.
+
+* **🔄 Omni-Channel Architecture:** Operates simultaneously on WhatsApp (via Baileys) and Telegram (via Telegraf).
+* **🦥 Automated Morning Briefings:** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma and soothing ElevenLabs voice notes.
+* **💰 Frictionless Personal Finance:** Track income and expenses on-the-fly, inspect real-time balances, and render visual monthly charts.
+* **🛠 Swiss Army Knife Utilities:** Generate/convert WebP stickers, remove image backgrounds, compress/merge PDFs, and monitor cloud VM server health.
+
+---
+
+## Preview
+
+<p align="center">
+  <img src="assets/images/screenshot-wa.png" alt="WhatsApp Bot Screenshot" width="45%" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/images/screenshot-tele.png" alt="Telegram Bot Screenshot" width="45%" />
+</p>
+<p align="center">
+  <i>Seamless dual-platform interface: Native WhatsApp formatting (left) and Telegram rich HTML (right).</i>
+</p>
+
+---
 
 ## Index
 
+- [What is Fuenzer Bot?](#what-is-fuenzer-bot)
+- [Preview](#preview)
 - [Features](#features)
 - [Command Reference Table](#command-reference-table)
   - [Admin Commands Table](#admin-commands-table)
-- [Preview](#preview)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [VM Deployment Tutorial (From Scratch to PM2 Start)](#vm-deployment-tutorial-from-scratch-to-pm2-start)
@@ -164,15 +208,6 @@ Simple ticketing system to receive user questions and feedback:
 | /ai_usage | Show AI usage stats by model | admin module, log service | /ai_usage |
 | /broadcast | Send admin broadcast to users | admin module, WhatsApp/Telegram clients | /broadcast maintenance tonight |
 | /answer | Reply to user question (admin only) | csService, admin module | /answer 628123xxx admin message |
-
----
-
-## Preview
-
-| Platform | Screenshot |
-|---|---|
-| WhatsApp Bot | <img src="assets/images/screenshot-wa.png" alt="WhatsApp Bot Screenshot" width="260" /> |
-| Telegram Bot | <img src="assets/images/screenshot-tele.png" alt="Telegram Bot Screenshot" width="260" /> |
 
 ---
 
@@ -491,3 +526,4 @@ The `/ask` and `/feedback` features require a Web App URL from Google Apps Scrip
    ```env
    GAS_WEBAPP_URL="YOUR_WEBAPP_URL_HERE"
    ```
+

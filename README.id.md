@@ -1,38 +1,82 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
-  <img src="https://img.shields.io/badge/WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="WhatsApp" />
-  <img src="https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram" />
-  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase" />
-  <img src="https://img.shields.io/badge/AI_Powered-OpenRouter-blue?style=for-the-badge" alt="AI Powered" />
+  <img src="assets/images/banner.png" alt="Fuenzer Bot Banner" width="70%" />
+</p>
+
+<h1 align="center">Fuenzer Bot</h1>
+
+<p align="center">
+  <b>Asisten Produktivitas Pribadi Otonom Multi-Platform (Omni-Channel)</b><br>
+  Berjalan bersamaan di WhatsApp & Telegram · Ditenagai Node.js, Supabase, dan Serverless AI
 </p>
 
 <p align="center">
-  <img src="assets/images/banner.png" alt="Fuenzer Bot Banner" width="100%" />
+  <a href="https://github.com/Yogs4R/fuenzer-bot/releases"><img src="https://img.shields.io/github/v/release/Yogs4R/fuenzer-bot?style=flat-square&color=blue" alt="Release" /></a>
+  <a href="https://github.com/Yogs4R/fuenzer-bot/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Yogs4R/fuenzer-bot/ci.yml?style=flat-square&label=CI" alt="CI Status" /></a>
+  <img src="https://img.shields.io/badge/Node.js-20_LTS-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/WhatsApp-Baileys-25D366?style=flat-square&logo=whatsapp&logoColor=white" alt="WhatsApp" />
+  <img src="https://img.shields.io/badge/Telegram-Telegraf-2CA5E0?style=flat-square&logo=telegram&logoColor=white" alt="Telegram" />
+  <img src="https://img.shields.io/badge/Database-Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" />
 </p>
 
-<h1 align="center">Personal Bot Core - Fuenzer Bot</h1>
+<p align="center">
+  <a href="#apa-itu-fuenzer-bot">Tentang</a> •
+  <a href="#preview">Preview</a> •
+  <a href="#features">Fitur</a> •
+  <a href="#tabel-referensi-command">Daftar Perintah</a> •
+  <a href="#installation">Instalasi</a> •
+  <a href="docs/ARCHITECTURE.md">Arsitektur</a> •
+  <a href="docs/CICD.md">CI/CD</a> •
+  <a href="docs/PRD.md">PRD</a>
+</p>
 
 <h4 align="center">
-    <a href="README.md">English</a> | <a href="README.id.md">Indonesia</a>
+  <a href="README.md">English</a> | <a href="README.id.md">Bahasa Indonesia</a>
 </h4>
 
 <p align="center">
-  <a href="https://ko-fi.com/fuenzer">
+  <a href="https://ko-fi.com/fuenzer" target="_blank" rel="noopener noreferrer">
     <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Dukung via Ko-fi" />
   </a>
-  <a href="https://saweria.co/fuenzer">
+  &nbsp;&nbsp;
+  <a href="https://saweria.co/fuenzer" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/Saweria-Dukung%20Fuenzer%20Bot-FF6B00?style=for-the-badge&logo=buymeacoffee&logoColor=white" alt="Dukung via Saweria" />
   </a>
 </p>
 
-Fuenzer Bot adalah asisten virtual mandiri yang berjalan secara paralel di WhatsApp dan Telegram. Dirancang untuk meningkatkan produktivitas harian dengan memadukan pengelolaan keuangan, kecerdasan buatan, pemrosesan file media, hingga pemantauan server pribadi.
+---
+
+## Apa itu Fuenzer Bot?
+
+**Fuenzer Bot** adalah asisten virtual mandiri dengan ketersediaan tinggi (*high-availability*) yang dirancang untuk meningkatkan produktivitas harian Anda dengan memadukan pencatatan keuangan, penalaran AI multi-modal, pengolahan dokumen, dan pemantauan server langsung dari aplikasi chat sehari-hari (WhatsApp & Telegram) tanpa perlu berganti-ganti aplikasi.
+
+* **🔄 Arsitektur Omni-Channel:** Beroperasi secara bersamaan di WhatsApp (via Baileys) dan Telegram (via Telegraf).
+* **🦥 Automated Morning Briefings:** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
+* **💰 Pencatatan Keuangan Praktis:** Catat pemasukan/pengeluaran secara instan via chat, cek saldo real-time, dan hasilkan grafik visual bulanan.
+* **🛠 Utilitas Serbaguna (Swiss Army Knife):** Buat stiker WebP, hapus latar belakang foto, kompres/gabungkan PDF, serta pantau kesehatan server cloud VM Anda.
+
+---
+
+## Preview
+
+<p align="center">
+  <img src="assets/images/screenshot-wa.png" alt="WhatsApp Bot Screenshot" width="45%" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/images/screenshot-tele.png" alt="Telegram Bot Screenshot" width="45%" />
+</p>
+<p align="center">
+  <i>Antarmuka multi-platform: Format teks WhatsApp native (kiri) dan format HTML Telegram (kanan).</i>
+</p>
+
+---
 
 ## Index
 
+- [Apa itu Fuenzer Bot?](#apa-itu-fuenzer-bot)
+- [Preview](#preview)
 - [Features](#features)
 - [Tabel Referensi Command](#tabel-referensi-command)
   - [Tabel Command Admin](#tabel-command-admin)
-- [Preview](#preview)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Tutorial Deploy di VM (Dari Nol Sampai PM2 Start)](#tutorial-deploy-di-vm-dari-nol-sampai-pm2-start)
@@ -164,15 +208,6 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | /ai_usage | Tampilkan statistik penggunaan AI per model | modul admin, log service | /ai_usage |
 | /broadcast | Kirim broadcast admin ke pengguna | modul admin, WhatsApp/Telegram clients | /broadcast maintenance malam ini |
 | /answer | Balas pertanyaan user khusus admin | csService, admin modul | /answer 628123xxx pesan admin |
-
----
-
-## Preview
-
-| Platform | Screenshot |
-|---|---|
-| WhatsApp Bot | <img src="assets/images/screenshot-wa.png" alt="WhatsApp Bot Screenshot" width="260" /> |
-| Telegram Bot | <img src="assets/images/screenshot-tele.png" alt="Telegram Bot Screenshot" width="260" /> |
 
 ---
 
@@ -491,3 +526,4 @@ Fitur `/ask` dan `/feedback` membutuhkan URL Web App dari Google Apps Script (GA
    ```env
    GAS_WEBAPP_URL="URL_WEBAPP_ANDA_DISINI"
    ```
+
