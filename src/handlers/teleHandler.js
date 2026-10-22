@@ -15,32 +15,28 @@ const { handleDevopsCommand, buildSystemStatsFooter } = require('../commands/dev
 const { handleWeatherCommand } = require('../commands/weather/index');
 const { handleReligionCommand } = require('../commands/religion/index');
 const { handleAiCommand, processAiChat, buildAiStatsFooter } = require('../commands/ai/index');
-const { handleImgCommand } = require('../commands/converter/index');
+const {
+    handleImgCommand,
+    handleRemoveBgCommand,
+    handleHtmlToImageCommand,
+    handleStickerCommand,
+    handlePdfCommand
+} = require('../commands/converter/index');
 const { handleReminderCommand } = require('../commands/reminder/index');
-const { createSticker, isFfmpegMissingError } = require('../services/stickerService');
+const { handleShortCommand } = require('../commands/utility/index');
+const { pdfMergeSessionManager } = require('../utils/sessionManager');
+const { isFfmpegMissingError } = require('../services/stickerService');
 const { getQuotaStatus } = require('../services/quotaService');
 const { handleGoogleCommand, sendToSheet, updateStatusAnswered } = require('../commands/google/index');
 const { handleResearchCommand } = require('../commands/research/index');
 const { handleInfoCommand } = require('../commands/info/index');
 const { logCommand } = require('../services/logService');
-const { shortenUrl } = require('../services/shortenerService');
 const { getDownloadUrl, getAudioUrl, getMediaBuffer, getAudioBuffer } = require('../services/downloaderService');
 const { buildDonateMessage, getDonateQrImagePaths } = require('../services/donateService');
-const {
-    MAX_FILE_SIZE,
-    removeBackground,
-    htmlToImage,
-    rotatePdf,
-    extractPdf,
-    mergePdfs,
-    convertToPdf,
-    convertFromPdf,
-    compressPdf
-} = require('../services/converterService');
+const { MAX_FILE_SIZE } = require('../services/converterService');
 const HISTORY_PAGE_SIZE = 5;
 const MAX_PDF_INPUT_SIZE = 10 * 1024 * 1024;
 const MAX_PDF_LOCAL_INPUT_SIZE = 15 * 1024 * 1024;
-const mergeSessions = {};
 
 function escapeHtml(text) {
     return String(text || '')
@@ -404,61 +400,26 @@ async function handleTelegramPdfTools(ctx, command, args) {
             const action = String(args[0] || '').toLowerCase().trim();
 
             if (action === 'merge') {
-                const mergeAction = String(args[1] || '').toLowerCase().trim();
+                const timestamp = Date.now();
+                const tempDir = await ensureTempDir();
+                outputPath = path.join(tempDir, `merged_${timestamp}.pdf`);
 
-                if (mergeAction === 'start') {
-                    const previousFiles = mergeSessions[userId] || [];
-                    for (const filePath of previousFiles) {
-                        safeUnlinkSync(filePath);
-                    }
+                const pdfRes = await handlePdfCommand({
+                    command,
+                    args,
+                    outputPath,
+                    userId,
+                    platform: 'telegram'
+                });
 
-                    mergeSessions[userId] = [];
-                    await ctx.reply('✅ Mode Merge Aktif! Kirim file PDF satu per satu. Ketik /pdf merge done jika sudah semua, atau /pdf merge cancel untuk batal.');
-                    return;
+                if (pdfRes.type === 'message') {
+                    await ctx.reply(pdfRes.message, { parse_mode: 'HTML' });
+                } else if (pdfRes.success) {
+                    await ctx.replyWithDocument(
+                        { source: outputPath, filename: path.basename(outputPath) },
+                        { caption: pdfRes.caption, parse_mode: 'HTML' }
+                    );
                 }
-
-                if (mergeAction === 'cancel') {
-                    const sessionFiles = mergeSessions[userId] || [];
-                    for (const filePath of sessionFiles) {
-                        safeUnlinkSync(filePath);
-                    }
-                    delete mergeSessions[userId];
-                    await ctx.reply('❌ Merge dibatalkan. Semua file sesi dihapus.');
-                    return;
-                }
-
-                if (mergeAction === 'done') {
-                    const sessionFiles = mergeSessions[userId];
-                    if (!Array.isArray(sessionFiles) || sessionFiles.length < 2) {
-                        await ctx.reply('❌ Minimal butuh 2 file PDF!');
-                        return;
-                    }
-
-                    const filesToMerge = [...sessionFiles];
-                    const tempDir = await ensureTempDir();
-                    outputPath = path.join(tempDir, `merged_${Date.now()}.pdf`);
-
-                    try {
-                        await mergePdfs(filesToMerge, outputPath);
-                        await ctx.replyWithDocument(
-                            { source: outputPath, filename: path.basename(outputPath) },
-                            { caption: '<b>✅ PDF MERGE BERHASIL</b>\n\nSemua file PDF berhasil digabung.', parse_mode: 'HTML' }
-                        );
-                    } finally {
-                        for (const filePath of filesToMerge) {
-                            safeUnlinkSync(filePath);
-                        }
-                        safeUnlinkSync(outputPath);
-                        delete mergeSessions[userId];
-                    }
-
-                    return;
-                }
-
-                await ctx.reply(
-                    '<b>❌ Format Salah</b>\n\nGunakan:\n<code>/pdf merge start</code>\n<code>/pdf merge done</code>\n<code>/pdf merge cancel</code>',
-                    { parse_mode: 'HTML' }
-                );
                 return;
             }
 
@@ -575,32 +536,24 @@ async function handleTelegramPdfTools(ctx, command, args) {
 
         await fs.writeFile(inputPath, fileData);
 
-        if (isToPdf) {
-            await convertToPdf(inputPath, outputPath, inputExt);
-        } else if (mode === 'compress') {
-            await compressPdf(inputPath, outputPath);
-        } else if (mode === 'rotate') {
-            await rotatePdf(inputPath, outputPath, rotateAngle);
-        } else if (mode === 'extract') {
-            await extractPdf(inputPath, outputPath, extractPages);
-        } else {
-            await convertFromPdf(inputPath, outputPath, outputFormat);
+        const pdfRes = await handlePdfCommand({
+            command,
+            args,
+            inputPath,
+            outputPath,
+            inputExt,
+            userId,
+            platform: 'telegram'
+        });
+
+        if (pdfRes.type === 'message') {
+            await ctx.reply(pdfRes.message, { parse_mode: 'HTML' });
+        } else if (pdfRes.success) {
+            await ctx.replyWithDocument(
+                { source: outputPath, filename: path.basename(outputPath) },
+                { caption: pdfRes.caption, parse_mode: 'HTML' }
+            );
         }
-
-        const caption = isToPdf
-            ? '<b>✅ TOPDF BERHASIL</b>\n\nFile berhasil dikonversi ke PDF.'
-            : mode === 'compress'
-                ? '<b>✅ PDF COMPRESS BERHASIL</b>\n\nFile PDF berhasil dikompres.'
-                : mode === 'rotate'
-                    ? `<b>✅ PDF ROTATE BERHASIL</b>\n\nSemua halaman diputar <code>${escapeHtml(String(rotateAngle))}</code> derajat.`
-                    : mode === 'extract'
-                        ? `<b>✅ PDF EXTRACT BERHASIL</b>\n\nHalaman terpilih: <code>${escapeHtml(extractPages)}</code>.`
-                : `<b>✅ PDF CONVERT BERHASIL</b>\n\nFile PDF berhasil dikonversi ke <code>${escapeHtml(outputFormat)}</code>.`;
-
-        await ctx.replyWithDocument(
-            { source: outputPath, filename: path.basename(outputPath) },
-            { caption, parse_mode: 'HTML' }
-        );
     } catch (error) {
         console.error('Error in PDF tools Telegram handler:', error);
         await ctx.reply(`<b>ERROR PDF TOOLS</b> ❌\n\n${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
@@ -803,7 +756,7 @@ function setupTelegramBot() {
         let text = ctx.message?.text || ctx.message?.caption || '';
         const userId = ctx.from.id.toString();
         const hasPdfDocument = isTelegramPdfDocument(ctx.message?.document);
-        const hasActiveMergeSession = Array.isArray(mergeSessions[userId]);
+        const hasActiveMergeSession = pdfMergeSessionManager.hasSession(userId);
         const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
         const botUsername = process.env.TELEGRAM_BOT_USERNAME;
         const isMentioned = botUsername && text.includes(`@${botUsername}`);
@@ -827,7 +780,7 @@ function setupTelegramBot() {
 
                 const timestamp = Date.now();
                 const tempDir = await ensureTempDir();
-                const nextIndex = mergeSessions[userId].length + 1;
+                const nextIndex = pdfMergeSessionManager.getSessionFiles(userId).length + 1;
                 downloadPath = path.join(tempDir, `input_merge_${timestamp}_${nextIndex}.pdf`);
 
                 const file = await ctx.telegram.getFile(document.file_id);
@@ -844,9 +797,9 @@ function setupTelegramBot() {
                 });
 
                 await fs.writeFile(downloadPath, fileData);
-                mergeSessions[userId].push(downloadPath);
+                const totalFiles = pdfMergeSessionManager.addFileToSession(userId, downloadPath);
 
-                await ctx.reply(`📄 File ke-${mergeSessions[userId].length} diterima! Kirim lagi atau ketik /pdf merge done.`);
+                await ctx.reply(`📄 File ke-${totalFiles} diterima! Kirim lagi atau ketik /pdf merge done.`);
             } catch (error) {
                 safeUnlinkSync(downloadPath);
                 console.error('Error saat menerima file merge PDF Telegram:', error);
@@ -1154,14 +1107,14 @@ function setupTelegramBot() {
                         const response = await axios.get(String(fileLink), { responseType: 'arraybuffer' });
                         const buffer = Buffer.from(response.data);
 
-                        await ctx.replyWithSticker({ source: buffer });
+                        const stickerRes = await handleStickerCommand(buffer, false, 'telegram');
+                        if (stickerRes.success) {
+                            await ctx.replyWithSticker({ source: stickerRes.buffer });
+                        } else {
+                            await ctx.reply(stickerRes.message, { parse_mode: 'HTML' });
+                        }
                     } catch (error) {
                         console.error('Error handling /tosticker command in Telegram:', error);
-                        if (isFfmpegMissingError(error)) {
-                            await ctx.reply('<b>❌ ERROR STICKER</b>\n\nFFmpeg belum terpasang di server. Hubungi admin untuk install FFmpeg agar fitur stiker berjalan normal.', { parse_mode: 'HTML' });
-                            break;
-                        }
-
                         await ctx.reply(`<b>❌ ERROR STICKER</b>\n\nGagal membuat stiker: ${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
                     }
                     break;
@@ -1206,27 +1159,27 @@ function setupTelegramBot() {
                             }).on('error', reject);
                         });
 
-                        await require('fs/promises').writeFile(inputPath, fileData);
+                        await fs.writeFile(inputPath, fileData);
 
-                        await removeBackground(inputPath, outputPath);
-
-                        const fileBuffer = await require('fs/promises').readFile(outputPath);
-                        await ctx.replyWithPhoto(
-                            { source: fileBuffer },
-                            {
-                                caption: '<b>✅ Background Dihapus!</b>\n\n<i>Preview resolusi rendah. Untuk HD resolution, gunakan kredit berbayar di situs remove.bg.</i>',
-                                parse_mode: 'HTML'
-                            }
-                        );
+                        const bgRes = await handleRemoveBgCommand(inputPath, outputPath, 'telegram');
+                        if (bgRes.success) {
+                            const fileBuffer = await fs.readFile(outputPath);
+                            await ctx.replyWithPhoto(
+                                { source: fileBuffer },
+                                {
+                                    caption: bgRes.caption,
+                                    parse_mode: 'HTML'
+                                }
+                            );
+                        } else {
+                            await ctx.reply(bgRes.message, { parse_mode: 'HTML' });
+                        }
                     } catch (error) {
                         console.error('Error in /hapusbg handler:', error);
-                        const errorMsg = error.message.includes('Kuota') 
-                            ? error.message 
-                            : `❌ Error: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`<b>ERROR REMOVE BG</b>\n\n${errorMsg}`, { parse_mode: 'HTML' });
+                        await ctx.reply(`<b>ERROR REMOVE BG</b>\n\n❌ Error: ${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
                     } finally {
-                        if (inputPath) await require('fs/promises').unlink(inputPath).catch(() => {});
-                        if (outputPath) await require('fs/promises').unlink(outputPath).catch(() => {});
+                        if (inputPath) await fs.unlink(inputPath).catch(() => {});
+                        if (outputPath) await fs.unlink(outputPath).catch(() => {});
                     }
                     break;
                 }
@@ -1235,43 +1188,29 @@ function setupTelegramBot() {
                     let outputPath = null;
 
                     try {
-                        if (args.length === 0) {
-                            await ctx.reply('<b>❌ Format Salah</b>\n\nGunakan: <code>/ss &lt;URL&gt;</code>\n\nContoh: <code>/ss https://example.com</code>', { parse_mode: 'HTML' });
-                            break;
-                        }
-
                         const url = args.join(' ').trim();
-
-                        // Validate URL
-                        try {
-                            new URL(url);
-                        } catch (e) {
-                            await ctx.reply('<b>❌ URL Tidak Valid</b>\n\nTetapkan URL yang benar dimulai dengan http:// atau https://', { parse_mode: 'HTML' });
-                            break;
-                        }
-
                         const timestamp = Date.now();
                         const tempDir = await ensureTempDir();
                         outputPath = path.join(tempDir, `output_ss_${timestamp}.jpg`);
 
-                        await htmlToImage(url, outputPath);
-
-                        const fileBuffer = await require('fs/promises').readFile(outputPath);
-                        await ctx.replyWithPhoto(
-                            { source: fileBuffer },
-                            {
-                                caption: '<b>✅ Screenshot Berhasil!</b>\n\n<i>Tangkapan halaman web diambil dengan resolusi standar.</i>',
-                                parse_mode: 'HTML'
-                            }
-                        );
+                        const ssRes = await handleHtmlToImageCommand(url, outputPath, 'telegram');
+                        if (ssRes.success) {
+                            const fileBuffer = await fs.readFile(outputPath);
+                            await ctx.replyWithPhoto(
+                                { source: fileBuffer },
+                                {
+                                    caption: ssRes.caption,
+                                    parse_mode: 'HTML'
+                                }
+                            );
+                        } else {
+                            await ctx.reply(ssRes.message, { parse_mode: 'HTML' });
+                        }
                     } catch (error) {
                         console.error('Error in /ss handler:', error);
-                        const errorMsg = error.message.includes('Kuota') 
-                            ? error.message 
-                            : `❌ Error: ${escapeHtml(error.message)}`;
-                        await ctx.reply(`<b>ERROR SCREENSHOT</b>\n\n${errorMsg}`, { parse_mode: 'HTML' });
+                        await ctx.reply(`<b>ERROR SCREENSHOT</b>\n\n❌ Error: ${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
                     } finally {
-                        if (outputPath) await require('fs/promises').unlink(outputPath).catch(() => {});
+                        if (outputPath) await fs.unlink(outputPath).catch(() => {});
                     }
                     break;
                 }
@@ -1283,28 +1222,8 @@ function setupTelegramBot() {
                 }
 
                 case '/short': {
-                    try {
-                        const originalUrl = String(args.join(' ') || '').trim();
-
-                        if (!originalUrl) {
-                            await ctx.reply('❌ Masukkan link yang ingin dipendekkan! Contoh: /short https://fuenzerstudio.com');
-                            break;
-                        }
-
-                        if (!(originalUrl.startsWith('http://') || originalUrl.startsWith('https://'))) {
-                            await ctx.reply('❌ URL tidak valid! URL harus diawali http:// atau https://');
-                            break;
-                        }
-
-                        const shortUrl = await shortenUrl(originalUrl);
-                        await ctx.reply(
-                            `✅ Berhasil dipendekkan!\n🔗 URL Asli: ${escapeHtml(originalUrl)}\n✨ URL Pendek: ${escapeHtml(shortUrl)}`,
-                            { parse_mode: 'HTML' }
-                        );
-                    } catch (error) {
-                        console.error('Error handling /short command in Telegram:', error);
-                        await ctx.reply(`❌ Gagal memendekkan URL: ${escapeHtml(error.message)}`, { parse_mode: 'HTML' });
-                    }
+                    const shortReply = await handleShortCommand(args, 'telegram');
+                    await ctx.reply(shortReply, { parse_mode: 'HTML' });
                     break;
                 }
 
