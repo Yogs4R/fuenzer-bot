@@ -41,6 +41,9 @@
     "nodemon": "^3.1.11"
   },
   "overrides": {
-    "protobufjs": "^7.6.6"
+    "protobufjs": "^7.6.6",
+    "clean-jsdoc-theme": "^5.2.0",
+    "esbuild": "^0.28.2",
+    "braces": "^3.0.3"
   }
 }
