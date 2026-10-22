@@ -36,18 +36,11 @@ Fuenzer Bot adalah asisten virtual mandiri yang berjalan secara paralel di Whats
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Tutorial Deploy di VM (Dari Nol Sampai PM2 Start)](#tutorial-deploy-di-vm-dari-nol-sampai-pm2-start)
-- [Tutorial CI/CD dan Auto Release (Step by Step)](#tutorial-cicd-dan-auto-release-step-by-step)
+- [CI/CD dan Auto Release](#cicd-dan-auto-release)
   - [A. Setup Secrets Repo & Variables GitHub](#a-setup-secrets-repo--variables-github)
   - [B. Setup Firewall untuk Auto Broadcast Webhook](#b-setup-firewall-untuk-auto-broadcast-webhook)
-  - [C. Struktur file yang wajib ada](#c-struktur-file-yang-wajib-ada)
-  - [D. Contoh changelog-config.json](#d-contoh-changelog-configjson)
-  - [E. Contoh workflow auto-release.yml](#e-contoh-workflow-auto-releaseyml)
-  - [F. Aturan format commit agar masuk changelog](#f-aturan-format-commit-agar-masuk-changelog)
-  - [G. Cara trigger auto release](#g-cara-trigger-auto-release)
-  - [H. Error umum dan solusinya](#h-error-umum-dan-solusinya)
-  - [I. Checklist cepat setelah clone repo](#i-checklist-cepat-setelah-clone-repo)
-  - [J. Smoke Test CI/CD (Copy-Paste untuk rilis pertama)](#j-smoke-test-cicd-copy-paste-untuk-rilis-pertama)
-  - [K. Rollback saat tag release salah](#k-rollback-saat-tag-release-salah)
+  - [C. Ringkasan Workflow & Trigger Rilis](#c-ringkasan-workflow--trigger-rilis)
+  - [D. Panduan Lengkap CI/CD & Troubleshooting](#d-panduan-lengkap-cicd--troubleshooting)
 - [Skema Database Supabase](#skema-database-supabase)
 - [Cara Update Kode Lokal Tanpa Kehilangan Perubahan](#cara-update-kode-lokal-tanpa-kehilangan-perubahan)
 - [Tutorial Integrasi Google Sheets (Customer Service)](#tutorial-integrasi-google-sheets-customer-service)
@@ -223,100 +216,86 @@ File `.env` berisi seluruh konfigurasi penting. Pastikan Anda menyalin `.env.exa
 
 ## Tutorial Deploy di VM (Dari Nol Sampai PM2 Start)
 
-Panduan ini menggunakan Ubuntu 22.04 LTS sebagai contoh. Sesuaikan jika Anda memakai distro lain.
+Panduan ini telah diuji pada Ubuntu 22.04 / 24.04 LTS dan Debian 12.
 
-1. Masuk ke VM via SSH
+### Opsi 1: Setup Otomatis 1-Baris (Direkomendasikan)
+Jalankan script otomasi provision kami langsung di terminal VM Anda untuk menginstal Node.js 20 LTS, `ffmpeg`, `build-essential`, `pm2`, dan konfigurasi firewall UFW secara otomatis:
+
 ```bash
-ssh username@ip-vm
+curl -fsSL https://raw.githubusercontent.com/Yogs4R/fuenzer-bot/main/scripts/setup-vm.sh | bash
 ```
 
-2. Update package OS
+Setelah script selesai, Anda cukup menjalankan bot dengan langkah berikut:
 ```bash
-sudo apt update && sudo apt upgrade -y
-```
+# 1. Clone repository
+git clone https://github.com/Yogs4R/fuenzer-bot.git ~/fuenzer-bot
+cd ~/fuenzer-bot
 
-3. Install dependensi dasar
-```bash
-sudo apt install -y git curl build-essential ffmpeg
-```
-
-4. Install Node.js LTS (contoh Node 20)
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-node -v
-npm -v
-```
-
-5. Clone repository
-```bash
-git clone https://github.com/Yogs4R/fuenzer-bot.git
-cd fuenzer-bot
-```
-
-6. Install dependency project
-```bash
+# 2. Install dependensi & siapkan file .env
 npm install
-```
-
-7. Siapkan file environment
-```bash
 cp .env.example .env
 nano .env
-```
 
-8. Isi variabel penting di `.env`
-- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`
-- OpenRouter/Gemini: `OPENROUTER_API_KEY`, `GEMINI_API_KEY`
-- Supabase: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
-- CloudConvert: `CLOUDCONVERT_API_KEY`
-- RemoveBG: `REMOVEBG_API_KEY`
-- Cuaca: `OPENWEATHER_API_KEY`
-- Admin dan monitoring: `ADMIN_WA_NUMBERS`, `ADMIN_TELE_IDS`, `MONITOR_URLS`
-
-9. Jalankan test lokal singkat
-```bash
-npm start
-```
-Jika proses berjalan normal, hentikan dengan `Ctrl + C`.
-
-10. Install PM2 secara global
-```bash
-sudo npm install -g pm2
-pm2 -v
-```
-
-11. Jalankan bot dengan PM2
-```bash
-pm2 start src/index.js --name fuenzer-bot
-pm2 status
-pm2 logs fuenzer-bot
-```
-
-12. Simpan state PM2 agar auto-start saat reboot
-```bash
+# 3. Jalankan dan simpan proses dengan PM2
+pm2 start src/index.js --name fuenzerbot
 pm2 save
 pm2 startup
 ```
-Ikuti command tambahan yang ditampilkan PM2 (biasanya perlu `sudo`).
 
-13. Command operasional harian PM2
+<details>
+<summary><b>Opsi 2: Instalasi Manual Step-by-Step</b></summary>
+
+1. **Masuk ke VM via SSH:**
+   ```bash
+   ssh username@ip-vm
+   ```
+2. **Install dependensi sistem & ffmpeg:**
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   sudo apt install -y git curl build-essential ffmpeg ca-certificates
+   ```
+3. **Install Node.js 20 LTS & PM2:**
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt install -y nodejs
+   sudo npm install -g pm2
+   ```
+4. **Konfigurasi Firewall UFW (Buka SSH & Webhook 3000):**
+   ```bash
+   sudo ufw allow ssh
+   sudo ufw allow 3000/tcp
+   sudo ufw reload
+   ```
+5. **Clone, Konfigurasi & Jalankan:**
+   ```bash
+   git clone https://github.com/Yogs4R/fuenzer-bot.git
+   cd fuenzer-bot
+   npm install
+   cp .env.example .env
+   nano .env
+   pm2 start src/index.js --name fuenzerbot
+   pm2 save
+   pm2 startup
+   ```
+</details>
+
+### Command Operasional PM2:
 ```bash
-pm2 restart fuenzer-bot
-pm2 stop fuenzer-bot
-pm2 delete fuenzer-bot
-pm2 logs fuenzer-bot --lines 200
+pm2 status                  # Cek status bot & penggunaan memori
+pm2 logs fuenzerbot --lines 100 # Lihat log live bot
+pm2 restart fuenzerbot      # Restart bot
+pm2 stop fuenzerbot         # Hentikan bot
 ```
 
 ---
 
-## Tutorial CI/CD dan Auto Release (Step by Step)
+## CI/CD dan Auto Release
 
-Bagian ini penting untuk yang baru clone repo agar tidak bingung saat GitHub Actions gagal.
+Repositori ini telah dilengkapi dengan automasi workflow GitHub Actions untuk pengujian CI, auto-deploy ke VM via SSH, pembuatan rilis GitHub otomatis, dan broadcast notifikasi rilis secara real-time ke pengguna WhatsApp & Telegram.
 
 ### A. Setup Secrets Repo & Variables GitHub
-Agar CI/CD dapat bekerja dan fitur auto broadcast release berjalan, buat repository secrets dan variables di GitHub repo Anda (`Settings > Secrets and variables > Actions > New repository secret`):
-- `HOST`: IP VM Anda (digunakan untuk auto-deploy SSH, opsional bila ada workflow deploy).
+Agar CI/CD dapat bekerja dan fitur auto broadcast release berjalan, buat repository secrets di GitHub repo Anda (`Settings > Secrets and variables > Actions > New repository secret`):
+- `HOST`: IP VM Anda (digunakan untuk auto-deploy SSH).
 - `USERNAME`: Username remote akses VM Anda (contoh: `my_vm`).
 - `SSH_KEY`: Private SSH Key untuk autentikasi deploy otomatis dari GitHub ke VM Anda.
 - `VM_IP`: Alamat IP VM Anda (digunakan sebagai alamat target hit webhook auto-broadcast).
@@ -325,134 +304,27 @@ Agar CI/CD dapat bekerja dan fitur auto broadcast release berjalan, buat reposit
 ### B. Setup Firewall untuk Auto Broadcast Webhook
 Pastikan server (VM) telah membuka port TCP `3000` (atau PORT env server Anda) agar Webhook otomatis GitHub Actions bisa berkomunikasi. Pastikan juga akses SSH (`22`) tidak ditutup agar Anda tidak kehilangan akses.
 
-1. Masuk ke terminal SSH VM Anda.
-2. Jalankan perintah di bawah untuk mengizinkan koneksi SSH dan port `3000` via UFW:
+```bash
+sudo ufw allow ssh
+sudo ufw allow 3000/tcp
+sudo ufw reload
+sudo ufw status
+```
+
+### C. Ringkasan Workflow & Trigger Rilis
+1. **Pull Request & Commit (`ci.yml`):** Otomatis dipindai oleh Gitleaks untuk mencegah kebocoran secret, diverifikasi agar tidak ada file kredensial (`.env`, `auth/`, `credentials/`) yang ter-commit, dan divalidasi keabsahan sintaksis JavaScript-nya.
+2. **Push ke `main` (`deploy.yml`):** Otomatis menarik kode terbaru ke VM Anda via SSH dan me-restart proses PM2 (`fuenzerbot`).
+3. **Memicu Auto Release (`auto-release.yml`):**
+   Gunakan format commit konvensional (`feat:`, `fix:`, `refactor:`, `chore:`) lalu buat dan push tag versi:
    ```bash
-   sudo ufw allow ssh
-   sudo ufw allow 3000/tcp
-   sudo ufw reload
-   sudo ufw status
+   git tag v1.1.0
+   git push origin v1.1.0
    ```
+   Pipeline akan otomatis merangkum changelog, membuat GitHub Release, dan memicu webhook bot untuk menyiarkan pesan rilis ke pengguna.
 
-### C. Struktur file yang wajib ada
-
-1. Workflow release di `.github/workflows/auto-release.yml`
-2. Konfigurasi changelog di `.github/changelog-config.json`
-
-### D. Konfigurasi `changelog-config.json`
-
-File ini digunakan oleh *changelog builder* untuk mengkategorikan setiap commit (misal: `feat:`, `fix:`, atau `chore:`). Anda cukup memastikan tag pada commit diurutkan sesuai pola yang didaftarkan di dalam *label_extractors* sehingga hasil di GitHub Release lebih tertata per kategori.
-
-### E. Workflow `auto-release.yml`
-
-Workflow ini menggunakan `actions/checkout` untuk mengambil kode dan *changelog builder* Action. Pipeline akan dieksekusi setiap Anda melakukan **push tag dengan awalan "v"** (misalnya `v1.0.0`). Action kemudian secara otomatis merangkum pesan commit sejak versi sebelumnya menjadi draf Release dan memublikasikannya ke tab Releases di repository.
-
-Selain itu, workflow ini telah diintegrasikan dengan langkah **Webhook Broadcast**. Segera setelah GitHub Release berhasil dipublikasikan, ia akan menggunakan `jq` untuk memformat versi dan catatan pembaruan ke dalam payload JSON, lalu mengirim request HTTP POST secara otomatis menuju backend bot Anda (`http://${VM_IP}:3000/webhook-release`). Ini akan memberikan sinyal kepada bot agar segera menyiarkan pemberitahuan update "What's New" kepada seluruh pengguna WhatsApp maupun Telegram secara real-time.
-
-### F. Aturan format commit agar masuk changelog
-
-Gunakan awalan commit message berikut:
-- `feat: tambah command baru`
-- `fix: perbaiki parsing argumen`
-- `chore: update dependency`
-- `refactor: rapikan handler`
-- `docs: update README` (akan di-ignore jika `documentation` ada di `ignore_labels`)
-
-### G. Cara trigger auto release
-
-1. Commit dan push ke branch utama
-```bash
-git add .
-git commit -m "feat: tambah tutorial deploy vm"
-git push origin main
-```
-
-2. Buat dan push tag versi
-```bash
-git tag v1.0.6
-git push origin v1.0.6
-```
-
-3. Cek tab Actions dan Releases di GitHub
-
-### H. Error umum dan solusinya
-
-1. `CHANGELOG kosong`
-- Pastikan ada commit baru sejak tag sebelumnya.
-- Pastikan format commit sesuai regex (`feat:`, `fix:`, dst).
-- Pastikan `mode: COMMIT` aktif di workflow.
-
-2. `No categories found` atau commit tidak terkelompok
-- Pastikan `target` di `label_extractors` sama persis dengan label di `categories`.
-
-3. `Workflow tidak jalan`
-- Pastikan trigger di workflow adalah `push` ke `tags: v*`.
-- Pastikan Anda benar-benar push tag, bukan hanya commit.
-
-4. `Permission denied` saat create release
-- Pastikan workflow punya:
-  - `permissions: contents: write`
-
-5. Error karena file config tidak ditemukan
-- Pastikan path benar: `.github/changelog-config.json`
-
-### I. Checklist cepat setelah clone repo
-
-1. Pastikan folder `.github/workflows` dan file `.github/changelog-config.json` ikut ter-clone.
-2. Pastikan commit message mengikuti pola yang didukung.
-3. Pastikan release dipicu lewat push tag `v*`.
-
-### J. Smoke Test CI/CD (Copy-Paste untuk rilis pertama)
-
-Jalankan dari root repository. Ganti `v1.0.6` jika versi tersebut sudah dipakai.
-
-```bash
-# 1) Cek branch aktif dan update terbaru
-git branch --show-current
-git pull origin main
-
-# 2) Buat commit uji yang pasti terbaca changelog
-git commit --allow-empty -m "feat: smoke test auto release pipeline"
-git push origin main
-
-# 3) Buat tag rilis pertama untuk pengujian
-git tag v1.0.6
-git push origin v1.0.6
-
-# 4) Verifikasi tag sudah ter-push
-git ls-remote --tags origin
-```
-
-Jika tag sudah pernah ada dan ingin tes ulang dengan versi lain:
-
-```bash
-# Contoh ganti ke versi baru
-git tag v1.0.7
-git push origin v1.0.7
-```
-
-Verifikasi di GitHub setelah command di atas:
-
-1. Tab Actions: workflow `Auto Release` status sukses.
-2. Tab Releases: release baru dengan judul tag (mis. `v1.0.6`).
-3. Isi release notes tidak kosong dan memuat commit `feat: smoke test auto release pipeline`.
-
-### K. Rollback saat tag release salah
-
-Jika salah push tag (misalnya typo versi), hapus tag lokal dan remote lalu buat tag baru.
-
-```bash
-# Contoh: tag salah v1.0.6, ganti ke v1.0.7
-git tag -d v1.0.6
-git push origin :refs/tags/v1.0.6
-
-git tag v1.0.7
-git push origin v1.0.7
-```
-
-Catatan:
-1. Jika release `v1.0.6` sudah sempat terbentuk di tab Releases, hapus release tersebut juga dari GitHub UI agar rapi.
-2. Jangan re-use nama tag yang sama untuk commit berbeda.
+### D. Panduan Lengkap CI/CD & Troubleshooting
+Untuk dokumentasi teknis mendalam—termasuk aturan `.github/changelog-config.json`, panduan smoke test pipeline, solusi error umum (`Empty CHANGELOG`, `401 Unauthorized`), hingga cara rollback tag jika salah versi—silakan baca panduan terpisah:
+👉 **[Panduan Lengkap CI/CD & Rilis (`docs/CICD.md`)](./docs/CICD.md)**
 
 ---
 

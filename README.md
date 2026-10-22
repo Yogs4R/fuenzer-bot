@@ -36,18 +36,11 @@ Fuenzer Bot is a standalone virtual assistant that runs in parallel on WhatsApp 
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [VM Deployment Tutorial (From Scratch to PM2 Start)](#vm-deployment-tutorial-from-scratch-to-pm2-start)
-- [CI/CD and Auto Release Tutorial (Step by Step)](#cicd-and-auto-release-tutorial-step-by-step)
+- [CI/CD and Auto Release](#cicd-and-auto-release)
   - [A. Setup Repository Secrets & Variables](#a-setup-repository-secrets--variables)
   - [B. Setup Firewall for Auto Broadcast Webhook](#b-setup-firewall-for-auto-broadcast-webhook)
-  - [C. Required file structure](#c-required-file-structure)
-  - [D. Example changelog-config.json](#d-example-changelog-configjson)
-  - [E. Example auto-release.yml](#e-example-auto-releaseyml)
-  - [F. Commit message format rules for changelog](#f-commit-message-format-rules-for-changelog)
-  - [G. How to trigger auto release](#g-how-to-trigger-auto-release)
-  - [H. Common errors and fixes](#h-common-errors-and-fixes)
-  - [I. Quick checklist after cloning this repo](#i-quick-checklist-after-cloning-this-repo)
-  - [J. CI/CD Smoke Test (Copy-Paste for first release)](#j-cicd-smoke-test-copy-paste-for-first-release)
-  - [K. Rollback when release tag is wrong](#k-rollback-when-release-tag-is-wrong)
+  - [C. Workflow Overview & Triggering Releases](#c-workflow-overview--triggering-releases)
+  - [D. Detailed CI/CD & Troubleshooting Guide](#d-detailed-cicd--troubleshooting-guide)
 - [Supabase Database Schema](#supabase-database-schema)
 - [Updating Local Code (Without Losing Changes)](#updating-local-code-without-losing-changes)
 - [Google Sheets Integration Tutorial (Customer Service)](#google-sheets-integration-tutorial-customer-service)
@@ -223,99 +216,85 @@ The `.env` file contains all essential configuration strings. Copy `.env.example
 
 ## VM Deployment Tutorial (From Scratch to PM2 Start)
 
-This guide uses Ubuntu 22.04 LTS as an example. Adjust commands if you use a different distro.
+This guide is tested on Ubuntu 22.04 / 24.04 LTS and Debian 12.
 
-1. SSH into your VM
+### Option 1: Automated 1-Line Setup (Recommended)
+Run our automated provisioning script directly on your clean VM terminal to automatically install Node.js 20 LTS, `ffmpeg`, `build-essential`, `pm2`, and configure UFW firewall rules:
+
 ```bash
-ssh username@vm-ip
+curl -fsSL https://raw.githubusercontent.com/Yogs4R/fuenzer-bot/main/scripts/setup-vm.sh | bash
 ```
 
-2. Update OS packages
+Once the script completes, simply launch the bot:
 ```bash
-sudo apt update && sudo apt upgrade -y
-```
+# 1. Clone repository
+git clone https://github.com/Yogs4R/fuenzer-bot.git ~/fuenzer-bot
+cd ~/fuenzer-bot
 
-3. Install base dependencies
-```bash
-sudo apt install -y git curl build-essential ffmpeg
-```
-
-4. Install Node.js LTS (example: Node 20)
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-node -v
-npm -v
-```
-
-5. Clone repository
-```bash
-git clone https://github.com/Yogs4R/fuenzer-bot.git
-cd fuenzer-bot
-```
-
-6. Install project dependencies
-```bash
+# 2. Install dependencies & configure .env
 npm install
-```
-
-7. Prepare environment file
-```bash
 cp .env.example .env
 nano .env
-```
 
-8. Fill required variables in `.env`
-- Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`
-- OpenRouter/Gemini: `OPENROUTER_API_KEY`, `GEMINI_API_KEY`
-- Supabase: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`
-- CloudConvert: `CLOUDCONVERT_API_KEY`
-- RemoveBG: `REMOVEBG_API_KEY`
-- Weather: `OPENWEATHER_API_KEY`
-- Admin and monitoring: `ADMIN_WA_NUMBERS`, `ADMIN_TELE_IDS`, `MONITOR_URLS`
-
-9. Run a quick local test
-```bash
-npm start
-```
-If the process runs normally, stop it with `Ctrl + C`.
-
-10. Install PM2 globally
-```bash
-sudo npm install -g pm2
-pm2 -v
-```
-
-11. Start bot with PM2
-```bash
-pm2 start src/index.js --name fuenzer-bot
-pm2 status
-pm2 logs fuenzer-bot
-```
-
-12. Persist PM2 process for reboot
-```bash
+# 3. Start & persist process with PM2
+pm2 start src/index.js --name fuenzerbot
 pm2 save
 pm2 startup
 ```
-Run the extra command shown by PM2 (usually needs `sudo`).
 
-13. Daily PM2 operations
+<details>
+<summary><b>Option 2: Manual Step-by-Step Installation</b></summary>
+
+1. **SSH into your VM:**
+   ```bash
+   ssh username@vm-ip
+   ```
+2. **Install system dependencies & ffmpeg:**
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   sudo apt install -y git curl build-essential ffmpeg ca-certificates
+   ```
+3. **Install Node.js 20 LTS & PM2:**
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt install -y nodejs
+   sudo npm install -g pm2
+   ```
+4. **Configure UFW Firewall (SSH + Webhook 3000):**
+   ```bash
+   sudo ufw allow ssh
+   sudo ufw allow 3000/tcp
+   sudo ufw reload
+   ```
+5. **Clone, Configure & Start:**
+   ```bash
+   git clone https://github.com/Yogs4R/fuenzer-bot.git
+   cd fuenzer-bot
+   npm install
+   cp .env.example .env
+   nano .env
+   pm2 start src/index.js --name fuenzerbot
+   pm2 save
+   pm2 startup
+   ```
+</details>
+
+### Useful PM2 Commands:
 ```bash
-pm2 restart fuenzer-bot
-pm2 stop fuenzer-bot
-pm2 delete fuenzer-bot
-pm2 logs fuenzer-bot --lines 200
+pm2 status                  # Check bot status & memory usage
+pm2 logs fuenzerbot --lines 100 # View live bot logs
+pm2 restart fuenzerbot      # Restart bot process
+pm2 stop fuenzerbot         # Stop bot
 ```
 
 ---
 
-## CI/CD and Auto Release Tutorial (Step by Step)
+## CI/CD and Auto Release
 
-This section is important for people who clone this repository and wonder why GitHub Actions fails.
+This repository uses automated workflows for CI testing, remote VM deployment, automated GitHub releases, and real-time broadcast announcements to WhatsApp & Telegram.
 
 ### A. Setup Repository Secrets & Variables
-To enable CI/CD auto-deployment and the auto broadcast release feature, you need to configure Secrets in your GitHub Repository (`Settings > Secrets and variables > Actions > New repository secret`):
+To enable CI/CD auto-deployment and the auto broadcast release feature, configure Secrets in your GitHub Repository (`Settings > Secrets and variables > Actions > New repository secret`):
 - `HOST`: Your VM IP address (used for SSH deploy, optional but recommended).
 - `USERNAME`: Your VM SSH username (e.g., `my_vm`).
 - `SSH_KEY`: Your private SSH key for accessing the VM automatically.
@@ -325,134 +304,27 @@ To enable CI/CD auto-deployment and the auto broadcast release feature, you need
 ### B. Setup Firewall for Auto Broadcast Webhook
 The auto-broadcast webhook endpoint runs on port `3000` by default. You must open this port in your VM internal firewall securely so GitHub Actions can reach it. Make sure not to block your SSH access (`22`).
 
-1. SSH to your VM.
-2. Execute this command to allow SSH and port 3000 through the Ubuntu Uncomplicated Firewall (UFW):
+```bash
+sudo ufw allow ssh
+sudo ufw allow 3000/tcp
+sudo ufw reload
+sudo ufw status
+```
+
+### C. Workflow Overview & Triggering Releases
+1. **Pull Requests & Commits (`ci.yml`):** Automatically scanned by Gitleaks for secrets, verified against forbidden credential files (`.env`, `auth/`, `credentials/`), and checked for JS syntax validity.
+2. **Push to `main` (`deploy.yml`):** Automatically pulls the latest code to your VM via SSH and restarts PM2 (`fuenzerbot`).
+3. **Triggering a Release (`auto-release.yml`):**
+   Follow conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`) and push a semver version tag:
    ```bash
-   sudo ufw allow ssh
-   sudo ufw allow 3000/tcp
-   sudo ufw reload
-   sudo ufw status
+   git tag v1.1.0
+   git push origin v1.1.0
    ```
+   This automatically generates formatted release notes, creates the GitHub Release, and POSTs a webhook to your bot to broadcast the *What's New* changelog directly to users.
 
-### C. Required file structure
-
-1. Release workflow at `.github/workflows/auto-release.yml`
-2. Changelog config at `.github/changelog-config.json`
-
-### D. Configure `changelog-config.json`
-
-This file is used by the *changelog builder* to group and categorize specific commits (e.g. `feat:`, `fix:`, or `chore:`). Ensure you commit messages correctly matching the patterns configured in its `label_extractors` rules so the result mapped in GitHub Release remains grouped well.
-
-### E. Workflow `auto-release.yml`
-
-This workflow utilizes `actions/checkout` and an open-source *changelog builder* action. It triggers the job each time you run a **push tag starting with "v"** (e.g., `v1.0.0`). The action summarizes the commits between versions to automatically create a release draft and publishes it natively on the Releases page of your GitHub project.
-
-Additionally, this workflow includes a **Webhook Broadcast** step. Once the GitHub Release is created, it formats the exact changelog notes along with the version tag into a JSON payload using `jq`, and sends an HTTP POST request to your bot's live server (`http://${VM_IP}:3000/webhook-release`). This triggers the bot to automatically broadcast the *What's New* release notes to all of your WhatsApp and Telegram users in real-time.
-
-### F. Commit message format rules for changelog
-
-Use commit prefixes like:
-- `feat: add new command`
-- `fix: resolve argument parsing`
-- `chore: update dependency`
-- `refactor: clean handler`
-- `docs: update README` (ignored if `documentation` is listed in `ignore_labels`)
-
-### G. How to trigger auto release
-
-1. Commit and push to main branch
-```bash
-git add .
-git commit -m "feat: add vm deployment tutorial"
-git push origin main
-```
-
-2. Create and push a version tag
-```bash
-git tag v1.0.6
-git push origin v1.0.6
-```
-
-3. Check GitHub Actions and Releases tabs
-
-### H. Common errors and fixes
-
-1. `Empty CHANGELOG`
-- Ensure there are new commits after the previous tag.
-- Ensure commit format matches regex (`feat:`, `fix:`, etc).
-- Ensure workflow uses `mode: COMMIT`.
-
-2. `No categories found` or commits not grouped
-- Ensure each `target` in `label_extractors` exactly matches a label in `categories`.
-
-3. `Workflow not triggered`
-- Ensure workflow trigger is `push` on `tags: v*`.
-- Ensure you pushed a tag, not only a commit.
-
-4. `Permission denied` when creating release
-- Ensure workflow includes:
-  - `permissions: contents: write`
-
-5. Config file not found error
-- Ensure path is correct: `.github/changelog-config.json`
-
-### I. Quick checklist after cloning this repo
-
-1. Ensure `.github/workflows` and `.github/changelog-config.json` are present after clone.
-2. Ensure commit messages follow supported patterns.
-3. Ensure release is triggered by pushing a `v*` tag.
-
-### J. CI/CD Smoke Test (Copy-Paste for first release)
-
-Run these commands from the repository root. Replace `v1.0.6` if that version already exists.
-
-```bash
-# 1) Check active branch and pull latest changes
-git branch --show-current
-git pull origin main
-
-# 2) Create a guaranteed changelog-visible test commit
-git commit --allow-empty -m "feat: smoke test auto release pipeline"
-git push origin main
-
-# 3) Create and push first release tag for testing
-git tag v1.0.6
-git push origin v1.0.6
-
-# 4) Verify that the tag exists on remote
-git ls-remote --tags origin
-```
-
-If the tag already exists and you want to re-test with a new version:
-
-```bash
-# Example: bump to another version
-git tag v1.0.7
-git push origin v1.0.7
-```
-
-Verify in GitHub after running the commands above:
-
-1. Actions tab: `Auto Release` workflow completed successfully.
-2. Releases tab: new release appears with the tag title (for example `v1.0.6`).
-3. Release notes are not empty and include `feat: smoke test auto release pipeline`.
-
-### K. Rollback when release tag is wrong
-
-If you pushed a wrong tag (for example version typo), delete local and remote tag, then create a new one.
-
-```bash
-# Example: wrong tag v1.0.6, replace with v1.0.7
-git tag -d v1.0.6
-git push origin :refs/tags/v1.0.6
-
-git tag v1.0.7
-git push origin v1.0.7
-```
-
-Notes:
-1. If release `v1.0.6` was already created in the Releases tab, delete that release in GitHub UI too for cleanup.
-2. Do not reuse the same tag name for different commits.
+### D. Detailed CI/CD & Troubleshooting Guide
+For the complete technical breakdown—including `.github/changelog-config.json` rules, CI/CD smoke test commands, common errors (`Empty CHANGELOG`, `401 Unauthorized`), and tag rollback procedures—see the dedicated documentation:
+👉 **[Detailed CI/CD & Release Documentation (`docs/CICD.md`)](./docs/CICD.md)**
 
 ---
 
