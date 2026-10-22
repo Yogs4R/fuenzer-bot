@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  fuenzerbot:
+    build: .
+    container_name: fuenzer-bot
+    restart: unless-stopped
+    # tty & stdin_open are required so that the terminal QR code renders correctly
+    tty: true
+    stdin_open: true
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persistent host volume mounts for WhatsApp session tokens and credentials
+      - ./auth:/app/auth
+      - ./credentials:/app/credentials
+      - ./.env:/app/.env
+      - ./temp:/app/temp

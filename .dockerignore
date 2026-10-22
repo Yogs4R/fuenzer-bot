@@ -1,0 +1,12 @@
+node_modules/
+npm-debug.log
+auth/
+credentials/
+.env
+temp/
+.git/
+.github/
+.agent/
+_bmad/
+_bmad-output/
+.fallow/
