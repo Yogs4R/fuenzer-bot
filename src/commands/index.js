@@ -11,6 +11,10 @@ const { handleResearchCommand } = require('./research/index');
 const { handleInfoCommand } = require('./info/index');
 const { handleShortCommand } = require('./utility/index');
 const {
+    handleDownloadCommand,
+    handleAudioCommand
+} = require('./downloader/index');
+const {
     handleImgCommand,
     handleRemoveBgCommand,
     handleHtmlToImageCommand,
@@ -93,6 +97,16 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
         case '/sticker_info':
             return handleInfoCommand(cmd, args, userId, platform, context);
 
+        // Downloader
+        case '/download': {
+            const targetUrl = args.join(' ').trim();
+            return handleDownloadCommand(targetUrl, platform);
+        }
+        case '/audio': {
+            const targetUrl = args.join(' ').trim();
+            return handleAudioCommand(targetUrl, platform);
+        }
+
         // Utilities
         case '/short':
             return handleShortCommand(args, platform, context);
@@ -129,6 +143,8 @@ module.exports = {
     handleResearchCommand,
     handleInfoCommand,
     handleShortCommand,
+    handleDownloadCommand,
+    handleAudioCommand,
     handleImgCommand,
     handleRemoveBgCommand,
     handleHtmlToImageCommand,
