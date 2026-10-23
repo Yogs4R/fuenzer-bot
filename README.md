@@ -53,6 +53,7 @@
 * **🔄 Omni-Channel Architecture:** Operates simultaneously on WhatsApp (via Baileys) and Telegram (via Telegraf).
 * **🌐 Bilingual & Internationalized:** Default English (`en`) for global evaluation with native Indonesian (`id`) support via `/lang [en|id]` and 1-to-1 bilingual command aliases.
 * **🦥 Automated Morning Briefings:** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma and soothing ElevenLabs voice notes.
+* **🔒 Privacy-First AES-256-GCM Encryption:** All buffered group messages and sender names are encrypted at rest with AES-256-GCM (`iv:authTag:ciphertext`) with an automated 24-hour retention purge.
 * **💰 Frictionless Personal Finance:** Track income and expenses on-the-fly, inspect real-time balances, and render visual monthly charts.
 * **🛠 Swiss Army Knife Utilities:** Generate/convert WebP stickers, remove image backgrounds, compress/merge PDFs, and monitor cloud VM server health.
 
@@ -103,6 +104,13 @@ Seamless internationalization catering to both global and Indonesian users:
 - **Indonesian (`id`) Toggle**: Switch language preferences on-the-fly using `/lang en` or `/lang id` (or `/bahasa id`).
 - **1-to-1 Bilingual Aliases**: Execute commands seamlessly in either English or Indonesian (e.g., `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`, `/remind` ↔ `/ingatkan`).
 - **Tolerant Caching & Fallbacks**: In-memory caching with Supabase persistence and graceful offline fallback.
+
+### 🔒 Data Privacy & Field-Level Encryption (AES-256-GCM)
+Strict zero-knowledge data privacy engineered for conversational security:
+- **AES-256-GCM at Rest**: All sensitive persisted conversation bodies, sender names, and room names in `chat_buffer` are encrypted application-side using AES-256-GCM in format `iv:authTag:ciphertext`.
+- **Authenticated Integrity Verification**: Every payload contains a 16-byte cryptographic auth tag (`AEAD`), rejecting corrupted or tampered records.
+- **Fail-Closed Security**: Ingestion strictly requires `ENCRYPTION_KEY`; if the key is missing, buffering safely halts to prevent persisting unencrypted data.
+- **Ephemeral 24-Hour Retention**: Group messages buffered for AI morning summaries are subject to an automated 24-hour grace period purge after processing, and inactive unsummarized messages expire after 7 days.
 
 ### 🤖 AI Assistant
 Advanced smart assistant powered by large language models (LLM) via OpenRouter API integration. Ready to answer technical questions, discussions, and coding.
@@ -276,7 +284,10 @@ The `.env` file contains all essential configuration strings. Copy `.env.example
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Anon public key), `SUPABASE_SECRET_KEY` (Service role to bypass RLS for admin).
 - **AI APIs**: `GEMINI_API_KEY` or `OPENROUTER_API_KEY`.
 - **Other APIs**: `OPENWEATHER_API_KEY` for weather features, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (web screenshots), and `GAS_WEBAPP_URL` for Google Sheets feedback service.
-- **Admin**: `ADMIN_WA_NUMBERS` and `ADMIN_TELE_IDS` (Comma-separated IDs for monitor & broadcast accesses).
+- **Security & Data Privacy (AES-256-GCM)**: `ENCRYPTION_KEY` (32-byte secret key used to encrypt group chats at rest). Generate a secure 64-character hex key (32 bytes) by running:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
 - **Monitoring**: `MONITOR_URLS` (Websites monitored by the bot) and `MONITOR_INTERVAL` (Interval gap, e.g. 300000ms = 5 minutes).
 
 *Note: The cron job for server health reports runs every morning (06:00, server time) and sends a message only when one or more monitored websites are down. If all websites are healthy, no alert message is sent.*
@@ -471,6 +482,37 @@ CREATE TABLE reminders (
   trigger_time BIGINT NOT NULL,
   is_loop BOOLEAN DEFAULT FALSE,
   loop_interval BIGINT
+);
+
+-- chat_buffer table:
+-- Stores ephemeral, AES-256-GCM encrypted group messages for AI morning summarization.
+CREATE TABLE chat_buffer (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    platform VARCHAR(30) NOT NULL,            -- 'whatsapp', 'telegram', 'discord', 'slack'
+    chat_id VARCHAR(100) NOT NULL,            -- Group / Room identifier
+    chat_name TEXT,                           -- Encrypted group title (AES-256-GCM)
+    sender_name TEXT,                         -- Encrypted sender display name (AES-256-GCM)
+    message_text TEXT NOT NULL,               -- Encrypted message body (AES-256-GCM)
+    is_summarized BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_buffer_unsummarized 
+    ON chat_buffer(platform, chat_id, is_summarized, created_at);
+
+CREATE INDEX idx_chat_buffer_cleanup 
+    ON chat_buffer(is_summarized, created_at);
+
+-- user_summarize_settings table:
+-- Stores preferences for automated morning briefing delivery per user or group.
+CREATE TABLE user_summarize_settings (
+    user_id VARCHAR(100) PRIMARY KEY,
+    platform VARCHAR(30) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    schedule_time VARCHAR(5) DEFAULT '08:00',  -- 24h format (HH:mm)
+    voice_note_enabled BOOLEAN DEFAULT TRUE,
+    language VARCHAR(5) DEFAULT 'en',          -- 'en' or 'id'
+    last_run_at TIMESTAMPTZ
 );
 ```
 

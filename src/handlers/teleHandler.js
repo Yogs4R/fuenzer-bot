@@ -11,6 +11,7 @@ const { pdfMergeSessionManager } = require('../utils/sessionManager');
 const { logCommand } = require('../services/logService');
 const { getUserLanguage } = require('../services/languageService');
 const { t } = require('../utils/i18n');
+const { enqueueMessage } = require('../services/chatBufferService');
 
 const {
     isTelegramPdfDocument,
@@ -38,6 +39,32 @@ const {
     formatBodyBold
 } = require('../utils/textFormatter');
 
+function getTelegramBotUsername() {
+    const fromBotInfo = bot.botInfo?.username;
+    const fromEnv = process.env.TELEGRAM_BOT_USERNAME;
+    const username = String(fromBotInfo || fromEnv || '')
+        .replace(/^@+/, '')
+        .replace(/\s+/g, '')
+        .trim();
+
+    return username;
+}
+
+function sanitizeTelegramIncomingText(rawText) {
+    let text = String(rawText || '').trim();
+    const botUsername = getTelegramBotUsername();
+
+    if (!botUsername) {
+        return text;
+    }
+
+    const escapedBotUsername = escapeRegex(botUsername);
+
+    text = text.replace(new RegExp(`^\\/(\\w+)@${escapedBotUsername}(?=\\s|$)`, 'i'), '/$1');
+    text = text.replace(new RegExp(`(^|\\s)@${escapedBotUsername}\\b`, 'gi'), '$1');
+
+    return text.replace(/\s{2,}/g, ' ').trim();
+}
 
 function buildMainMenuKeyboard() {
     return Markup.inlineKeyboard([
@@ -115,6 +142,19 @@ function setupTelegramBot() {
         const isMentioned = botUsername && text.includes(`@${botUsername}`);
 
         if (isGroup && !isMentioned && !(hasActiveMergeSession && hasPdfDocument)) {
+            const trimmedText = String(text || '').trim();
+            if (trimmedText && !trimmedText.startsWith('/')) {
+                const senderName = [ctx.from?.first_name, ctx.from?.last_name].filter(Boolean).join(' ') || ctx.from?.username || '';
+                enqueueMessage({
+                    platform: 'telegram',
+                    chatId: String(ctx.chat.id),
+                    chatName: ctx.chat.title || '',
+                    senderName,
+                    messageText: trimmedText
+                }).catch((err) => {
+                    console.warn(`[teleHandler] Buffer enqueue error: ${err.message}`);
+                });
+            }
             return;
         }
 

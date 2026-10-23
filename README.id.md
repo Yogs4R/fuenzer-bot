@@ -53,6 +53,7 @@
 * **🔄 Arsitektur Omni-Channel:** Beroperasi secara bersamaan di WhatsApp (via Baileys) dan Telegram (via Telegraf).
 * **🌐 Dukungan Bilingual & Internasionalisasi:** Default Bahasa Inggris (`en`) untuk evaluasi global dengan dukungan penuh Bahasa Indonesia (`id`) via `/lang [en|id]` dan alias perintah dwibahasa 1-ke-1.
 * **🦥 Automated Morning Briefings:** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
+* **🔒 Privasi Terjaga dengan Enkripsi AES-256-GCM:** Semua percakapan grup yang ditampung dienkripsi sebelum disimpan ke database dengan format `iv:authTag:ciphertext` serta pembersihan otomatis (*retention purge*) 24 jam.
 * **💰 Pencatatan Keuangan Praktis:** Catat pemasukan/pengeluaran secara instan via chat, cek saldo real-time, dan hasilkan grafik visual bulanan.
 * **🛠 Utilitas Serbaguna (Swiss Army Knife):** Buat stiker WebP, hapus latar belakang foto, kompres/gabungkan PDF, serta pantau kesehatan server cloud VM Anda.
 
@@ -103,6 +104,13 @@ Internasionalisasi penuh untuk kenyamanan pengguna lokal maupun internasional:
 - **Pilihan Bahasa Indonesia (`id`)**: Ganti preferensi bahasa dengan mudah kapan saja via `/lang en` atau `/lang id` (atau `/bahasa id`).
 - **Alias Command 1-ke-1**: Jalankan setiap perintah dalam bahasa Inggris maupun bahasa Indonesia (contoh: `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`, `/remind` ↔ `/ingatkan`).
 - **Tolerant Caching & Fallback**: Preferensi bahasa disimpan dalam cache in-memory dan disinkronkan ke Supabase PostgreSQL tanpa risiko crash saat koneksi offline.
+
+### 🔒 Privasi Data & Enkripsi Field-Level (AES-256-GCM)
+Keamanan privasi percakapan tingkat tinggi yang dirancang tanpa kompromi:
+- **AES-256-GCM at Rest**: Semua pesan grup yang disimpan ke tabel `chat_buffer` (teks pesan, nama pengirim, nama grup) dienkripsi di sisi aplikasi menggunakan AES-256-GCM dalam format `iv:authTag:ciphertext`.
+- **Verifikasi Integritas Data (AEAD)**: Setiap payload dilengkapi authentication tag 16-byte untuk menolak data yang dimanipulasi atau korup.
+- **Fail-Closed Security**: Ingestion mewajibkan adanya `ENCRYPTION_KEY`; jika kunci tidak disetel, penampungan pesan grup akan berhenti secara aman agar tidak menyimpan pesan dalam bentuk plaintext.
+- **Retensi Efemeral 24 Jam**: Pesan grup yang telah diringkas memiliki batas simpan 24 jam sebelum dihapus permanen secara otomatis, dan pesan pasif yang belum diringkas akan dibersihkan setelah 7 hari.
 
 ### 🤖 AI Assistant
 Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melalui integrasi OpenRouter API. Siap menjawab pertanyaan teknis, diskusi, dan coding.
@@ -276,7 +284,10 @@ File `.env` berisi seluruh konfigurasi penting. Pastikan Anda menyalin `.env.exa
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Role anon), `SUPABASE_SECRET_KEY` (Service role untuk bypass RLS bot admin).
 - **API AI**: `GEMINI_API_KEY` atau `OPENROUTER_API_KEY`.
 - **API Lainnya**: `OPENWEATHER_API_KEY` untuk info cuaca, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (ss web), dan `GAS_WEBAPP_URL` untuk layanan Google Sheets feedback.
-- **Admin**: `ADMIN_WA_NUMBERS` dan `ADMIN_TELE_IDS` (Daftar ID yang dipisahkan koma untuk akses monitor & broadcast).
+- **Keamanan & Privasi Data (AES-256-GCM)**: `ENCRYPTION_KEY` (Kunci rahasia 32-byte untuk enkripsi percakapan grup). Generate kunci hex 64-karakter (32 byte) dengan perintah:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
 - **Monitoring**: `MONITOR_URLS` (Web yang dicek oleh bot) dan `MONITOR_INTERVAL` (Jeda cek, misalnya 300000ms = 5 menit).
 
 *Catatan: Cron job laporan kesehatan server berjalan setiap pagi (06:00, zona waktu server) dan hanya mengirim pesan saat ada website monitor yang down. Jika semua website normal, pesan tidak akan dikirim.*
@@ -471,6 +482,37 @@ CREATE TABLE reminders (
   trigger_time BIGINT NOT NULL,
   is_loop BOOLEAN DEFAULT FALSE,
   loop_interval BIGINT
+);
+
+-- chat_buffer table:
+-- Menyimpan pesan grup terenkripsi AES-256-GCM secara efemeral untuk ringkasan AI pagi hari.
+CREATE TABLE chat_buffer (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    platform VARCHAR(30) NOT NULL,            -- 'whatsapp', 'telegram', 'discord', 'slack'
+    chat_id VARCHAR(100) NOT NULL,            -- Group / Room identifier
+    chat_name TEXT,                           -- Nama grup terenkripsi (AES-256-GCM)
+    sender_name TEXT,                         -- Nama pengirim terenkripsi (AES-256-GCM)
+    message_text TEXT NOT NULL,               -- Isi pesan terenkripsi (AES-256-GCM)
+    is_summarized BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_buffer_unsummarized 
+    ON chat_buffer(platform, chat_id, is_summarized, created_at);
+
+CREATE INDEX idx_chat_buffer_cleanup 
+    ON chat_buffer(is_summarized, created_at);
+
+-- user_summarize_settings table:
+-- Menyimpan preferensi jadwal pengiriman briefing pagi per user atau grup.
+CREATE TABLE user_summarize_settings (
+    user_id VARCHAR(100) PRIMARY KEY,
+    platform VARCHAR(30) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    schedule_time VARCHAR(5) DEFAULT '08:00',  -- Format 24 jam (HH:mm)
+    voice_note_enabled BOOLEAN DEFAULT TRUE,
+    language VARCHAR(5) DEFAULT 'en',          -- 'en' atau 'id'
+    last_run_at TIMESTAMPTZ
 );
 ```
 
