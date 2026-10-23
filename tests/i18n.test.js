@@ -37,6 +37,19 @@ function runI18nTests() {
   const missingKey = 'non.existent.key.xyz';
   assert.strictEqual(t(missingKey), missingKey);
 
+  // 8. New Namespaces Verification
+  const namespaces = ['about', 'ai', 'converter', 'downloader', 'research', 'google', 'utility', 'admin'];
+  const enDict = require('../src/locales/en.json');
+  const idDict = require('../src/locales/id.json');
+
+  for (const ns of namespaces) {
+    assert.ok(enDict[ns], `Missing namespace ${ns} in en.json`);
+    assert.ok(idDict[ns], `Missing namespace ${ns} in id.json`);
+    const enKeys = Object.keys(enDict[ns]);
+    const idKeys = Object.keys(idDict[ns]);
+    assert.strictEqual(enKeys.length, idKeys.length, `Key count mismatch in namespace "${ns}": en (${enKeys.length}) vs id (${idKeys.length})`);
+  }
+
   console.log('✅ All i18n tests passed successfully!');
 }
 
