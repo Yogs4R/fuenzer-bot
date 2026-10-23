@@ -1,32 +1,29 @@
 // Utility command handler (shortener)
 const { shortenUrl } = require('../../services/shortenerService');
 const { escapeHtml } = require('../../utils/textFormatter');
+const { t } = require('../../utils/i18n');
 
-async function handleShortCommand(args, platform = 'telegram') {
+async function handleShortCommand(args, platform = 'telegram', context = {}) {
     const originalUrl = String(args.join(' ') || '').trim();
+    const lang = typeof context === 'string' ? context : (context?.lang || 'en');
+    const isTele = platform === 'telegram';
 
     if (!originalUrl) {
-        return platform === 'telegram'
-            ? '❌ Masukkan link yang ingin dipendekkan! Contoh: <code>/short https://fuenzerstudio.com</code>'
-            : '❌ Masukkan link yang ingin dipendekkan! Contoh: /short https://fuenzerstudio.com';
+        return t('utility.short_prompt', {}, lang);
     }
 
     if (!(originalUrl.startsWith('http://') || originalUrl.startsWith('https://'))) {
-        return platform === 'telegram'
-            ? '❌ URL tidak valid! URL harus diawali <code>http://</code> atau <code>https://</code>'
-            : '❌ URL tidak valid! URL harus diawali http:// atau https://';
+        return t('utility.short_invalid_url', {}, lang);
     }
 
     try {
         const shortUrl = await shortenUrl(originalUrl);
-        return platform === 'telegram'
-            ? `✅ Berhasil dipendekkan!\n🔗 URL Asli: ${escapeHtml(originalUrl)}\n✨ URL Pendek: ${escapeHtml(shortUrl)}`
-            : `✅ Berhasil dipendekkan!\n🔗 URL Asli: ${originalUrl}\n✨ URL Pendek: ${shortUrl}`;
+        const safeOriginal = isTele ? escapeHtml(originalUrl) : originalUrl;
+        const safeShort = isTele ? escapeHtml(shortUrl) : shortUrl;
+        return t('utility.short_success', { originalUrl: safeOriginal, shortUrl: safeShort }, lang);
     } catch (error) {
         console.error('Error handling /short command:', error);
-        return platform === 'telegram'
-            ? `❌ Gagal memendekkan URL: ${escapeHtml(error.message)}`
-            : `❌ Gagal memendekkan URL: ${error.message}`;
+        return t('utility.short_failed', { error: isTele ? escapeHtml(error.message) : error.message }, lang);
     }
 }
 

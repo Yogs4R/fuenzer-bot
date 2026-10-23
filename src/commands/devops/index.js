@@ -3,6 +3,7 @@ const os = require('os');
 const { isAdmin } = require('../../utils/auth');
 const { checkWebsites, formatMonitorMessage, getMonitorWebsiteLinks } = require('../../services/monitorService');
 const { handleAboutMeCommand } = require('../../services/aboutService');
+const { t } = require('../../utils/i18n');
 
 function formatDuration(seconds) {
   const totalSeconds = Math.max(0, Math.floor(seconds || 0));
@@ -11,8 +12,8 @@ function formatDuration(seconds) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
 
   const parts = [];
-  if (days > 0) parts.push(`${days}h`);
-  parts.push(`${hours}j`);
+  if (days > 0) parts.push(`${days}d`);
+  parts.push(`${hours}h`);
   parts.push(`${minutes}m`);
   return parts.join(' ');
 }
@@ -42,56 +43,65 @@ function getRamUsageText() {
   return `${usedGb}/${totalGb} GB`;
 }
 
-function buildSystemStatsFooter(platform = 'whatsapp') {
+function buildSystemStatsFooter(platform = 'whatsapp', lang = 'en') {
   const isWhatsApp = String(platform || '').toLowerCase() === 'whatsapp';
+  const cpuLabel = t('devops.cpu', {}, lang);
+  const ramLabel = t('devops.ram', {}, lang);
+  const uptimeLabel = t('devops.uptime', {}, lang);
+  const statusLabel = t('devops.status', {}, lang);
+  const onlineLabel = t('devops.online', {}, lang);
+
   if (isWhatsApp) {
     return [
       '—'.repeat(19),
-      `*CPU:* ${getCpuUsagePercent()}%`,
-      `*RAM:* ${getRamUsageText()}`,
-      `*UPTIME:* ${formatDuration(os.uptime())}`,
-      `*STATUS:* ONLINE`
+      `*${cpuLabel}:* ${getCpuUsagePercent()}%`,
+      `*${ramLabel}:* ${getRamUsageText()}`,
+      `*${uptimeLabel}:* ${formatDuration(os.uptime())}`,
+      `*${statusLabel}:* ${onlineLabel}`
     ].join('\n');
   }
 
   return [
     '—'.repeat(19),
-    `CPU: ${getCpuUsagePercent()}%`,
-    `RAM: ${getRamUsageText()}`,
-    `UPTIME: ${formatDuration(os.uptime())}`,
-    `STATUS: ONLINE`
+    `${cpuLabel}: ${getCpuUsagePercent()}%`,
+    `${ramLabel}: ${getRamUsageText()}`,
+    `${uptimeLabel}: ${formatDuration(os.uptime())}`,
+    `${statusLabel}: ${onlineLabel}`
   ].join('\n');
 }
 
-async function handleDevopsCommand(command, args = [], userId = '', platform = 'whatsapp') {
+async function handleDevopsCommand(command, args = [], userId = '', platform = 'whatsapp', context = {}) {
   const cleanCommand = String(command || '').toLowerCase().trim();
+  const lang = context?.lang || 'en';
 
   switch (cleanCommand) {
-    case '/ping':
-    case '/system': {
-      const footer = buildSystemStatsFooter(platform);
-      return `Pong! 🏓\n\n${footer}`;
+    case '/ping': {
+      const footer = buildSystemStatsFooter(platform, lang);
+      const pong = t('devops.ping_pong', {}, lang);
+      return `${pong}\n\n${footer}`;
     }
 
-    case '/me': {
-      return await handleAboutMeCommand(command, args, userId, platform);
+    case '/me':
+    case '/about': {
+      return await handleAboutMeCommand(command, args, userId, platform, lang);
     }
 
     case '/monitor': {
       if (!isAdmin(userId, platform)) {
-        return platform === 'whatsapp'
-          ? '> *AKSES DITOLAK* ❌\n\nCommand ini khusus admin.'
-          : '<b>AKSES DITOLAK</b> ❌\n\nCommand ini khusus admin.';
+        const header = t('common.access_denied_header', {}, lang);
+        const body = t('common.access_denied_body', {}, lang);
+        return `${header}\n\n${body}`;
       }
 
       const { results } = await checkWebsites();
       return formatMonitorMessage(results, null, platform);
     }
 
-    default:
-      return platform === 'whatsapp'
-        ? '> *COMMAND TIDAK DIKENAL* ❌\n\nPerintah devops tidak tersedia.'
-        : '<b>COMMAND TIDAK DIKENAL</b> ❌\n\nPerintah devops tidak tersedia.';
+    default: {
+      const notAvail = t('devops.not_available', {}, lang);
+      const header = t('common.unknown_command_header', {}, lang);
+      return `${header}\n\n${notAvail}`;
+    }
   }
 }
 

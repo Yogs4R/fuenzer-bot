@@ -51,6 +51,7 @@
 **Fuenzer Bot** is a high-availability, standalone virtual assistant engineered to increase daily productivity by bringing financial management, multi-modal AI reasoning, document processing, and server monitoring directly into your everyday chat apps (WhatsApp & Telegram) with zero context switching.
 
 * **🔄 Omni-Channel Architecture:** Operates simultaneously on WhatsApp (via Baileys) and Telegram (via Telegraf).
+* **🌐 Bilingual & Internationalized:** Default English (`en`) for global evaluation with native Indonesian (`id`) support via `/lang [en|id]` and 1-to-1 bilingual command aliases.
 * **🦥 Automated Morning Briefings:** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma and soothing ElevenLabs voice notes.
 * **💰 Frictionless Personal Finance:** Track income and expenses on-the-fly, inspect real-time balances, and render visual monthly charts.
 * **🛠 Swiss Army Knife Utilities:** Generate/convert WebP stickers, remove image backgrounds, compress/merge PDFs, and monitor cloud VM server health.
@@ -96,6 +97,13 @@ Runs simultaneously, independently but fully integrated:
 - **WhatsApp Bot** (powered by Baileys)
 - **Telegram Bot** (powered by Telegraf)
 
+### 🌐 Bilingual Support & i18n
+Seamless internationalization catering to both global and Indonesian users:
+- **Default English (`en`)**: Ready for international evaluation and global communities.
+- **Indonesian (`id`) Toggle**: Switch language preferences on-the-fly using `/lang en` or `/lang id` (or `/bahasa id`).
+- **1-to-1 Bilingual Aliases**: Execute commands seamlessly in either English or Indonesian (e.g., `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`, `/remind` ↔ `/ingatkan`).
+- **Tolerant Caching & Fallbacks**: In-memory caching with Supabase persistence and graceful offline fallback.
+
 ### 🤖 AI Assistant
 Advanced smart assistant powered by large language models (LLM) via OpenRouter API integration. Ready to answer technical questions, discussions, and coding.
 - **Multimodal** support (capable of reading Images, and extracting Text Documents).
@@ -103,7 +111,7 @@ Advanced smart assistant powered by large language models (LLM) via OpenRouter A
 - Multi-model support with user-level model switching command.
 - Built-in model usage metadata in replies (token usage and RPM label).
 - Supports multilingual answers by following the user's input language.
-- Most bot commands are still optimized with Indonesian command labels and examples.
+- Full bilingual command aliases and localized response outputs across all modules.
 
 ### 📚 Research Tools
 Research references powered by multiple public APIs (no API key required):
@@ -158,45 +166,71 @@ Simple ticketing system to receive user questions and feedback:
 
 ## Command Reference Table
 
+### 1. English Commands (`en` - Default)
+
 | Command | Description | Library Used | Example Usage |
 |---|---|---|---|
-| /start | Start bot and show quick menu | Baileys, Telegraf | /start |
-| /info | Show command categories and bot info | Baileys, Telegraf | /info |
-| /ping | Check bot online status and system footer | Node.js os module | /ping |
-| /model_info | Show available AI models and aliases | OpenRouter, aiPreferenceService | /model_info |
-| /switch | Switch active AI model per user | OpenRouter, aiPreferenceService | /switch elephant |
-| /translate_info | Show full guide for translation system | aiClient, OpenRouter | /translate_info |
-| /translate | Translate text or replied message to a specific language | aiClient, OpenRouter | /translate en Hello world |
-| /finance_info | Full finance command guide | financeService, Supabase | /finance_info |
-| /saldo | Show latest balance summary | financeService, Supabase | /saldo |
-| /catat | Record expense transaction | financeService, Supabase | /catat 25000 lunch |
-| /pemasukan | Record income transaction | financeService, Supabase | /pemasukan 150000 freelance |
-| /laporan_chart | Generate finance chart report | financeService, chart renderer | /laporan_chart |
-| /riwayat | Show paginated transaction history | financeService, Supabase | /riwayat 2 |
-| /edit | Edit transaction by id and field | financeService, Supabase | /edit 123e4567 nominal 30000 |
-| /hapus | Delete transaction with confirmation | financeService, Supabase | /hapus 123e4567 |
-| /remind_info | Full reminder command guide | reminderService, node-cron | /remind_info |
-| /remind | Add reminder message, loop option, target time | reminderService, node-cron, Supabase | /remind "Team Meeting" 10m loop |
-| /research_info | Full reference search guide, including note that /jurnal can also search article references | researchService, axios | /research_info |
-| /buku | Search book references | Open Library API, axios | /buku clean code |
-| /jurnal | Search journal and article references | Crossref API, axios | /jurnal machine learning |
-| /artikel | Search scientific article references | OpenAlex API, axios | /artikel deep learning healthcare |
-| /downloader | Full media downloader guide | downloaderService | /downloader |
-| /cuaca | Show weather information by city | weatherService, external weather API | /cuaca bandung |
-| /sholat | Show prayer times by city | religionService, prayer time API | /sholat bandung |
-| /me | Show creator profile and links | aboutService | /me |
-| /img_info | Full image tools guide | converterService | /img_info |
-| /img | Image convert, resize, rotate, compress | converterService, image processor | /img to png |
-| /hapusbg | Remove image background | converterService, remove.bg API | /hapusbg |
-| /ss | Capture website screenshot | converterService, html-to-image engine | /ss https://example.com |
-| /pdf_info | Full PDF tools guide | converterService | /pdf_info |
-| /topdf | Convert document/media to PDF | converterService, CloudConvert | /topdf |
-| /pdf | Compress, convert, rotate, extract, merge PDF | converterService, CloudConvert, PDF tools | /pdf compress |
-| /sticker_info | Full sticker tools guide | stickerService | /sticker_info |
-| /donate | Show support links and donation QR | donateService | /donate |
-| /help | Show help center and Customer Service menu | csService | /help |
-| /feedback | Send feedback (saved to Google Sheets) | csService, GAS | /feedback great bot |
-| /ask | Send question to admin via CS | csService, GAS | /ask how to donate? |
+| `/start` | Start bot and show quick menu | Baileys, Telegraf | `/start` |
+| `/info` | Show command categories and bot guide | Baileys, Telegraf | `/info` |
+| `/lang`, `/language` | Check or switch bot interface language (`en` or `id`) | languageService, Supabase | `/lang en`, `/lang id` |
+| `/ping` | Check bot online status and system resource stats | Node.js os module | `/ping` |
+| `/balance` | Show latest wallet balance summary | financeService, Supabase | `/balance` |
+| `/record`, `/expense` | Record expense transaction | financeService, Supabase | `/record 25000 lunch` |
+| `/income` | Record income transaction | financeService, Supabase | `/income 150000 freelance` |
+| `/chart` | Generate finance visual chart report | financeService, QuickChart | `/chart` |
+| `/history` | Show paginated transaction history | financeService, Supabase | `/history 2` |
+| `/edit` | Edit transaction by id and field | financeService, Supabase | `/edit 123e4567 30000 dinner` |
+| `/delete` | Delete transaction with confirmation | financeService, Supabase | `/delete 123e4567` |
+| `/weather` | Show weather forecast by city | weatherService, OpenWeather | `/weather bandung` |
+| `/prayer` | Show daily prayer times by city | religionService, MyQuran API | `/prayer bandung` |
+| `/remind` | Add reminder, recurrence option, target time | reminderService, node-cron, Supabase | `/remind add 15m Laundry` |
+| `/about`, `/me` | Show creator profile and links | aboutService | `/about` |
+| `/book` | Search book references | Open Library API, axios | `/book clean code` |
+| `/journal` | Search journal and article references | Crossref API, axios | `/journal machine learning` |
+| `/article` | Search scientific article references | OpenAlex API, axios | `/article deep learning` |
+| `/translate` | Translate text or replied message to a target language | aiClient, OpenRouter | `/translate id Hello world` |
+| `/model_info` | Show available AI models and aliases | OpenRouter, aiPreferenceService | `/model_info` |
+| `/switch` | Switch active AI model per user | OpenRouter, aiPreferenceService | `/switch gemma4` |
+| `/help` | Show help center and Customer Service menu | csService | `/help` |
+| `/feedback` | Send feedback (saved to Google Sheets) | csService, GAS | `/feedback great bot` |
+| `/ask` | Send question to admin via CS | csService, GAS | `/ask how to donate?` |
+| `/download` | Download media from social platforms (IG, TikTok, X, YT) | downloaderService | `/download https://...` |
+| `/audio` | Extract audio from YouTube | downloaderService | `/audio https://...` |
+| `/img` | Image convert, resize, rotate, compress | converterService, Sharp | `/img to png` |
+| `/removebg` | Remove image background | converterService, remove.bg API | `/removebg` |
+| `/screenshot`, `/ss` | Capture website screenshot | converterService, html-to-image | `/ss https://example.com` |
+| `/topdf` | Convert document/media to PDF | converterService, CloudConvert | `/topdf` |
+| `/pdf` | Compress, convert, rotate, extract, merge PDF | converterService, CloudConvert, PDF tools | `/pdf compress` |
+| `/sticker` | Convert image or short video to sticker | stickerService | `/sticker` (reply to photo) |
+| `/short`, `/shortlink` | Shorten URL using is.gd | shortenerService, is.gd API | `/short https://github.com` |
+| `/donate` | Show support links and donation QR | donateService | `/donate` |
+
+### 2. Indonesian Command Aliases (`id` - Bahasa Indonesia)
+
+| Command (ID) | English Equivalent | Deskripsi | Contoh Penggunaan |
+|---|---|---|---|
+| `/bahasa` | `/lang` | Cek atau ganti bahasa bot | `/bahasa id`, `/bahasa en` |
+| `/saldo` | `/balance` | Tampilkan ringkasan saldo keuangan | `/saldo` |
+| `/catat`, `/pengeluaran` | `/record`, `/expense` | Catat pengeluaran keuangan | `/catat 25000 makan siang` |
+| `/pemasukan` | `/income` | Catat pemasukan keuangan | `/pemasukan 150000 freelance` |
+| `/laporan_chart` | `/chart` | Tampilkan grafik keuangan | `/laporan_chart` |
+| `/riwayat` | `/history` | Tampilkan riwayat transaksi | `/riwayat 2` |
+| `/hapus` | `/delete` | Hapus transaksi | `/hapus 123e4567` |
+| `/cuaca` | `/weather` | Cek cuaca kota | `/cuaca jakarta` |
+| `/sholat`, `/jadwalsholat` | `/prayer` | Cek jadwal sholat kota | `/sholat jakarta` |
+| `/ingatkan` | `/remind` | Buat jadwal pengingat | `/ingatkan add 10m jemuran` |
+| `/buku` | `/book` | Cari referensi buku | `/buku clean code` |
+| `/jurnal` | `/journal` | Cari jurnal ilmiah | `/jurnal machine learning` |
+| `/artikel`, `/paper` | `/article`, `/paper` | Cari artikel ilmiah | `/artikel healthcare` |
+| `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks | `/terjemah en Selamat pagi` |
+| `/model`, `/models` | `/model_info` | Daftar model AI yang tersedia | `/model` |
+| `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
+| `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
+| `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
+| `/suara` | `/audio` | Unduh audio YouTube | `/suara https://...` |
+| `/shortlink`, `/pendekkan` | `/short` | Pendekkan link URL | `/shortlink https://...` |
+| `/hapusbg` | `/removebg` | Hapus latar belakang gambar | `/hapusbg` |
+| `/tosticker` | `/sticker` | Ubah media jadi stiker | `/tosticker` |
 
 ### Admin Commands Table
 
@@ -384,6 +418,7 @@ CREATE TABLE user_preferences (
     user_id TEXT PRIMARY KEY,
     platform TEXT,
     active_model TEXT DEFAULT 'openai/gpt-oss-120b',
+    language VARCHAR(5) DEFAULT 'en',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

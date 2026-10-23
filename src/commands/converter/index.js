@@ -15,6 +15,8 @@ const {
 const { createSticker, isFfmpegMissingError } = require('../../services/stickerService');
 const { pdfMergeSessionManager } = require('../../utils/sessionManager');
 
+const { t } = require('../../utils/i18n');
+
 function escapeHtml(text) {
     return String(text || '')
         .replace(/&/g, '&amp;')
@@ -22,42 +24,26 @@ function escapeHtml(text) {
         .replace(/>/g, '&gt;');
 }
 
-async function handleImgCommand(args, inputPath, outputPath, platform = 'telegram') {
+async function handleImgCommand(args, inputPath, outputPath, platform = 'telegram', lang = 'en') {
     try {
         const action = String(args[0] || '').toLowerCase().trim();
         const param = String(args[1] || '').toLowerCase().trim();
 
         if (!action) {
-            const header = platform === 'telegram'
-                ? '<b>❌ ERROR CONVERTER</b>'
-                : '> *❌ ERROR CONVERTER*';
-            const body = 'Format: /img <action> [parameter]\n\nContoh:\n• /img compress\n• /img resize 500x500\n• /img to png\n• /img rotate 90';
-            return { success: false, message: `${header}\n\n${body}` };
+            return { success: false, message: t('converter.img_format_error', {}, lang) };
         }
 
         const validActions = ['compress', 'resize', 'to', 'rotate'];
         if (!validActions.includes(action)) {
-            const header = platform === 'telegram'
-                ? '<b>❌ ACTION TIDAK DIKENAL</b>'
-                : '> *❌ ACTION TIDAK DIKENAL*';
-            const body = `Action "${action}" tidak tersedia.\n\nAction tersedia:\n• compress - Kompres gambar\n• resize - Ubah ukuran\n• to - Konversi format\n• rotate - Putar gambar`;
-            return { success: false, message: `${header}\n\n${body}` };
+            return { success: false, message: t('converter.img_invalid_action', { action }, lang) };
         }
 
         if (action === 'resize' && !param) {
-            const header = platform === 'telegram'
-                ? '<b>❌ PARAMETER DIPERLUKAN</b>'
-                : '> *❌ PARAMETER DIPERLUKAN*';
-            const body = 'Resize memerlukan parameter ukuran.\n\nContoh: /img resize 500x500';
-            return { success: false, message: `${header}\n\n${body}` };
+            return { success: false, message: t('converter.img_resize_param', {}, lang) };
         }
 
         if (action === 'to' && !param) {
-            const header = platform === 'telegram'
-                ? '<b>❌ PARAMETER DIPERLUKAN</b>'
-                : '> *❌ PARAMETER DIPERLUKAN*';
-            const body = 'Konversi memerlukan format tujuan.\n\nContoh: /img to png';
-            return { success: false, message: `${header}\n\n${body}` };
+            return { success: false, message: t('converter.img_to_param', {}, lang) };
         }
 
         await processLocalImage(inputPath, outputPath, { action, param });
@@ -160,7 +146,7 @@ async function handleStickerCommand(buffer, isVideo = false, platform = 'telegra
     }
 }
 
-async function handlePdfCommand({ command, args = [], inputPath = null, outputPath = null, inputExt = 'pdf', userId = '', platform = 'telegram' }) {
+async function handlePdfCommand({ command, args = [], inputPath = null, outputPath = null, inputExt = 'pdf', userId = '', platform = 'telegram', lang = 'en' }) {
     const isToPdf = command === '/topdf';
     let mode = isToPdf ? 'topdf' : '';
     let outputFormat = 'pdf';
@@ -175,29 +161,26 @@ async function handlePdfCommand({ command, args = [], inputPath = null, outputPa
 
             if (mergeAction === 'start') {
                 pdfMergeSessionManager.startSession(userId);
-                const msg = platform === 'telegram'
-                    ? '✅ Mode Merge Aktif! Kirim file PDF satu per satu. Ketik /pdf merge done jika sudah semua, atau /pdf merge cancel untuk batal.'
-                    : '✅ Mode Merge Aktif! Kirim file PDF satu per satu. Ketik `/pdf merge done` jika sudah semua, atau `/pdf merge cancel` untuk batal.';
-                return { type: 'message', message: msg };
+                return { type: 'message', message: t('converter.pdf_merge_start', {}, lang) };
             }
 
             if (mergeAction === 'cancel') {
                 pdfMergeSessionManager.clearSession(userId);
-                return { type: 'message', message: '❌ Merge dibatalkan. Semua file sesi dihapus.' };
+                return { type: 'message', message: t('converter.pdf_merge_cancel', {}, lang) };
             }
 
             if (mergeAction === 'done') {
                 const sessionFiles = pdfMergeSessionManager.getSessionFiles(userId);
                 if (!Array.isArray(sessionFiles) || sessionFiles.length < 2) {
-                    return { type: 'message', message: '❌ Minimal butuh 2 file PDF!' };
+                    return { type: 'message', message: t('converter.pdf_merge_min_files', {}, lang) };
                 }
 
                 try {
                     await mergePdfs(sessionFiles, outputPath);
                     pdfMergeSessionManager.clearSession(userId);
                     const caption = platform === 'telegram'
-                        ? '<b>✅ PDF MERGE BERHASIL</b>\n\nSemua file PDF berhasil digabung.'
-                        : '*✅ PDF MERGE BERHASIL*\n\nSemua file PDF berhasil digabung.';
+                        ? (lang === 'id' ? '<b>✅ PDF MERGE BERHASIL</b>\n\nSemua file PDF berhasil digabung.' : '<b>✅ PDF MERGE SUCCESSFUL</b>\n\nAll PDF documents merged successfully.')
+                        : (lang === 'id' ? '*✅ PDF MERGE BERHASIL*\n\nSemua file PDF berhasil digabung.' : '*✅ PDF MERGE SUCCESSFUL*\n\nAll PDF documents merged successfully.');
                     return { type: 'file', success: true, caption, outputPath, outputFormat: 'pdf' };
                 } catch (err) {
                     pdfMergeSessionManager.clearSession(userId);

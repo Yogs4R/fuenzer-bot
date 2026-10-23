@@ -51,6 +51,7 @@
 **Fuenzer Bot** adalah asisten virtual mandiri dengan ketersediaan tinggi (*high-availability*) yang dirancang untuk meningkatkan produktivitas harian Anda dengan memadukan pencatatan keuangan, penalaran AI multi-modal, pengolahan dokumen, dan pemantauan server langsung dari aplikasi chat sehari-hari (WhatsApp & Telegram) tanpa perlu berganti-ganti aplikasi.
 
 * **🔄 Arsitektur Omni-Channel:** Beroperasi secara bersamaan di WhatsApp (via Baileys) dan Telegram (via Telegraf).
+* **🌐 Dukungan Bilingual & Internasionalisasi:** Default Bahasa Inggris (`en`) untuk evaluasi global dengan dukungan penuh Bahasa Indonesia (`id`) via `/lang [en|id]` dan alias perintah dwibahasa 1-ke-1.
 * **🦥 Automated Morning Briefings:** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
 * **💰 Pencatatan Keuangan Praktis:** Catat pemasukan/pengeluaran secara instan via chat, cek saldo real-time, dan hasilkan grafik visual bulanan.
 * **🛠 Utilitas Serbaguna (Swiss Army Knife):** Buat stiker WebP, hapus latar belakang foto, kompres/gabungkan PDF, serta pantau kesehatan server cloud VM Anda.
@@ -96,6 +97,13 @@ Berjalan ganda secara independen namun terintegrasi penuh:
 - **WhatsApp Bot** (powered by Baileys)
 - **Telegram Bot** (powered by Telegraf)
 
+### 🌐 Dukungan Dwibahasa (Bilingual & i18n)
+Internasionalisasi penuh untuk kenyamanan pengguna lokal maupun internasional:
+- **Default Bahasa Inggris (`en`)**: Siap untuk evaluasi global dan standar internasional.
+- **Pilihan Bahasa Indonesia (`id`)**: Ganti preferensi bahasa dengan mudah kapan saja via `/lang en` atau `/lang id` (atau `/bahasa id`).
+- **Alias Command 1-ke-1**: Jalankan setiap perintah dalam bahasa Inggris maupun bahasa Indonesia (contoh: `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`, `/remind` ↔ `/ingatkan`).
+- **Tolerant Caching & Fallback**: Preferensi bahasa disimpan dalam cache in-memory dan disinkronkan ke Supabase PostgreSQL tanpa risiko crash saat koneksi offline.
+
 ### 🤖 AI Assistant
 Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melalui integrasi OpenRouter API. Siap menjawab pertanyaan teknis, diskusi, dan coding.
 - Dukungan **Multimodal** (mampu membaca file Gambar, dan mengekstrak isi Dokumen teks).
@@ -103,7 +111,7 @@ Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melal
 - Dukungan multi-model dengan command pergantian model per pengguna.
 - Metadata penggunaan model di balasan (token usage dan label RPM).
 - Mendukung jawaban multi-bahasa dengan menyesuaikan bahasa input pengguna.
-- Sebagian besar command bot masih dioptimalkan dengan label dan contoh berbahasa Indonesia.
+- Mendukung alias perintah dwibahasa penuh dan respons output yang terlokalisasi di seluruh modul.
 
 ### 📚 Research Tools
 Fitur riset referensi berbasis beberapa API publik (tanpa API key):
@@ -158,45 +166,71 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 
 ## Tabel Referensi Command
 
-| Command | Deskripsi | Library yang digunakan | Contoh penggunaan |
+### 1. Perintah Bahasa Inggris (`en` - Default)
+
+| Command | Deskripsi | Library yang Digunakan | Contoh Penggunaan |
 |---|---|---|---|
-| /start | Mulai bot dan tampilkan menu cepat | Baileys, Telegraf | /start |
-| /info | Tampilkan kategori command dan info bot | Baileys, Telegraf | /info |
-| /ping | Cek status online bot dan footer sistem | Node.js os module | /ping |
-| /model_info | Tampilkan model AI dan alias yang tersedia | OpenRouter, aiPreferenceService | /model_info |
-| /switch | Ganti model AI aktif per pengguna | OpenRouter, aiPreferenceService | /switch elephant |
-| /translate_info | Panduan panduan lengkap penggunaan fitur terjemahan | aiClient, OpenRouter | /translate_info |
-| /translate | Terjemahkan teks atau reply pesan ke bahasa tertentu | aiClient, OpenRouter | /translate en Halo dunia |
-| /finance_info | Panduan Lengkap command keuangan | financeService, Supabase | /finance_info |
-| /saldo | Tampilkan ringkasan saldo terbaru | financeService, Supabase | /saldo |
-| /catat | Catat transaksi pengeluaran | financeService, Supabase | /catat 25000 makan siang |
-| /pemasukan | Catat transaksi pemasukan | financeService, Supabase | /pemasukan 150000 freelance |
-| /laporan_chart | Buat laporan keuangan berbentuk grafik | financeService, chart renderer | /laporan_chart |
-| /riwayat | Tampilkan riwayat transaksi berhalaman | financeService, Supabase | /riwayat 2 |
-| /edit | Ubah transaksi berdasarkan id dan field | financeService, Supabase | /edit 123e4567 nominal 30000 |
-| /hapus | Hapus transaksi dengan konfirmasi | financeService, Supabase | /hapus 123e4567 |
-| /remind_info | Panduan perintah reminder / pengingat | reminderService, node-cron | /remind_info |
-| /remind | Tambah teks pengingat, loop opsi, target waktu | reminderService, node-cron, Supabase | /remind "Meeting Tim" 10m loop |
-| /research_info | Panduan Lengkap pencarian Referensi, termasuk info bahwa /jurnal juga bisa mencari artikel | researchService, axios | /research_info |
-| /buku | Cari referensi buku | Open Library API, axios | /buku clean code |
-| /jurnal | Cari referensi jurnal dan artikel | Crossref API, axios | /jurnal machine learning |
-| /artikel | Cari referensi artikel ilmiah | OpenAlex API, axios | /artikel deep learning healthcare |
-| /downloader | Panduan Lengkap download media | downloaderService | /downloader |
-| /cuaca | Tampilkan info cuaca per kota | weatherService, weather API | /cuaca bandung |
-| /sholat | Tampilkan jadwal sholat per kota | religionService, prayer time API | /sholat bandung |
-| /me | Tampilkan profil pembuat dan link penting | aboutService | /me |
-| /img_info | Panduan Lengkap image tools | converterService | /img_info |
-| /img | Konversi, resize, rotate, kompres gambar | converterService, image processor | /img to png |
-| /hapusbg | Hapus background gambar | converterService, remove.bg API | /hapusbg |
-| /ss | Screenshot website dari URL | converterService, html-to-image engine | /ss https://example.com |
-| /pdf_info | Panduan Lengkap PDF tools | converterService | /pdf_info |
-| /topdf | Konversi dokumen/media ke PDF | converterService, CloudConvert | /topdf |
-| /pdf | Kompres, konversi, rotate, extract, merge PDF | converterService, CloudConvert, PDF tools | /pdf compress |
-| /sticker_info | Panduan Lengkap sticker tools | stickerService | /sticker_info |
-| /donate | Tampilkan link dukungan dan QR donasi | donateService | /donate |
-| /help | Tampilkan pusat bantuan dan menu CS | csService | /help |
-| /feedback | Kirim saran/masukan (tersimpan ke Google Sheets) | csService, GAS | /feedback botnya bagus |
-| /ask | Kirim pertanyaan ke admin via CS | csService, GAS | /ask cara donasi? |
+| `/start` | Mulai bot dan tampilkan menu cepat | Baileys, Telegraf | `/start` |
+| `/info` | Tampilkan kategori command dan panduan bot | Baileys, Telegraf | `/info` |
+| `/lang`, `/language` | Cek atau ubah bahasa antarmuka bot (`en` atau `id`) | languageService, Supabase | `/lang en`, `/lang id` |
+| `/ping` | Cek status online bot dan metrik resource sistem | Node.js os module | `/ping` |
+| `/balance` | Tampilkan ringkasan saldo keuangan terbaru | financeService, Supabase | `/balance` |
+| `/record`, `/expense` | Catat transaksi pengeluaran | financeService, Supabase | `/record 25000 lunch` |
+| `/income` | Catat transaksi pemasukan | financeService, Supabase | `/income 150000 freelance` |
+| `/chart` | Buat laporan keuangan visual grafik | financeService, QuickChart | `/chart` |
+| `/history` | Tampilkan riwayat transaksi berhalaman | financeService, Supabase | `/history 2` |
+| `/edit` | Ubah transaksi berdasarkan ID | financeService, Supabase | `/edit 123e4567 30000 dinner` |
+| `/delete` | Hapus transaksi dengan konfirmasi ID | financeService, Supabase | `/delete 123e4567` |
+| `/weather` | Tampilkan prakiraan cuaca kota | weatherService, OpenWeather | `/weather bandung` |
+| `/prayer` | Tampilkan jadwal sholat harian kota | religionService, MyQuran API | `/prayer bandung` |
+| `/remind` | Pasang pengingat waktu | reminderService, node-cron, Supabase | `/remind add 15m Laundry` |
+| `/about`, `/me` | Tampilkan profil pembuat bot | aboutService | `/about` |
+| `/book` | Cari referensi buku | Open Library API, axios | `/book clean code` |
+| `/journal` | Cari referensi jurnal ilmiah | Crossref API, axios | `/journal machine learning` |
+| `/article` | Cari referensi artikel ilmiah | OpenAlex API, axios | `/article deep learning` |
+| `/translate` | Terjemahkan teks atau pesan | aiClient, OpenRouter | `/translate id Hello world` |
+| `/model_info` | Tampilkan daftar model AI yang tersedia | OpenRouter, aiPreferenceService | `/model_info` |
+| `/switch` | Ganti model AI aktif per pengguna | OpenRouter, aiPreferenceService | `/switch gemma4` |
+| `/help` | Pusat bantuan dan layanan Customer Service | csService | `/help` |
+| `/feedback` | Kirim feedback ke Google Sheets | csService, GAS | `/feedback great bot` |
+| `/ask` | Kirim pertanyaan ke admin via CS | csService, GAS | `/ask how to donate?` |
+| `/download` | Unduh media sosial (IG, TikTok, X, YT) | downloaderService | `/download https://...` |
+| `/audio` | Ekstrak audio dari YouTube | downloaderService | `/audio https://...` |
+| `/img` | Konversi, resize, rotasi, kompres gambar | converterService, Sharp | `/img to png` |
+| `/removebg` | Hapus background gambar | converterService, remove.bg API | `/removebg` |
+| `/screenshot`, `/ss` | Screenshot halaman website | converterService, html-to-image | `/ss https://example.com` |
+| `/topdf` | Konversi dokumen/gambar ke PDF | converterService, CloudConvert | `/topdf` |
+| `/pdf` | Kompres, rotasi, ekstrak, gabung PDF | converterService, CloudConvert, PDF tools | `/pdf compress` |
+| `/sticker` | Ubah gambar atau video pendek jadi stiker | stickerService | `/sticker` (balas foto) |
+| `/short`, `/shortlink` | Pendekkan link URL dengan is.gd | shortenerService, is.gd API | `/short https://github.com` |
+| `/donate` | Tampilkan tautan donasi & QRIS | donateService | `/donate` |
+
+### 2. Alias Perintah Bahasa Indonesia (`id` - Bahasa Indonesia)
+
+| Command (ID) | Padanan English | Deskripsi | Contoh Penggunaan |
+|---|---|---|---|
+| `/bahasa` | `/lang` | Cek atau ubah bahasa antarmuka bot | `/bahasa id`, `/bahasa en` |
+| `/saldo` | `/balance` | Tampilkan ringkasan saldo keuangan | `/saldo` |
+| `/catat`, `/pengeluaran` | `/record`, `/expense` | Catat pengeluaran keuangan | `/catat 25000 makan siang` |
+| `/pemasukan` | `/income` | Catat pemasukan keuangan | `/pemasukan 150000 freelance` |
+| `/laporan_chart` | `/chart` | Tampilkan grafik keuangan | `/laporan_chart` |
+| `/riwayat` | `/history` | Tampilkan riwayat transaksi | `/riwayat 2` |
+| `/hapus` | `/delete` | Hapus transaksi berdasarkan ID | `/hapus 123e4567` |
+| `/cuaca` | `/weather` | Cek prakiraan cuaca kota | `/cuaca jakarta` |
+| `/sholat`, `/jadwalsholat` | `/prayer` | Cek jadwal sholat kota | `/sholat jakarta` |
+| `/ingatkan` | `/remind` | Pasang pengingat waktu | `/ingatkan add 10m jemuran` |
+| `/buku` | `/book` | Cari referensi buku | `/buku clean code` |
+| `/jurnal` | `/journal` | Cari referensi jurnal ilmiah | `/jurnal machine learning` |
+| `/artikel`, `/paper` | `/article`, `/paper` | Cari artikel ilmiah | `/artikel healthcare` |
+| `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks atau pesan | `/terjemah en Selamat pagi` |
+| `/model`, `/models` | `/model_info` | Tampilkan daftar model AI yang tersedia | `/model` |
+| `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
+| `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
+| `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
+| `/suara` | `/audio` | Unduh audio YouTube | `/suara https://...` |
+| `/shortlink`, `/pendekkan` | `/short` | Pendekkan link URL | `/shortlink https://...` |
+| `/hapusbg` | `/removebg` | Hapus latar belakang gambar | `/hapusbg` |
+| `/tosticker` | `/sticker` | Ubah media jadi stiker | `/tosticker` |
 
 ### Tabel Command Admin
 
@@ -384,6 +418,7 @@ CREATE TABLE user_preferences (
     user_id TEXT PRIMARY KEY,
     platform TEXT,
     active_model TEXT DEFAULT 'openai/gpt-oss-120b',
+    language VARCHAR(5) DEFAULT 'en',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

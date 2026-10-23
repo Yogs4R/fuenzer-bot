@@ -4,41 +4,36 @@ const {
   getMediaBuffer,
   getAudioBuffer
 } = require('../../services/downloaderService');
+const { t } = require('../../utils/i18n');
 
-function formatErrorMessage(err, type = 'media', platform = 'whatsapp') {
-  const isTele = platform === 'telegram';
+function formatErrorMessage(err, type = 'media', platform = 'whatsapp', lang = 'en') {
   const errCode = err?.message || '';
 
   if (errCode === 'FILE_TOO_LARGE') {
-    return '❌ Gagal: Ukuran file terlalu besar (Maksimal 25MB demi stabilitas bot).';
+    return t('downloader.file_too_large', {}, lang);
   }
   if (errCode === 'FB_NOT_SUPPORTED') {
-    return '❌ Mohon maaf, fitur download Facebook sedang dalam perbaikan.';
+    return t('downloader.fb_not_supported', {}, lang);
   }
   if (errCode === 'AUDIO_PLATFORM_NOT_SUPPORTED') {
-    return isTele
-      ? '❌ Saat ini <code>/audio</code> hanya mendukung YouTube dan YouTube Music.'
-      : '❌ Saat ini /audio hanya mendukung YouTube dan YouTube Music.';
+    return t('downloader.audio_platform_not_supported', {}, lang);
   }
   if (errCode === 'DOWNLOAD_BUFFER_FAILED') {
-    return '❌ Media ditemukan, tapi server sumber menolak koneksi (proxy/anti-hotlink). Coba ulang beberapa saat lagi.';
+    return t('downloader.download_buffer_failed', {}, lang);
   }
   if (errCode === 'AUDIO_NOT_FOUND') {
-    return '❌ Audio tidak ditemukan dari link tersebut.';
+    return t('downloader.audio_not_found', {}, lang);
   }
 
-  if (type === 'audio') {
-    return '❌ Gagal mengunduh audio. Pastikan link valid dan akun tidak di-private!';
-  }
-  return '❌ Gagal mengunduh. Pastikan link valid dan akun tidak di-private!';
+  return t('downloader.failed', {}, lang);
 }
 
-async function handleDownloadCommand(targetUrl, platform = 'whatsapp') {
+async function handleDownloadCommand(targetUrl, platform = 'whatsapp', lang = 'en') {
   const url = String(targetUrl || '').trim();
   if (!url) {
     return {
       success: false,
-      message: '❌ Masukkan link media! Contoh: /download https://www.instagram.com/reel/xxxx'
+      message: t('downloader.input_prompt', {}, lang)
     };
   }
 
@@ -84,17 +79,17 @@ async function handleDownloadCommand(targetUrl, platform = 'whatsapp') {
   } catch (error) {
     return {
       success: false,
-      message: formatErrorMessage(error, 'media', platform)
+      message: formatErrorMessage(error, 'media', platform, lang)
     };
   }
 }
 
-async function handleAudioCommand(targetUrl, platform = 'whatsapp') {
+async function handleAudioCommand(targetUrl, platform = 'whatsapp', lang = 'en') {
   const url = String(targetUrl || '').trim();
   if (!url) {
     return {
       success: false,
-      message: '❌ Masukkan link media! Contoh: /audio https://www.youtube.com/watch?v=xxxx'
+      message: t('downloader.audio_prompt', {}, lang)
     };
   }
 
@@ -111,7 +106,7 @@ async function handleAudioCommand(targetUrl, platform = 'whatsapp') {
   } catch (error) {
     return {
       success: false,
-      message: formatErrorMessage(error, 'audio', platform)
+      message: formatErrorMessage(error, 'audio', platform, lang)
     };
   }
 }

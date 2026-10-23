@@ -1,15 +1,24 @@
 const { addReminder, listReminders, deleteReminder, updateReminder } = require('../../services/reminderService');
+const { t } = require('../../utils/i18n');
 
-async function handleReminderCommand(args, userId, platform = 'whatsapp') {
+async function handleReminderCommand(args = [], userId = '', platform = 'whatsapp', context = {}) {
+    const lang = context?.lang || 'en';
+
     if (args.length === 0) {
-        return "Penggunaan Reminder:\n/remind add [waktu] [pesan]\n/remind loop [waktu] [pesan]\n/remind list\n/remind hapus [id]\n/remind edit [id] [waktu] [pesan]\n\nContoh waktu: 1m (1 menit), 1h (1 jam), 1d (1 hari)";
+        const header = t('common.format_error_header', {}, lang);
+        const body = t('reminder.format_error', {}, lang);
+        return `${header}\n\n${body}`;
     }
 
-    const subCommand = args[0].toLowerCase();
+    const subCommand = String(args[0] || '').toLowerCase().trim();
 
     try {
         if (subCommand === 'add' || subCommand === 'loop') {
-            if (args.length < 3) return "Format tidak lengkap! Gunakan: /remind add/loop [waktu] [pesan]";
+            if (args.length < 3) {
+                const header = t('common.format_error_header', {}, lang);
+                const body = t('reminder.format_error', {}, lang);
+                return `${header}\n\n${body}`;
+            }
             const timeStr = args[1];
             const message = args.slice(2).join(' ');
             const isLoop = subCommand === 'loop';
@@ -17,46 +26,60 @@ async function handleReminderCommand(args, userId, platform = 'whatsapp') {
             const data = await addReminder(userId, timeStr, message, isLoop);
             
             if (isLoop) {
-                return `🔁 Pengingat berulang (setiap ${timeStr}) disetel dengan ID: ${data.id}`;
+                return t('reminder.loop_success', { time: timeStr, message }, lang) + `\nID: \`${data.id}\``;
             } else {
-                return `✅ Pengingat sekali jalan disetel dengan ID: ${data.id}`;
+                return t('reminder.add_success', { time: timeStr, message }, lang) + `\nID: \`${data.id}\``;
             }
         }
 
         if (subCommand === 'list') {
             const reminders = await listReminders(userId);
-            if (reminders.length === 0) return "Tidak ada pengingat yang tersimpan.";
+            if (reminders.length === 0) {
+                const header = t('reminder.list_header', {}, lang);
+                const body = t('reminder.list_empty', {}, lang);
+                return `${header}\n\n${body}`;
+            }
 
-            let text = "Daftar Pengingat Anda:\n\n";
-            reminders.forEach((r, idx) => {
-                const date = new Date(r.trigger_time).toLocaleString('id-ID');
+            const header = t('reminder.list_header', {}, lang);
+            const items = reminders.map((r, idx) => {
+                const date = new Date(r.trigger_time).toLocaleString(lang === 'en' ? 'en-US' : 'id-ID');
                 const icon = r.is_loop ? '🔁' : '⏰';
-                text += `${idx + 1}. [${r.id}] ${icon} ${date}\n   Pesan: ${r.message}\n`;
-            });
-            return text;
+                return `${idx + 1}. [${r.id}] ${icon} ${date}\n   ${lang === 'en' ? 'Message' : 'Pesan'}: ${r.message}`;
+            }).join('\n');
+
+            return `${header}\n\n${items}`;
         }
 
-        if (subCommand === 'hapus') {
-            if (args.length < 2) return "Sertakan ID! Contoh: /remind hapus A1B2C";
+        if (subCommand === 'hapus' || subCommand === 'delete') {
+            if (args.length < 2) {
+                const header = t('common.format_error_header', {}, lang);
+                return `${header}\n\n${lang === 'en' ? 'Please provide ID. Example: /remind delete A1B2C' : 'Sertakan ID! Contoh: /remind hapus A1B2C'}`;
+            }
             const reqId = args[1];
             await deleteReminder(userId, reqId);
-            return `✅ Pengingat dengan ID ${reqId} berhasil dihapus.`;
+            return t('reminder.deleted', { id: reqId }, lang);
         }
 
         if (subCommand === 'edit') {
-            if (args.length < 4) return "Format tidak lengkap! Gunakan: /remind edit [id] [waktu] [pesan]";
+            if (args.length < 4) {
+                const header = t('common.format_error_header', {}, lang);
+                return `${header}\n\n${lang === 'en' ? 'Incomplete format! Use: /remind edit [id] [time] [message]' : 'Format tidak lengkap! Gunakan: /remind edit [id] [waktu] [pesan]'}`;
+            }
             const reqId = args[1];
             const timeStr = args[2];
             const message = args.slice(3).join(' ');
 
             await updateReminder(userId, reqId, timeStr, message);
-            return `✅ Pengingat ${reqId} berhasil diupdate.`;
+            return `${lang === 'en' ? `✅ Reminder ${reqId} successfully updated.` : `✅ Pengingat ${reqId} berhasil diupdate.`}`;
         }
 
-        return "Sub-perintah tidak dikenali.";
+        const header = t('common.unknown_command_header', {}, lang);
+        return `${header}\n\n${t('reminder.format_error', {}, lang)}`;
     } catch (error) {
-        return `❌ Gagal: ${error.message}`;
+        return `❌ ${error.message}`;
     }
 }
 
-module.exports = { handleReminderCommand };
+module.exports = {
+    handleReminderCommand
+};

@@ -147,7 +147,7 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
 * **Finance:** `/balance` ↔ `/saldo`, `/record` / `/expense` ↔ `/catat` / `/pengeluaran`, `/income` ↔ `/pemasukan`, `/history` ↔ `/riwayat`, `/delete` ↔ `/hapus`
 * **Weather:** `/weather` ↔ `/cuaca`, `/earthquake` ↔ `/gempa`
 * **Religion:** `/prayer` ↔ `/jadwalsholat`, `/qibla` ↔ `/kiblat`
-* **DevOps:** `/system` ↔ `/sistem`, `/ping`, `/checkweb`
+* **DevOps:** `/ping`, `/monitor`, `/about` ↔ `/me`
 * **Summarizer:** `/summarize` ↔ `/ringkas`
 
 ---
@@ -190,10 +190,10 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
 
 ## 10. Implementation Roadmap (Deadline: October 25, 2026)
 
-- [ ] **Phase 1: Internationalization (i18n) & Bilingual Command Aliases**
-  - Implement lightweight i18n utility (`src/utils/i18n.js`) with English (`en`) default and Indonesian (`id`) translations (`src/locales/`).
-  - Register bilingual aliases for all existing commands across handlers (e.g. `/balance` ↔ `/saldo`).
-  - Implement `/lang [en|id]` preference management command and persist to user profile.
+- [x] **Phase 1: Internationalization (i18n) & Bilingual Command Aliases**
+  - [x] Implement lightweight i18n utility (`src/utils/i18n.js`) with English (`en`) default and Indonesian (`id`) translations (`src/locales/`).
+  - [x] Register bilingual aliases for all existing commands across handlers (e.g. `/balance` ↔ `/saldo`).
+  - [x] Implement `/lang [en|id]` preference management command and persist to user profile.
 - [ ] **Phase 2: Security, Storage & Buffer Ingestion**
   - Implement AES-256-GCM encryption/decryption module in `src/utils/crypto.js`.
   - Create `chat_buffer` and `user_summarize_settings` tables in Supabase.

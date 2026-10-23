@@ -112,6 +112,8 @@ async function getAIUsageStats() {
   };
 }
 
+const { t } = require('../../utils/i18n');
+
 async function handleAdminCommand(command, args, userId, platform, options = {}) {
   void args;
   void userId;
@@ -119,35 +121,14 @@ async function handleAdminCommand(command, args, userId, platform, options = {})
   const cleanCommand = String(command || '').toLowerCase();
   const platformName = String(platform || '').toLowerCase().trim();
   const isWhatsApp = platformName === 'whatsapp';
+  const lang = options?.lang || 'en';
 
   switch (cleanCommand) {
     case '/admin': {
-      if (isWhatsApp) {
-        const header = '> *MENU ADMIN* 🛡️';
-        const body = [
-          '📋 *FITUR ADMIN* 🛡️',
-          '- \`/admin\` : Tampilkan menu command admin',
-          '- \`/monitor\` : Cek status website',
-          '- \`/cmd_usage\` : Statistik penggunaan bot',
-          '- \`/ai_usage\` : Statistik penggunaan token AI',
-          '- \`/broadcast\` : Kirim pesan ke semua pengguna',
-          '- \`/answer [id] [pesan]\` : Balas pertanyaan user',
-        ].join('\n');
-        const footer = ['—'.repeat(19), 'Gunakan command di atas untuk mengakses fitur admin.'].join('\n');
-        return `${header}\n\n${body}\n\n${footer}`;
-      }
-
-      const header = '<b>MENU ADMIN</b> 🛡️';
-      const body = [
-        '<b>FITUR ADMIN</b> 🛡️',
-        '• /admin : Tampilkan menu command admin',
-        '• /monitor : Cek status website',
-        '• /cmd_usage : Statistik penggunaan bot',
-        '• /ai_usage : Statistik penggunaan token AI',
-        '• /broadcast : Kirim pesan ke semua pengguna',
-        '• /answer [id] [pesan] : Balas pertanyaan user',
-      ].join('\n');
-      return `${header}\n\n${body}`;
+      const header = t('admin.menu_header', {}, lang);
+      const body = t('admin.menu_body', {}, lang);
+      const footer = ['—'.repeat(19), t('admin.menu_footer', {}, lang)].join('\n');
+      return `${header}\n\n${body}\n\n${footer}`;
     }
 
     case '/answer': {
@@ -232,34 +213,25 @@ async function handleAdminCommand(command, args, userId, platform, options = {})
           ? usageStats.topCommands
             .map((item, index) => `${index + 1}. ${item.command} (${formatNumber(item.count)})`)
             .join('\n')
-          : 'Belum ada data command.';
+          : (lang === 'id' ? 'Belum ada data command.' : 'No command data yet.');
 
-        if (isWhatsApp) {
-          const header = '> 📊 LAPORAN PENGGUNAAN BOT';
-          const body = [
-            `Total Eksekusi: ${formatNumber(usageStats.totalExecution)}`,
-            `Total Pengguna: ${formatNumber(usageStats.uniqueUsers)}`,
-            '',
-            'TOP 5 COMMANDS:',
-            topLines
-          ].join('\n');
+        const header = t('admin.cmd_usage_header', {}, lang);
+        const labelTotal = t('admin.cmd_usage_total', {}, lang);
+        const labelUsers = t('admin.cmd_usage_users', {}, lang);
+        const labelTop = t('admin.cmd_usage_top', {}, lang);
 
-          return `${header}\n\n${body}`;
-        }
-
-        const header = '<b>📊 LAPORAN PENGGUNAAN BOT</b>';
         const body = [
-          `Total Eksekusi: ${formatNumber(usageStats.totalExecution)}`,
-          `Total Pengguna: ${formatNumber(usageStats.uniqueUsers)}`,
+          `${labelTotal}: ${formatNumber(usageStats.totalExecution)}`,
+          `${labelUsers}: ${formatNumber(usageStats.uniqueUsers)}`,
           '',
-          'TOP 5 COMMANDS:',
+          `${labelTop}:`,
           topLines
         ].join('\n');
 
         return `${header}\n\n${body}`;
       } catch (error) {
         const errorHeader = isWhatsApp ? '> *ERROR CMD USAGE* ❌' : '<b>ERROR CMD USAGE</b> ❌';
-        const errorBody = `Gagal mengambil data penggunaan command: ${error.message}`;
+        const errorBody = `Failed to retrieve command usage data: ${error.message}`;
         return `${errorHeader}\n\n${errorBody}`;
       }
     }
@@ -271,27 +243,17 @@ async function handleAdminCommand(command, args, userId, platform, options = {})
           ? aiUsageStats.topModels
             .map((item, index) => `${index + 1}. ${item.model} (${formatPercent(item.percentage)}%)`)
             .join('\n')
-          : 'Belum ada data model.';
+          : (lang === 'id' ? 'Belum ada data model.' : 'No model data yet.');
 
-        if (isWhatsApp) {
-          const header = '> 🤖 LAPORAN PENGGUNAAN AI';
-          const body = [
-            `Total Chat: ${formatNumber(aiUsageStats.totalChat)}`,
-            `Total Input Tokens: ${formatNumber(aiUsageStats.totalInputTokens)}`,
-            `Total Output Tokens: ${formatNumber(aiUsageStats.totalOutputTokens)}`,
-            '',
-            'TOP MODELS:',
-            topLines
-          ].join('\n');
+        const header = t('admin.ai_usage_header', {}, lang);
+        const labelChats = t('admin.ai_usage_total_chats', {}, lang);
+        const labelIn = t('admin.ai_usage_input_tokens', {}, lang);
+        const labelOut = t('admin.ai_usage_output_tokens', {}, lang);
 
-          return `${header}\n\n${body}`;
-        }
-
-        const header = '<b>🤖 LAPORAN PENGGUNAAN AI</b>';
         const body = [
-          `Total Chat: ${formatNumber(aiUsageStats.totalChat)}`,
-          `Total Input Tokens: ${formatNumber(aiUsageStats.totalInputTokens)}`,
-          `Total Output Tokens: ${formatNumber(aiUsageStats.totalOutputTokens)}`,
+          `${labelChats}: ${formatNumber(aiUsageStats.totalChat)}`,
+          `${labelIn}: ${formatNumber(aiUsageStats.totalInputTokens)}`,
+          `${labelOut}: ${formatNumber(aiUsageStats.totalOutputTokens)}`,
           '',
           'TOP MODELS:',
           topLines
@@ -300,7 +262,7 @@ async function handleAdminCommand(command, args, userId, platform, options = {})
         return `${header}\n\n${body}`;
       } catch (error) {
         const errorHeader = isWhatsApp ? '> *ERROR AI USAGE* ❌' : '<b>ERROR AI USAGE</b> ❌';
-        const errorBody = `Gagal mengambil data penggunaan AI: ${error.message}`;
+        const errorBody = `Failed to retrieve AI usage data: ${error.message}`;
         return `${errorHeader}\n\n${errorBody}`;
       }
     }

@@ -7,23 +7,29 @@ const {
   editTransaction 
 } = require('../../services/financeService');
 const { formatBulletList } = require('../../utils/formatter');
+const { t } = require('../../utils/i18n');
 
-async function handleFinanceCommand(command, args, userId, platform) {
+async function handleFinanceCommand(command, args, userId, platform, context = {}) {
   // Clean command to ensure it's in lowercase
-  const cleanCommand = command.toLowerCase();
+  const cleanCommand = String(command || '').toLowerCase().trim();
+  const lang = context?.lang || 'en';
   
   switch (cleanCommand) {
     case '/saldo':
-      return await checkSaldo(userId);
+    case '/balance':
+      return await checkSaldo(userId, lang);
       
     case '/catat':
+    case '/record':
+    case '/expense':
+    case '/pengeluaran':
     case '/pemasukan':
+    case '/income':
       // Ensure there are enough arguments
       if (args.length < 2) {
-        const header = '> *ERROR FORMAT* ❌';
+        const header = t('common.format_error_header', {}, lang);
         const body = formatBulletList([
-          `Format: ${cleanCommand} <jumlah> <deskripsi>`,
-          `Contoh: ${cleanCommand} 50000 Makan siang`
+          t('finance.record_format_error', { command: cleanCommand }, lang)
         ]);
         return `${header}\n\n${body}`;
       }
@@ -31,14 +37,12 @@ async function handleFinanceCommand(command, args, userId, platform) {
       // Clean the amount: remove non-numeric characters except digits
       const rawAmount = args[0];
       const cleanedAmount = rawAmount.replace(/[^\d]/g, '');
-      const amount = parseInt(cleanedAmount);
+      const amount = parseInt(cleanedAmount, 10);
       
       if (isNaN(amount) || amount <= 0) {
-        const header = '> *ERROR INPUT* ❌';
+        const header = t('common.input_error_header', {}, lang);
         const body = formatBulletList([
-          `Jumlah harus angka positif.`,
-          `Diterima: ${rawAmount}`,
-          `Contoh yang benar: ${cleanCommand} 50000 Makan siang`
+          t('finance.record_amount_error', { command: cleanCommand, amount: rawAmount }, lang)
         ]);
         return `${header}\n\n${body}`;
       }
@@ -47,37 +51,37 @@ async function handleFinanceCommand(command, args, userId, platform) {
       const description = args.slice(1).join(' ');
       
       // Determine transaction type based on command
-      const type = cleanCommand === '/catat' ? 'OUT' : 'IN';
+      const isIncome = cleanCommand === '/pemasukan' || cleanCommand === '/income';
+      const type = isIncome ? 'IN' : 'OUT';
       
-      return await addTransaction(userId, amount, type, description, platform);
+      return await addTransaction(userId, amount, type, description, platform, lang);
       
     case '/laporan_chart':
-      return await getFinanceChart(userId);
+    case '/chart':
+      return await getFinanceChart(userId, lang);
       
     case '/riwayat':
+    case '/history':
       // Optional limit parameter
-      const limit = args.length > 0 ? parseInt(args[0]) : 5;
-      return await getHistory(userId, isNaN(limit) ? 5 : limit);
+      const limit = args.length > 0 ? parseInt(args[0], 10) : 5;
+      return await getHistory(userId, isNaN(limit) ? 5 : limit, lang);
       
     case '/hapus':
+    case '/delete':
       if (args.length < 1) {
-        const header = '> *ERROR FORMAT* ❌';
+        const header = t('common.format_error_header', {}, lang);
         const body = formatBulletList([
-          'Format: /hapus <id_transaksi>',
-          'Contoh: /hapus 123e4567',
-          'Gunakan /riwayat untuk melihat ID transaksi'
+          t('finance.delete_format_error', {}, lang)
         ]);
         return `${header}\n\n${body}`;
       }
-      return await deleteTransaction(userId, args[0]);
+      return await deleteTransaction(userId, args[0], lang);
       
     case '/edit':
       if (args.length < 3) {
-        const header = '> *ERROR FORMAT* ❌';
+        const header = t('common.format_error_header', {}, lang);
         const body = formatBulletList([
-          'Format: /edit <id> <jumlah_baru> <deskripsi_baru>',
-          'Contoh: /edit 123e4567 75000 Makan malam',
-          'Gunakan /riwayat untuk melihat ID transaksi'
+          t('finance.edit_format_error', {}, lang)
         ]);
         return `${header}\n\n${body}`;
       }
@@ -85,14 +89,12 @@ async function handleFinanceCommand(command, args, userId, platform) {
       // Clean the new amount
       const newRawAmount = args[1];
       const newCleanedAmount = newRawAmount.replace(/[^\d]/g, '');
-      const newAmount = parseInt(newCleanedAmount);
+      const newAmount = parseInt(newCleanedAmount, 10);
       
       if (isNaN(newAmount) || newAmount <= 0) {
-        const header = '> *ERROR INPUT* ❌';
+        const header = t('common.input_error_header', {}, lang);
         const body = formatBulletList([
-          `Jumlah baru harus angka positif.`,
-          `Diterima: ${newRawAmount}`,
-          `Contoh yang benar: /edit ${args[0]} 75000 Makan malam`
+          t('finance.edit_amount_error', { id: args[0], amount: newRawAmount }, lang)
         ]);
         return `${header}\n\n${body}`;
       }
@@ -100,15 +102,13 @@ async function handleFinanceCommand(command, args, userId, platform) {
       // The rest of the arguments form the new description
       const newDescription = args.slice(2).join(' ');
       
-      return await editTransaction(userId, args[0], newAmount, newDescription);
+      return await editTransaction(userId, args[0], newAmount, newDescription, lang);
       
-    default:
-      const header = '> *COMMAND TIDAK DIKENAL* ❌';
-      const body = formatBulletList([
-        `Perintah keuangan "${command}" tidak tersedia.`,
-        `Gunakan /saldo, /catat, /pemasukan, /laporan_chart, /riwayat, /hapus, atau /edit.`
-      ]);
+    default: {
+      const header = t('common.unknown_command_header', {}, lang);
+      const body = t('common.unknown_command_body', { command }, lang);
       return `${header}\n\n${body}`;
+    }
   }
 }
 

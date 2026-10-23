@@ -16,6 +16,8 @@ const {
   handleWhatsAppPdfMergeUpload,
   handleWhatsAppDownloader
 } = require('./adapters/waMediaAdapter');
+const { getUserLanguage } = require('../services/languageService');
+const { t } = require('../utils/i18n');
 
 function normalizeWhatsAppId(value) {
   return String(value || '')
@@ -146,6 +148,7 @@ class WhatsAppHandler {
         const args = parts.slice(1);
 
         const realId = resolveWhatsAppSenderJid(msg, userId);
+        const lang = await getUserLanguage(realId || userId, 'whatsapp');
 
         if (command && realId) {
           await logCommand(realId, 'whatsapp', command);
@@ -161,6 +164,7 @@ class WhatsAppHandler {
         ) : '';
 
         const dispatched = await dispatchCommand(command, args, realId, 'whatsapp', {
+          lang,
           quotedText,
           notifyAdmin: async (textToAdmin) => {
             await this.sock.sendMessage(
@@ -200,14 +204,17 @@ class WhatsAppHandler {
               replyText = await handleWhatsAppImageConverter(this.sock, msg, args);
               break;
 
+            case '/sticker':
             case '/tosticker':
               replyText = await handleWhatsAppSticker(this.sock, msg, contextInfo);
               break;
 
+            case '/removebg':
             case '/hapusbg':
               replyText = await handleWhatsAppRemoveBg(this.sock, msg);
               break;
 
+            case '/screenshot':
             case '/ss':
               replyText = await handleWhatsAppScreenshot(this.sock, msg, args);
               break;
@@ -223,8 +230,8 @@ class WhatsAppHandler {
               break;
 
             default: {
-              const defaultHeader = '> *COMMAND TIDAK DIKENAL* 🤔';
-              const defaultBody = `Perintah "${command}" tidak tersedia.\nCoba \`/ping\`, \`/saldo\`, \`/catat\`, \`/pemasukan\`, \`/laporan_chart\`, atau \`/info\`.`;
+              const defaultHeader = t('common.unknown_command_header', {}, lang);
+              const defaultBody = t('common.unknown_command_body', { command }, lang);
               replyText = `${defaultHeader}\n\n${defaultBody}`;
             }
           }
@@ -234,9 +241,12 @@ class WhatsAppHandler {
         const isDoc = !!msg.message?.documentMessage;
         const hasMedia = isImage || isDoc;
 
+        const realId = resolveWhatsAppSenderJid(msg, userId);
+        const lang = await getUserLanguage(realId || userId, 'whatsapp');
+
         if (cleanText.length <= 2 && !hasMedia) {
-          const shortHeader = '> *PESAN TERLALU PENDEK* 📏';
-          const shortBody = 'Maaf, pesan terlalu pendek atau kurang jelas.\nKetik \`/info\` untuk melihat daftar kemampuanku ya!';
+          const shortHeader = t('common.too_short_header', {}, lang);
+          const shortBody = t('common.too_short_body', {}, lang);
           replyText = `${shortHeader}\n\n${shortBody}`;
         } else {
           try {

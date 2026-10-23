@@ -1,33 +1,37 @@
 // AI commands and reasoning isolation handler
 const { AI_MODELS, buildModelInfoMessage, setActiveModel, getActiveModel } = require('../../services/aiPreferenceService');
 const { askAiDetailed, translateText } = require('../../lib/openrouterClient');
-
 const { appendFooter } = require('../../utils/textFormatter');
+const { t } = require('../../utils/i18n');
 
-function buildAiStatsFooter(aiMeta = {}, platform = 'whatsapp') {
+function buildAiStatsFooter(aiMeta = {}, platform = 'whatsapp', lang = 'en') {
   const model = aiMeta.modelName || aiMeta.model || '-';
   const tokenIn = aiMeta.usage?.promptTokenCount ?? 0;
   const tokenOut = aiMeta.usage?.candidatesTokenCount ?? 0;
   const rpmLabel = aiMeta.rpm?.label || '-';
+  const labelModel = t('ai.stats_model', {}, lang) || 'Model';
+  const labelIn = t('ai.stats_token_in', {}, lang) || 'Token In';
+  const labelOut = t('ai.stats_token_out', {}, lang) || 'Token Out';
+  const labelRpm = t('ai.stats_rpm', {}, lang) || 'RPM';
 
   if (platform === 'whatsapp') {
     return [
       '—'.repeat(19),
-      `*Model:* ${model}`,
-      `*Token In:* ${tokenIn} | *Token Out:* ${tokenOut}`,
-      `*RPM:* ${rpmLabel}`
+      `*${labelModel}:* ${model}`,
+      `*${labelIn}:* ${tokenIn} | *${labelOut}:* ${tokenOut}`,
+      `*${labelRpm}:* ${rpmLabel}`
     ].join('\n');
   }
 
   return [
     '—'.repeat(19),
-    `Model: ${model}`,
-    `Token In: ${tokenIn} | Token Out: ${tokenOut}`,
-    `RPM: ${rpmLabel}`
+    `${labelModel}: ${model}`,
+    `${labelIn}: ${tokenIn} | ${labelOut}: ${tokenOut}`,
+    `${labelRpm}: ${rpmLabel}`
   ].join('\n');
 }
 
-function formatAiError(error, platform = 'whatsapp') {
+function formatAiError(error, platform = 'whatsapp', lang = 'en') {
   const isWhatsApp = platform === 'whatsapp';
   const message = String(error?.message || '');
 
@@ -39,75 +43,78 @@ function formatAiError(error, platform = 'whatsapp') {
   let errorBody;
 
   if (message.includes('429 Rate Limit')) {
-    errorHeader = isWhatsApp ? '> *RATE LIMIT AI* ⏳' : '<b>RATE LIMIT AI</b> ⏳';
-    errorBody = 'Maaf, request AI sedang padat (429 Rate Limit).\nSilakan coba lagi beberapa saat.';
+    errorHeader = isWhatsApp ? t('ai.error_rate_limit_header', {}, lang) : `<b>${t('ai.error_rate_limit_header', {}, lang).replace(/^>\s*\*/, '').replace(/\*$/, '')}</b>`;
+    errorBody = t('ai.error_rate_limit_body', {}, lang);
   } else if (message.includes('401 Unauthorized') || message.includes('403 Forbidden')) {
-    errorHeader = isWhatsApp ? '> *AKSES AI DITOLAK* 🔒' : '<b>AKSES AI DITOLAK</b> 🔒';
-    errorBody = 'Maaf, akses AI ditolak (401/403).\nAdmin perlu memeriksa API key OpenRouter.';
-  } else if (message.includes('tidak ditemukan di OpenRouter')) {
-    errorHeader = isWhatsApp ? '> *MODEL AI TIDAK DITEMUKAN* 🔍' : '<b>MODEL AI TIDAK DITEMUKAN</b> 🔍';
-    errorBody = 'Maaf, model AI yang dipakai sedang tidak tersedia.\nCoba lagi nanti.';
+    errorHeader = isWhatsApp ? t('ai.error_access_denied_header', {}, lang) : `<b>${t('ai.error_access_denied_header', {}, lang).replace(/^>\s*\*/, '').replace(/\*$/, '')}</b>`;
+    errorBody = t('ai.error_access_denied_body', {}, lang);
+  } else if (message.includes('tidak ditemukan di OpenRouter') || message.includes('not found in OpenRouter')) {
+    errorHeader = isWhatsApp ? t('ai.error_model_not_found_header', {}, lang) : `<b>${t('ai.error_model_not_found_header', {}, lang).replace(/^>\s*\*/, '').replace(/\*$/, '')}</b>`;
+    errorBody = t('ai.error_model_not_found_body', {}, lang);
   } else if (message.includes('API key OpenRouter')) {
-    errorHeader = isWhatsApp ? '> *API KEY AI TIDAK VALID* 🔑' : '<b>API KEY AI TIDAK VALID</b> 🔑';
-    errorBody = 'Maaf, konfigurasi OpenRouter belum lengkap atau tidak valid.\nAdmin telah diberitahu.';
-  } else if (message.includes('Server OpenRouter sedang gangguan')) {
-    errorHeader = isWhatsApp ? '> *SERVER AI GANGGUAN* 🛠️' : '<b>SERVER AI GANGGUAN</b> 🛠️';
-    errorBody = 'Maaf, server AI sedang gangguan.\nSilakan coba lagi nanti.';
+    errorHeader = isWhatsApp ? t('ai.error_invalid_key_header', {}, lang) : `<b>${t('ai.error_invalid_key_header', {}, lang).replace(/^>\s*\*/, '').replace(/\*$/, '')}</b>`;
+    errorBody = t('ai.error_invalid_key_body', {}, lang);
+  } else if (message.includes('Server OpenRouter sedang gangguan') || message.includes('OpenRouter server issue')) {
+    errorHeader = isWhatsApp ? t('ai.error_server_down_header', {}, lang) : `<b>${t('ai.error_server_down_header', {}, lang).replace(/^>\s*\*/, '').replace(/\*$/, '')}</b>`;
+    errorBody = t('ai.error_server_down_body', {}, lang);
   } else {
-    errorHeader = isWhatsApp ? '> *ERROR AI* 🤯' : '<b>ERROR AI</b> ❌';
-    errorBody = 'Maaf, otak AI sedang gangguan.\nCoba lagi nanti atau gunakan perintah sistem (/ping, /saldo).';
+    errorHeader = isWhatsApp ? t('ai.error_generic_header', {}, lang) : `<b>${t('ai.error_generic_header', {}, lang).replace(/^>\s*\*/, '').replace(/\*$/, '')}</b>`;
+    errorBody = t('ai.error_generic_body', {}, lang);
   }
 
   const emptyFooter = buildAiStatsFooter({
     model: '-',
     usage: { promptTokenCount: 0, candidatesTokenCount: 0 },
     rpm: { label: '-' }
-  }, platform);
+  }, platform, lang);
 
   return appendFooter(`${errorHeader}\n\n${errorBody}`, emptyFooter);
 }
 
 async function handleAiCommand(command, args = [], userId = '', platform = 'whatsapp', extra = {}) {
   const cleanCommand = String(command || '').toLowerCase().trim();
+  const lang = extra?.lang || 'en';
 
   switch (cleanCommand) {
+    case '/models':
+    case '/model':
     case '/model_info': {
-      return buildModelInfoMessage(platform);
+      return buildModelInfoMessage(platform, lang);
     }
 
     case '/switch': {
       const alias = String(args[0] || '').trim().toLowerCase();
       if (!alias) {
-        return platform === 'whatsapp'
-          ? '❌ Ketik alias modelnya! Contoh: /switch elephant. Cek /model_info.'
-          : '❌ Ketik alias modelnya! Contoh: <code>/switch elephant</code>. Cek /model_info.';
+        return t('ai.switch_missing_alias', { alias: 'gpt-oss' }, lang);
       }
 
       if (!AI_MODELS[alias]) {
         const knownAliases = Object.keys(AI_MODELS).join(', ');
-        return `❌ Alias model tidak ditemukan. Alias tersedia: ${knownAliases}. Cek /model_info.`;
+        return t('ai.switch_unknown_alias', { aliases: knownAliases }, lang);
       }
 
       await setActiveModel(userId, platform, alias);
-      return `✅ Berhasil! Otak AI kamu sekarang menggunakan ${AI_MODELS[alias].name}.`;
+      return t('ai.switch_success', { model: AI_MODELS[alias].name }, lang);
     }
 
-    case '/translate': {
-      const lang = args[0];
+    case '/translate':
+    case '/terjemahkan':
+    case '/terjemah': {
+      const targetLang = args[0];
       const targetText = String(args.slice(1).join(' ') || extra?.quotedText || '').trim();
 
-      if (!lang || !targetText) {
-        return platform === 'whatsapp'
-          ? '> *FORMAT SALAH* ❌\n\nGunakan: `/translate [kode_bahasa] [teks]`\nAtau reply pesan dengan `/translate [kode_bahasa]`.\n\nContoh: `/translate en Halo dunia`'
-          : '<b>FORMAT SALAH</b> ❌\n\nGunakan: <code>/translate [kode_bahasa] [teks]</code>\nAtau reply pesan dengan <code>/translate [kode_bahasa]</code>.\n\nContoh: <code>/translate en Halo dunia</code>';
+      if (!targetLang || !targetText) {
+        return t('ai.translate_usage', {}, lang);
       }
 
-      const translatedText = await translateText(lang, targetText);
-      return `Terjemahan ke ${lang}:\n${translatedText}`;
+      const translatedText = await translateText(targetLang, targetText);
+      return lang === 'en'
+        ? `Translation to ${targetLang}:\n${translatedText}`
+        : `Terjemahan ke ${targetLang}:\n${translatedText}`;
     }
 
     default:
-      return 'Perintah AI tidak dikenali.';
+      return t('common.unknown_command_body', { command }, lang);
   }
 }
 
