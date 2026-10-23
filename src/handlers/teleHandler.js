@@ -9,6 +9,8 @@ const { handleAdminCommand } = require('../commands/admin/index');
 const { formatMonitorMessage } = require('../commands/devops/index');
 const { pdfMergeSessionManager } = require('../utils/sessionManager');
 const { logCommand } = require('../services/logService');
+const { getUserLanguage } = require('../services/languageService');
+const { t } = require('../utils/i18n');
 
 const {
     isTelegramPdfDocument,
@@ -86,7 +88,7 @@ async function sendTelegramReply(ctx, payload, extra = {}) {
 }
 
 async function processMenuCommand(ctx, command, userId) {
-    if (command === '/riwayat') {
+    if (command === '/riwayat' || command === '/history') {
         await handleTeleRiwayat(ctx, userId, []);
         return;
     }
@@ -128,10 +130,12 @@ function setupTelegramBot() {
             const parts = text.split(' ');
             const command = parts[0].toLowerCase();
             const args = parts.slice(1);
+            const lang = await getUserLanguage(userId, 'telegram');
 
             await logCommand(userId, 'telegram', command);
 
             const dispatched = await dispatchCommand(command, args, userId, 'telegram', {
+                lang,
                 quotedText: ctx.message?.reply_to_message?.text || ctx.message?.reply_to_message?.caption || '',
                 notifyAdmin: async (textToAdmin) => {
                     await sendTelegramReply(ctx, String(textToAdmin || ''));
@@ -150,7 +154,7 @@ function setupTelegramBot() {
 
                 if (command === '/admin' && isAdmin(userId, 'telegram')) {
                     await sendTelegramReply(ctx, dispatched, buildAdminMenuKeyboard());
-                } else if ((command === '/monitor' || command === '/me') && !dispatched.includes('AKSES DITOLAK')) {
+                } else if ((command === '/monitor' || command === '/checkweb' || command === '/me' || command === '/about') && !dispatched.includes('AKSES DITOLAK')) {
                     const linksKeyboard = buildMonitorLinksKeyboard();
                     await sendTelegramReply(ctx, dispatched, linksKeyboard || {});
                 } else {
@@ -160,10 +164,12 @@ function setupTelegramBot() {
             }
 
             switch (command) {
+                case '/history':
                 case '/riwayat':
                     await handleTeleRiwayat(ctx, userId, args);
                     break;
 
+                case '/delete':
                 case '/hapus':
                     await handleTeleHapusConfirmation(ctx, args);
                     break;
@@ -172,14 +178,17 @@ function setupTelegramBot() {
                     await handleTelegramImageConverter(ctx, args, bot);
                     break;
 
+                case '/sticker':
                 case '/tosticker':
                     await handleTelegramSticker(ctx);
                     break;
 
+                case '/removebg':
                 case '/hapusbg':
                     await handleTelegramRemoveBg(ctx, bot);
                     break;
 
+                case '/screenshot':
                 case '/ss':
                     await handleTelegramScreenshot(ctx, args);
                     break;
@@ -195,15 +204,16 @@ function setupTelegramBot() {
                     break;
 
                 default: {
-                    const defaultHeader = '<b>COMMAND TIDAK DIKENAL</b> ❌';
-                    const defaultBody = `Perintah <code>${escapeHtml(command)}</code> tidak tersedia.\nGunakan /info untuk melihat daftar perintah yang tersedia.`;
+                    const defaultHeader = formatTelegramHtml(t('common.unknown_command_header', {}, lang));
+                    const defaultBody = formatTelegramHtml(t('common.unknown_command_body', { command }, lang));
                     await ctx.reply(`${defaultHeader}\n\n${defaultBody}`, { parse_mode: 'HTML' });
                 }
             }
         } else {
+            const lang = await getUserLanguage(userId, 'telegram');
             if (text.length <= 2) {
-                const shortHeader = '<b>PESAN TERLALU PENDEK</b> ❌';
-                const shortBody = 'Maaf, pesan terlalu pendek atau kurang jelas.\nKetik /info untuk melihat daftar kemampuan.';
+                const shortHeader = formatTelegramHtml(t('common.too_short_header', {}, lang));
+                const shortBody = formatTelegramHtml(t('common.too_short_body', {}, lang));
                 await ctx.reply(`${shortHeader}\n\n${shortBody}`, { parse_mode: 'HTML' });
                 return;
             }

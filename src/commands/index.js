@@ -10,6 +10,9 @@ const { handleGoogleCommand, updateStatusAnswered } = require('./google/index');
 const { handleResearchCommand } = require('./research/index');
 const { handleInfoCommand } = require('./info/index');
 const { handleShortCommand } = require('./utility/index');
+const { handleLanguageCommand } = require('./language/index');
+const { getUserLanguage } = require('../services/languageService');
+const { t } = require('../utils/i18n');
 const {
     handleDownloadCommand,
     handleAudioCommand
@@ -25,7 +28,7 @@ const { isAdmin } = require('../utils/auth');
 
 /**
  * Dispatch command to the appropriate modular domain handler
- * @param {string} command - E.g. '/ping', '/saldo', '/help'
+ * @param {string} command - E.g. '/ping', '/saldo', '/balance', '/help'
  * @param {Array<string>} args - Command arguments
  * @param {string} userId - User identifier (JID or Telegram ID)
  * @param {string} platform - 'whatsapp' | 'telegram'
@@ -34,54 +37,82 @@ const { isAdmin } = require('../utils/auth');
  */
 async function dispatchCommand(command, args = [], userId = '', platform = 'telegram', context = {}) {
     const cmd = String(command || '').toLowerCase().trim();
+    const lang = context.lang || await getUserLanguage(userId, platform);
+    const enrichedContext = { ...context, lang };
 
     switch (cmd) {
+        // Language Preference Management
+        case '/lang':
+        case '/language':
+        case '/bahasa':
+            return handleLanguageCommand(cmd, args, userId, platform, enrichedContext);
+
         // DevOps / System
         case '/ping':
         case '/system':
+        case '/sistem':
         case '/me':
+        case '/about':
         case '/monitor':
-            return handleDevopsCommand(cmd, args, userId, platform, context);
+        case '/checkweb':
+            return handleDevopsCommand(cmd, args, userId, platform, enrichedContext);
 
-        // Finance
+        // Finance (Bilingual Aliases)
         case '/saldo':
+        case '/balance':
         case '/catat':
+        case '/record':
+        case '/expense':
+        case '/pengeluaran':
         case '/pemasukan':
+        case '/income':
         case '/laporan_chart':
+        case '/chart':
         case '/riwayat':
+        case '/history':
         case '/hapus':
+        case '/delete':
         case '/edit':
-            return handleFinanceCommand(cmd, args, userId, platform, context);
+            return handleFinanceCommand(cmd, args, userId, platform, enrichedContext);
 
         // Reminders
         case '/remind':
-            return handleReminderCommand(args, userId, platform, context);
+        case '/ingatkan':
+            return handleReminderCommand(args, userId, platform, enrichedContext);
 
         // AI & Translations
         case '/translate':
+        case '/terjemah':
         case '/model_info':
         case '/switch':
-            return handleAiCommand(cmd, args, userId, platform, context);
+            return handleAiCommand(cmd, args, userId, platform, enrichedContext);
 
         // Weather
         case '/cuaca':
-            return handleWeatherCommand(cmd, args, userId, platform, context);
+        case '/weather':
+            return handleWeatherCommand(cmd, args, userId, platform, enrichedContext);
 
         // Religion
         case '/sholat':
-            return handleReligionCommand(cmd, args, userId, platform, context);
+        case '/prayer':
+        case '/jadwalsholat':
+            return handleReligionCommand(cmd, args, userId, platform, enrichedContext);
 
         // Research & Education
         case '/buku':
+        case '/book':
         case '/jurnal':
+        case '/journal':
         case '/artikel':
-            return handleResearchCommand(cmd, args, userId, platform, context);
+        case '/article':
+            return handleResearchCommand(cmd, args, userId, platform, enrichedContext);
 
         // Google / CS Integration
         case '/help':
+        case '/bantuan':
         case '/feedback':
         case '/ask':
-            return handleGoogleCommand(cmd, args, userId, platform, context);
+            return handleGoogleCommand(cmd, args, userId, platform, enrichedContext);
 
         // Info & Menu Guides
         case '/start':
@@ -92,10 +123,11 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
         case '/translate_info':
         case '/research_info':
         case '/downloader':
+        case '/downloader_info':
         case '/img_info':
         case '/pdf_info':
         case '/sticker_info':
-            return handleInfoCommand(cmd, args, userId, platform, context);
+            return handleInfoCommand(cmd, args, userId, platform, enrichedContext);
 
         // Downloader
         case '/download': {
@@ -109,7 +141,7 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
 
         // Utilities
         case '/short':
-            return handleShortCommand(args, platform, context);
+            return handleShortCommand(args, platform, enrichedContext);
 
         // Admin Only Commands
         case '/admin':
@@ -118,11 +150,11 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
         case '/broadcast':
         case '/answer': {
             if (!isAdmin(userId, platform)) {
-                return platform === 'telegram'
-                    ? '<b>AKSES DITOLAK</b> ❌\n\nCommand ini khusus admin.'
-                    : '> *AKSES DITOLAK* ❌\n\nCommand ini khusus admin.';
+                const header = t('common.access_denied_header', {}, lang);
+                const body = t('common.access_denied_body', {}, lang);
+                return `${header}\n\n${body}`;
             }
-            return handleAdminCommand(cmd, args, userId, platform, context);
+            return handleAdminCommand(cmd, args, userId, platform, enrichedContext);
         }
 
         default:
