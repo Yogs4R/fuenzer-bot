@@ -284,7 +284,10 @@ The `.env` file contains all essential configuration strings. Copy `.env.example
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Anon public key), `SUPABASE_SECRET_KEY` (Service role to bypass RLS for admin).
 - **AI APIs**: `GEMINI_API_KEY` or `OPENROUTER_API_KEY`.
 - **Other APIs**: `OPENWEATHER_API_KEY` for weather features, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (web screenshots), and `GAS_WEBAPP_URL` for Google Sheets feedback service.
-- **Admin**: `ADMIN_WA_NUMBERS` and `ADMIN_TELE_IDS` (Comma-separated IDs for monitor & broadcast accesses).
+- **Security & Data Privacy (AES-256-GCM)**: `ENCRYPTION_KEY` (32-byte secret key used to encrypt group chats at rest). Generate a secure 64-character hex key (32 bytes) by running:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
 - **Monitoring**: `MONITOR_URLS` (Websites monitored by the bot) and `MONITOR_INTERVAL` (Interval gap, e.g. 300000ms = 5 minutes).
 
 *Note: The cron job for server health reports runs every morning (06:00, server time) and sends a message only when one or more monitored websites are down. If all websites are healthy, no alert message is sent.*

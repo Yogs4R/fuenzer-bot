@@ -284,7 +284,10 @@ File `.env` berisi seluruh konfigurasi penting. Pastikan Anda menyalin `.env.exa
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Role anon), `SUPABASE_SECRET_KEY` (Service role untuk bypass RLS bot admin).
 - **API AI**: `GEMINI_API_KEY` atau `OPENROUTER_API_KEY`.
 - **API Lainnya**: `OPENWEATHER_API_KEY` untuk info cuaca, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (ss web), dan `GAS_WEBAPP_URL` untuk layanan Google Sheets feedback.
-- **Admin**: `ADMIN_WA_NUMBERS` dan `ADMIN_TELE_IDS` (Daftar ID yang dipisahkan koma untuk akses monitor & broadcast).
+- **Keamanan & Privasi Data (AES-256-GCM)**: `ENCRYPTION_KEY` (Kunci rahasia 32-byte untuk enkripsi percakapan grup). Generate kunci hex 64-karakter (32 byte) dengan perintah:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
 - **Monitoring**: `MONITOR_URLS` (Web yang dicek oleh bot) dan `MONITOR_INTERVAL` (Jeda cek, misalnya 300000ms = 5 menit).
 
 *Catatan: Cron job laporan kesehatan server berjalan setiap pagi (06:00, zona waktu server) dan hanya mengirim pesan saat ada website monitor yang down. Jika semua website normal, pesan tidak akan dikirim.*
