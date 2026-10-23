@@ -113,7 +113,7 @@ fuenzer-bot/
 │   │   ├── admin/index.js     # /broadcast, /restart, /eval
 │   │   ├── ai/index.js        # /ai, /ask, /model, /translate, /summarize
 │   │   ├── converter/index.js # /img, /sticker, /toimg, /pdf_*
-│   │   ├── devops/index.js    # /system, /ping, /checkweb
+│   │   ├── devops/index.js    # /ping, /monitor, /me, /about
 │   │   ├── finance/index.js   # /saldo, /catat, /pemasukan, /riwayat, /edit, /hapus
 │   │   ├── google/index.js    # /sheet, /cs
 │   │   ├── religion/index.js  # /jadwalsholat, /kiblat
