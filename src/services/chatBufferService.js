@@ -251,7 +251,50 @@ async function getUserSummarizeSettings(userId, platform) {
 }
 
 /**
+ * Resolves monitored group IDs for a platform.
+ * If targetId is provided and represents a group, returns [targetId].
+ * Otherwise, queries chat_buffer for distinct group IDs having unsummarized messages.
+ *
+ * @param {string} platform - 'whatsapp' | 'telegram'
+ * @param {string} [targetId] - Optional target chat/user ID
+ * @returns {Promise<string[]>}
+ */
+async function resolveMonitoredGroupIds(platform, targetId = null) {
+  const cleanPlatform = String(platform || '').toLowerCase().trim();
+  const cleanTarget = String(targetId || '').trim();
+
+  // If targetId is already an explicit group identifier (WA @g.us or TG negative ID)
+  if (cleanTarget && (cleanTarget.includes('@g.us') || cleanTarget.startsWith('-'))) {
+    return [cleanTarget];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('chat_buffer')
+      .select('chat_id')
+      .eq('platform', cleanPlatform)
+      .eq('is_summarized', false);
+
+    if (error) {
+      console.warn(`[chatBufferService] Error resolving group IDs for ${cleanPlatform}: ${error.message}`);
+      return [];
+    }
+
+    if (!Array.isArray(data) || data.length === 0) {
+      return [];
+    }
+
+    const uniqueIds = [...new Set(data.map((r) => r.chat_id).filter(Boolean))];
+    return uniqueIds;
+  } catch (err) {
+    console.warn(`[chatBufferService] Exception resolving group IDs: ${err.message}`);
+    return [];
+  }
+}
+
+/**
  * Upserts user or group summarization settings.
+ * Merges with existing settings to preserve schedule_time and other options when toggling.
  *
  * @param {string} userId
  * @param {string} platform
@@ -265,13 +308,15 @@ async function upsertUserSummarizeSettings(userId, platform, settings = {}) {
   if (!cleanUser || !cleanPlatform) return false;
 
   try {
+    const existing = await getUserSummarizeSettings(cleanUser, cleanPlatform);
+
     const payload = {
       user_id: cleanUser,
       platform: cleanPlatform,
-      is_active: settings.isActive ?? true,
-      schedule_time: settings.scheduleTime || '08:00',
-      voice_note_enabled: settings.voiceNoteEnabled ?? true,
-      language: settings.language || 'en'
+      is_active: settings.isActive !== undefined ? settings.isActive : (existing?.is_active ?? true),
+      schedule_time: settings.scheduleTime || existing?.schedule_time || '08:00',
+      voice_note_enabled: settings.voiceNoteEnabled !== undefined ? settings.voiceNoteEnabled : (existing?.voice_note_enabled ?? true),
+      language: settings.language || existing?.language || 'en'
     };
 
     const { error } = await supabase
@@ -296,5 +341,6 @@ module.exports = {
   markMessagesAsSummarized,
   purgeExpiredBuffer,
   getUserSummarizeSettings,
-  upsertUserSummarizeSettings
+  upsertUserSummarizeSettings,
+  resolveMonitoredGroupIds
 };

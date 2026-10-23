@@ -176,6 +176,7 @@ function setupTelegramBot() {
 
             const dispatched = await dispatchCommand(command, args, userId, 'telegram', {
                 lang,
+                chatId: String(ctx.chat.id),
                 quotedText: ctx.message?.reply_to_message?.text || ctx.message?.reply_to_message?.caption || '',
                 notifyAdmin: async (textToAdmin) => {
                     await sendTelegramReply(ctx, String(textToAdmin || ''));

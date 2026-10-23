@@ -89,7 +89,7 @@
     "section_donate": "☕ *SUPPORT*\n- `/donate` : Support links & QR donation",
     "section_finance": "💰 *FINANCE TOOLS*\n- `/balance` : Check account balance\n- `/record <amount> <desc>` : Record expense\n- `/income <amount> <desc>` : Record income\n- `/history` : View transaction ledger\n- `/chart` : Financial visualization chart\n- `/finance_info` : Comprehensive finance guide",
     "section_system": "⚙️ *SYSTEM & DEVOPS*\n- `/ping` : Bot health & resource stats\n- `/info` / `/start` : Show this guide\n- `/lang [en|id]` : Toggle bot language (English / Indonesian)",
-    "section_ai": "🧠 *AI AGENT HARNESS*\nSend any normal message without '/' to chat or trigger tasks naturally!\n- `/model_info` : Available AI models\n- `/switch` : Switch active AI brain model",
+    "section_ai": "🧠 *AI AGENT HARNESS*\nSend any normal message without '/' to chat or trigger tasks naturally!\n- `/model_info` : Available AI models\n- `/switch` : Switch active AI brain model\n- `/summarize` : Morning brief & chat summarizer",
     "section_utilities": "🛠️ *UTILITIES*\n- `/weather <city>` : Weather forecast\n- `/prayer <city>` : Islamic prayer schedule\n- `/remind add <time> <msg>` : Schedule reminders\n- `/short <url>` : URL shortener\n- `/research_info` : Reference finder (books/journals)\n- `/downloader` : Social media media/audio download\n- `/me` : About bot creator",
     "section_converter": "🖼️ *CONVERTER & MEDIA* 📄\n- `/img_info` : Image conversion & removal guide\n- `/pdf_info` : PDF tools & merge guide\n- `/sticker_info` : Sticker generator guide",
     "section_admin": "🛡️ *ADMIN*\n- `/admin` : Admin management commands"
@@ -192,5 +192,22 @@
     "broadcast_success": "✅ Broadcast successfully delivered to {count} users.",
     "answer_prompt": "Format: /answer <id> <reply_message>\nExample: /answer 123 Here is the response",
     "answer_success": "✅ Answer sent to user."
+  },
+  "summarize": {
+    "no_messages": "No pending group messages to summarize in the buffer.",
+    "enabled": "> *MORNING BRIEFING ACTIVATED* 🦥✅\n\nDaily automated briefing is now *ON*.\nScheduled time: *{time}*\nDeliver to: *Private DM*",
+    "disabled": "> *MORNING BRIEFING DEACTIVATED* 🦥⏸️\n\nDaily automated briefing is now *OFF*.",
+    "schedule_updated": "> *SCHEDULE UPDATED* ⏰✅\n\nMorning briefing delivery time has been set to *{time}*.",
+    "invalid_schedule": "Invalid time format! Please use 24-hour format (HH:mm).\nExample: `/summarize schedule 08:30`",
+    "status_header": "> *CHAT SUMMARIZER STATUS* 🦥📊",
+    "status_active": "Status: *{status}*",
+    "status_schedule": "Daily Schedule: *{time}*",
+    "status_buffer_count": "Buffered Messages: *{count}*",
+    "status_model": "AI Engine: *{model}*",
+    "status_footer": "Commands:\n• `/summarize on` : Turn ON daily briefing\n• `/summarize off` : Turn OFF daily briefing\n• `/summarize schedule <HH:mm>` : Set briefing time\n• `/summarize now` : Summarize current buffer immediately",
+    "briefing_header": "> 🦥 *MORNING SLOTH BRIEFING*",
+    "group_label": "Group",
+    "generating": "⏳ Analyzing and summarizing group conversations with Google Gemma...",
+    "error_failed": "Failed to generate summary: {error}"
   }
 }

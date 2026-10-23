@@ -89,7 +89,7 @@
     "section_donate": "☕ *DUKUNGAN BOT*\n- `/donate` : Link dukungan + QR donasi",
     "section_finance": "💰 *FITUR KEUANGAN*\n- `/saldo` : Lihat ringkasan saldo terbaru\n- `/catat <nominal> <ket>` : Catat pengeluaran\n- `/pemasukan <nominal> <ket>` : Catat pemasukan\n- `/riwayat` : Riwayat transaksi\n- `/laporan_chart` : Tampilkan grafik laporan\n- `/finance_info` : Panduan Lengkap fitur keuangan",
     "section_system": "⚙️ *FITUR SISTEM*\n- `/ping` : Cek status & statistik bot\n- `/info` / `/start` : Menampilkan panduan ini\n- `/lang [en|id]` : Ubah bahasa bot (English / Indonesia)",
-    "section_ai": "🧠 *FITUR AI*\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol atau mengeksekusi perintah!\n- `/model_info` : Daftar model AI yang tersedia\n- `/switch` : Ganti model AI aktif",
+    "section_ai": "🧠 *FITUR AI*\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol atau mengeksekusi perintah!\n- `/model_info` : Daftar model AI yang tersedia\n- `/switch` : Ganti model AI aktif\n- `/ringkas` : Ringkas chat grup & briefing pagi",
     "section_utilities": "🛠️ *FITUR UTILITAS*\n- `/cuaca <kota>` : Info cuaca hari ini\n- `/sholat <kota>` : Jadwal sholat hari ini\n- `/remind add <waktu> <pesan>` : Pasang pengingat\n- `/short <url>` : Pendekkan link URL\n- `/research_info` : Referensi buku & jurnal\n- `/downloader` : Download media sosial & audio\n- `/me` : Tentang pembuat bot",
     "section_converter": "🖼️ *FITUR CONVERTER* 📄\n- `/img_info` : Panduan image tools\n- `/pdf_info` : Panduan PDF tools\n- `/sticker_info` : Panduan sticker tools",
     "section_admin": "🛡️ *FITUR ADMIN*\n- `/admin` : Menu command admin"
@@ -192,5 +192,22 @@
     "broadcast_success": "✅ Pesan broadcast berhasil dikirim ke {count} pengguna.",
     "answer_prompt": "Format: /answer <id> <pesan_balasan>\nContoh: /answer 123 Ini balasannya",
     "answer_success": "✅ Balasan berhasil dikirim ke pengguna."
+  },
+  "summarize": {
+    "no_messages": "Tidak ada pesan grup baru di buffer untuk diringkas.",
+    "enabled": "> *MORNING BRIEFING DIAKTIFKAN* 🦥✅\n\nRingkasan otomatis harian sekarang *AKTIF*.\nWaktu jadwal: *{time}*\nPengiriman ke: *Chat Pribadi (DM)*",
+    "disabled": "> *MORNING BRIEFING DINONAKTIFKAN* 🦥⏸️\n\nRingkasan otomatis harian sekarang *NONAKTIF*.",
+    "schedule_updated": "> *JADWAL DIPERBARUI* ⏰✅\n\nWaktu pengiriman ringkasan telah diatur ke *{time}*.",
+    "invalid_schedule": "Format waktu salah! Gunakan format 24 jam (HH:mm).\nContoh: `/ringkas jadwal 08:30`",
+    "status_header": "> *STATUS CHAT SUMMARIZER* 🦥📊",
+    "status_active": "Status: *{status}*",
+    "status_schedule": "Jadwal Harian: *{time}*",
+    "status_buffer_count": "Pesan di Buffer: *{count}*",
+    "status_model": "Engine AI: *{model}*",
+    "status_footer": "Daftar Perintah:\n• `/ringkas on` : Aktifkan briefing harian\n• `/ringkas off` : Nonaktifkan briefing harian\n• `/ringkas jadwal <HH:mm>` : Atur waktu kirim briefing\n• `/ringkas sekarang` : Buat ringkasan buffer saat ini juga",
+    "briefing_header": "> 🦥 *MORNING SLOTH BRIEFING*",
+    "group_label": "Grup",
+    "generating": "⏳ Menganalisis dan merangkum obrolan grup dengan Google Gemma...",
+    "error_failed": "Gagal membuat ringkasan: {error}"
   }
 }

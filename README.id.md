@@ -112,6 +112,21 @@ Keamanan privasi percakapan tingkat tinggi yang dirancang tanpa kompromi:
 - **Fail-Closed Security**: Ingestion mewajibkan adanya `ENCRYPTION_KEY`; jika kunci tidak disetel, penampungan pesan grup akan berhenti secara aman agar tidak menyimpan pesan dalam bentuk plaintext.
 - **Retensi Efemeral 24 Jam**: Pesan grup yang telah diringkas memiliki batas simpan 24 jam sebelum dihapus permanen secara otomatis, dan pesan pasif yang belum diringkas akan dibersihkan setelah 7 hari.
 
+### 🦥 Briefing Pagi Otomatis & Ringkasan Chat (Google Gemma)
+Dirancang khusus untuk DEV Challenge Week 3 ("Slow and Steady"):
+- **Google Gemma 4 (`google/gemma-4-26b-a4b-it`)**: Membaca tumpukan percakapan grup yang panjang tanpa perlu repot membaca ratusan pesan yang belum terbaca secara manual.
+- **Tiga Bagian Terstruktur (Sloth Briefing)**:
+  1. 🦥 **Sloth TL;DR**: Ringkasan eksekutif 2–3 kalimat yang menangkap poin utama dan sentimen percakapan grup.
+  2. 🎯 **Key Action Items & Mentions**: Poin tindakan, tugas penting, keputusan, batas waktu, dan mention/pertanyaan.
+  3. 📊 **Chatter & Noise Statistics**: Penilaian volume obrolan dan rasio informasi penting terhadap distraksi/bising.
+- **Pengiriman Pagi Terjadwal Otomatis**: Mengirimkan briefing pagi terjadwal (default pukul `08:00`) langsung ke pesan pribadi (DM) pengguna via WhatsApp atau Telegram.
+- **Antarmuka Perintah Dwibahasa Penuh**:
+  - `/summarize on` / `/ringkas on` : Mengaktifkan jadwal briefing pagi otomatis.
+  - `/summarize off` / `/ringkas off` : Menonaktifkan jadwal briefing harian.
+  - `/summarize schedule <HH:mm>` / `/ringkas jadwal <HH:mm>` : Menyesuaikan jam pengiriman briefing (contoh `/summarize schedule 07:30`).
+  - `/summarize now` / `/ringkas sekarang` : Meringkas tumpukan pesan aktif saat ini secara instan langsung di chat.
+  - `/summarize status` / `/ringkas status` : Cek status jadwal aktif, jumlah antrean buffer, dan model AI yang digunakan.
+
 ### 🤖 AI Assistant
 Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melalui integrasi OpenRouter API. Siap menjawab pertanyaan teknis, diskusi, dan coding.
 - Dukungan **Multimodal** (mampu membaca file Gambar, dan mengekstrak isi Dokumen teks).
@@ -199,6 +214,7 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | `/translate` | Terjemahkan teks atau pesan | aiClient, OpenRouter | `/translate id Hello world` |
 | `/model_info` | Tampilkan daftar model AI yang tersedia | OpenRouter, aiPreferenceService | `/model_info` |
 | `/switch` | Ganti model AI aktif per pengguna | OpenRouter, aiPreferenceService | `/switch gemma4` |
+| `/summarize` | Ringkasan chat AI & briefing pagi (`on`, `off`, `schedule <HH:mm>`, `now`, `status`) | summarizeService, OpenRouter Gemma, node-cron | `/summarize on`, `/summarize now` |
 | `/help` | Pusat bantuan dan layanan Customer Service | csService | `/help` |
 | `/feedback` | Kirim feedback ke Google Sheets | csService, GAS | `/feedback great bot` |
 | `/ask` | Kirim pertanyaan ke admin via CS | csService, GAS | `/ask how to donate?` |
@@ -232,6 +248,7 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | `/artikel`, `/paper` | `/article`, `/paper` | Cari artikel ilmiah | `/artikel healthcare` |
 | `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks atau pesan | `/terjemah en Selamat pagi` |
 | `/model`, `/models` | `/model_info` | Tampilkan daftar model AI yang tersedia | `/model` |
+| `/ringkas` | `/summarize` | Ringkas chat grup & briefing pagi otomatis | `/ringkas on`, `/ringkas sekarang`, `/ringkas jadwal 07:30` |
 | `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
 | `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
 | `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
@@ -282,7 +299,7 @@ File `.env` berisi seluruh konfigurasi penting. Pastikan Anda menyalin `.env.exa
 - **WhatsApp**: `WA_SESSION_DIR` (Folder data auth), `WA_PHONE_NUMBER` (Nomor bot), `BOT_WA_LID` (ID LID khusus bot bila diperlukan).
 - **Telegram**: `TELEGRAM_BOT_TOKEN` dan `TELEGRAM_BOT_USERNAME` (Dari BotFather), serta `TELEGRAM_SESSION_DIR` (Folder session).
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Role anon), `SUPABASE_SECRET_KEY` (Service role untuk bypass RLS bot admin).
-- **API AI**: `GEMINI_API_KEY` atau `OPENROUTER_API_KEY`.
+- **API AI**: `GEMINI_API_KEY` atau `OPENROUTER_API_KEY` (dengan opsi `GEMMA_MODEL` untuk model default summarizer, default: `google/gemma-4-26b-a4b-it`).
 - **API Lainnya**: `OPENWEATHER_API_KEY` untuk info cuaca, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (ss web), dan `GAS_WEBAPP_URL` untuk layanan Google Sheets feedback.
 - **Keamanan & Privasi Data (AES-256-GCM)**: `ENCRYPTION_KEY` (Kunci rahasia 32-byte untuk enkripsi percakapan grup). Generate kunci hex 64-karakter (32 byte) dengan perintah:
   ```bash

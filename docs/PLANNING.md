@@ -198,9 +198,9 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
   - [x] Implement AES-256-GCM encryption/decryption module in `src/utils/crypto.js`.
   - [x] Create `chat_buffer` and `user_summarize_settings` tables in Supabase (SQL migrations in `database/migration/`).
   - [x] Implement `chatBufferService.js` to encrypt and enqueue incoming group messages.
-- [ ] **Phase 3: Summarizer Service with Gemma & Cron**
-  - Implement `summarizeService.js` calling Gemma API with structured prompts (decrypting buffer on read).
-  - Setup automated daily execution and 24-hour purge cron using `node-cron`.
+- [x] **Phase 3: Summarizer Service with Gemma & Cron**
+  - [x] Implement `summarizeService.js` calling Gemma API with structured prompts (decrypting buffer on read).
+  - [x] Setup automated daily execution and 24-hour purge cron using `node-cron`.
 - [ ] **Phase 4: ElevenLabs Audio Briefing**
   - Connect ElevenLabs TTS to synthesize the executive summary.
   - Send voice notes natively to WhatsApp & Telegram.
