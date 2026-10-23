@@ -2,7 +2,19 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { encrypt, decrypt, isEncrypted, resolveKey } = require('../src/utils/crypto');
 
+// Set test encryption key
+process.env.ENCRYPTION_KEY = 'test-secret-encryption-key-for-unit-tests-32b';
+
 console.log('--- Running crypto.js Tests ---');
+
+// Test 0: Verify fail-closed when key is missing (Codex P1)
+const savedEnvKey = process.env.ENCRYPTION_KEY;
+delete process.env.ENCRYPTION_KEY;
+assert.throws(() => {
+  resolveKey();
+}, /ENCRYPTION_KEY environment variable is required/, 'Must throw error when ENCRYPTION_KEY is missing');
+process.env.ENCRYPTION_KEY = savedEnvKey;
+console.log('✅ Test 0: Fail closed on missing ENCRYPTION_KEY passed.');
 
 // Test 1: Basic Round-Trip Encryption and Decryption
 const sampleText = 'Halo dunia, ini pesan rahasia bot fuenzer!';

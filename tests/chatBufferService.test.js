@@ -31,7 +31,20 @@ async function runTests() {
     messageText: 'Hello world'
   });
   assert.strictEqual(missingPlatformResult.queued, false, 'Missing platform must be rejected');
-  console.log('✅ Test 2: Empty messages and missing fields are rejected.');
+
+  // Test 2b: Require ENCRYPTION_KEY (fail closed) (Codex P1)
+  const savedKey = process.env.ENCRYPTION_KEY;
+  delete process.env.ENCRYPTION_KEY;
+  const noKeyResult = await chatBufferService.enqueueMessage({
+    platform: 'telegram',
+    chatId: '-100123456789',
+    messageText: 'Hello world'
+  });
+  assert.strictEqual(noKeyResult.queued, false, 'Must not queue when key is missing');
+  assert.strictEqual(noKeyResult.reason, 'missing_encryption_key', 'Reason must be missing_encryption_key');
+  // Restore key
+  process.env.ENCRYPTION_KEY = savedKey || 'test-secret-encryption-key-for-unit-tests-32b';
+  console.log('✅ Test 2: Empty messages, missing fields, and missing ENCRYPTION_KEY are safely rejected (fail closed).');
 
   // Test 3: Normal message validation and error resilience
   // Even if Supabase is offline in local dev test environment, enqueueMessage must never throw an unhandled exception

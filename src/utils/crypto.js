@@ -4,7 +4,7 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 12 bytes is the standard recommended IV length for GCM
 const AUTH_TAG_LENGTH = 16; // 16 bytes (128 bits) authentication tag
 
-let warnedMissingKey = false;
+
 
 /**
  * Resolves a 32-byte key buffer from the given input or process.env.ENCRYPTION_KEY.
@@ -17,12 +17,7 @@ function resolveKey(keyOverride) {
   const rawKey = keyOverride || process.env.ENCRYPTION_KEY;
 
   if (!rawKey) {
-    if (!warnedMissingKey) {
-      console.warn('[crypto] WARNING: ENCRYPTION_KEY environment variable is not defined! Using fallback development key.');
-      warnedMissingKey = true;
-    }
-    // Fallback deterministic development key
-    return crypto.createHash('sha256').update('fuenzer-bot-default-dev-encryption-key-2026').digest();
+    throw new Error('[crypto] ENCRYPTION_KEY environment variable is required for AES-256-GCM operations. Refusing to operate with an insecure key.');
   }
 
   if (Buffer.isBuffer(rawKey)) {

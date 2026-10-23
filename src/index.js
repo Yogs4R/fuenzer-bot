@@ -17,6 +17,7 @@ const { setupTelegramBot } = require('./handlers/teleHandler');
 const telegramBot = require('./lib/telegramClient');
 const { startCronJobs } = require('./jobs/serverMonitor');
 const { startReminderCron } = require('./jobs/reminderCron');
+const { startBufferCleanupCron } = require('./jobs/bufferCleanupCron');
 
 console.log(`Starting ${settings.app.name} v${settings.app.version} in ${settings.app.env} mode`);
 
@@ -24,6 +25,7 @@ console.log(`Starting ${settings.app.name} v${settings.app.version} in ${setting
 let waSocket = null;
 let waHandler = null;
 let monitorCronTask = null;
+let bufferCleanupCronTask = null;
 
 // Fungsi untuk memulai WhatsApp bot
 async function startWhatsAppBot() {
@@ -157,6 +159,9 @@ async function main() {
     // Start Reminder Cron
     startReminderCron(() => waSocket, telegramBot);
 
+    // Start Chat Buffer Retention Cleanup Cron
+    bufferCleanupCronTask = startBufferCleanupCron();
+
     console.log('Semua layanan berjalan!');
 }
 
@@ -169,6 +174,10 @@ process.on('SIGINT', () => {
     if (monitorCronTask) {
         monitorCronTask.stop();
         monitorCronTask = null;
+    }
+    if (bufferCleanupCronTask) {
+        bufferCleanupCronTask.stop();
+        bufferCleanupCronTask = null;
     }
     stopWhatsAppBot();
     // Stop Telegram bot
@@ -184,6 +193,10 @@ process.on('SIGTERM', () => {
     if (monitorCronTask) {
         monitorCronTask.stop();
         monitorCronTask = null;
+    }
+    if (bufferCleanupCronTask) {
+        bufferCleanupCronTask.stop();
+        bufferCleanupCronTask = null;
     }
     stopWhatsAppBot();
     // Stop Telegram bot

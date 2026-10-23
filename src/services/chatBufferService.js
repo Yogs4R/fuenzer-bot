@@ -27,6 +27,12 @@ async function enqueueMessage({ platform, chatId, chatName = '', senderName = ''
     return { queued: false, reason: 'bot_command_ignored' };
   }
 
+  // Require ENCRYPTION_KEY in environment before buffering to fail closed (Codex P1 / AD-09)
+  if (!process.env.ENCRYPTION_KEY) {
+    console.warn('[chatBufferService] Ingestion skipped: ENCRYPTION_KEY environment variable is not configured.');
+    return { queued: false, reason: 'missing_encryption_key' };
+  }
+
   try {
     const encryptedChatName = chatName ? encrypt(String(chatName).trim()) : null;
     const encryptedSenderName = senderName ? encrypt(String(senderName).trim()) : null;
