@@ -1,0 +1,112 @@
+const {
+  getUserSummarizeSettings,
+  upsertUserSummarizeSettings,
+  getPendingMessages
+} = require('../../services/chatBufferService');
+const { generateGroupSummary, DEFAULT_GEMMA_MODEL } = require('../../services/summarizeService');
+const { t } = require('../../utils/i18n');
+
+/**
+ * Validates a 24-hour time string in format HH:mm.
+ *
+ * @param {string} timeStr
+ * @returns {boolean}
+ */
+function isValidScheduleTime(timeStr) {
+  if (typeof timeStr !== 'string') return false;
+  const match = timeStr.trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  return Boolean(match);
+}
+
+/**
+ * Modular command handler for /summarize and /ringkas.
+ *
+ * @param {string} command - '/summarize' or '/ringkas'
+ * @param {Array<string>} args - Command arguments
+ * @param {string} userId - User identifier (WhatsApp JID or Telegram ID)
+ * @param {string} platform - 'whatsapp' | 'telegram'
+ * @param {Object} [context] - Context with lang, quotedText, etc.
+ * @returns {Promise<string>}
+ */
+async function handleSummarizeCommand(command, args = [], userId = '', platform = 'whatsapp', context = {}) {
+  const lang = context.lang || 'en';
+  const subCommand = String(args[0] || '').toLowerCase().trim();
+  const targetChatId = context.chatId || userId;
+
+  switch (subCommand) {
+    case 'on':
+    case 'aktif': {
+      await upsertUserSummarizeSettings(userId, platform, {
+        isActive: true
+      });
+      const settings = await getUserSummarizeSettings(userId, platform);
+      const scheduleTime = settings?.schedule_time || '08:00';
+      return t('summarize.enabled', { time: scheduleTime }, lang);
+    }
+
+    case 'off':
+    case 'nonaktif': {
+      await upsertUserSummarizeSettings(userId, platform, {
+        isActive: false
+      });
+      return t('summarize.disabled', {}, lang);
+    }
+
+    case 'schedule':
+    case 'jadwal': {
+      const timeInput = String(args[1] || '').trim();
+      if (!timeInput || !isValidScheduleTime(timeInput)) {
+        return t('summarize.invalid_schedule', {}, lang);
+      }
+
+      await upsertUserSummarizeSettings(userId, platform, {
+        scheduleTime: timeInput,
+        isActive: true
+      });
+
+      return t('summarize.schedule_updated', { time: timeInput }, lang);
+    }
+
+    case 'now':
+    case 'sekarang': {
+      const summaryResult = await generateGroupSummary({
+        platform,
+        chatId: targetChatId,
+        language: lang
+      });
+
+      if (!summaryResult.success) {
+        if (summaryResult.reason === 'no_messages') {
+          return t('summarize.no_messages', {}, lang);
+        }
+        return t('summarize.error_failed', { error: summaryResult.error || 'Unknown error' }, lang);
+      }
+
+      const header = t('summarize.briefing_header', {}, lang);
+      return `${header}\n\n${summaryResult.summaryText}`;
+    }
+
+    case 'status':
+    default: {
+      const settings = await getUserSummarizeSettings(userId, platform);
+      const pendingMessages = await getPendingMessages(platform, targetChatId, { limit: 500 });
+      const isActive = settings?.is_active ?? false;
+      const scheduleTime = settings?.schedule_time || '08:00';
+      const activeModel = process.env.GEMMA_MODEL || DEFAULT_GEMMA_MODEL;
+
+      const header = t('summarize.status_header', {}, lang);
+      const statusLine = t('summarize.status_active', { status: isActive ? 'ON (Active)' : 'OFF (Inactive)' }, lang);
+      const scheduleLine = t('summarize.status_schedule', { time: scheduleTime }, lang);
+      const countLine = t('summarize.status_buffer_count', { count: pendingMessages.length }, lang);
+      const modelLine = t('summarize.status_model', { model: activeModel }, lang);
+      const footer = t('summarize.status_footer', {}, lang);
+
+      return [header, '', statusLine, scheduleLine, countLine, modelLine, '', footer].join('\n');
+    }
+  }
+}
+
+module.exports = {
+  handleSummarizeCommand,
+  isValidScheduleTime
+};

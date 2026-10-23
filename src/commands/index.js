@@ -11,6 +11,7 @@ const { handleResearchCommand } = require('./research/index');
 const { handleInfoCommand } = require('./info/index');
 const { handleShortCommand } = require('./utility/index');
 const { handleLanguageCommand } = require('./language/index');
+const { handleSummarizeCommand } = require('./ai/summarize');
 const { getUserLanguage } = require('../services/languageService');
 const { t } = require('../utils/i18n');
 const {
@@ -86,6 +87,11 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
         case '/model_info':
         case '/switch':
             return handleAiCommand(cmd, args, userId, platform, enrichedContext);
+
+        // Chat Summarizer (DEV Challenge Morning Briefing)
+        case '/summarize':
+        case '/ringkas':
+            return handleSummarizeCommand(cmd, args, userId, platform, enrichedContext);
 
         // Weather
         case '/cuaca':

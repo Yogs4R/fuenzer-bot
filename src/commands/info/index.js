@@ -113,9 +113,9 @@ function getStickerInfo(platform = 'whatsapp') {
 
 function getStartMessage(platform = 'whatsapp', lang = 'en') {
   if (lang === 'en') {
-    return `> *WELCOME TO FUENZER BOT* 🤖\n\nHello! I am your intelligent personal productivity bot.\n\nUse /info to view the full list of available commands.\n\nI can help you with:\n• Personal finance ledger (/balance, /record, /chart)\n• Conversational AI (simply chat naturally)\n• Weather forecast, prayer times, reminders & utilities!`;
+    return `> *WELCOME TO FUENZER BOT* 🤖\n\nHello! I am your intelligent personal productivity bot.\n\nUse /info to view the full list of available commands.\n\nI can help you with:\n• Personal finance ledger (/balance, /record, /chart)\n• Conversational AI (simply chat naturally)\n• Morning briefings & chat summarizer (/summarize)\n• Weather forecast, prayer times, reminders & utilities!`;
   }
-  return `> *SELAMAT DATANG DI FUENZER BOT* 🤖\n\nHalo! Saya adalah asisten virtual pribadi.\n\nGunakan /info untuk melihat daftar perintah lengkap.\n\nBot ini dapat membantu Anda dengan:\n• Manajemen keuangan (/saldo, /catat, dll)\n• Percakapan AI (langsung ketik pesan)\n• Dan berbagai fitur lainnya!`;
+  return `> *SELAMAT DATANG DI FUENZER BOT* 🤖\n\nHalo! Saya adalah asisten virtual pribadi.\n\nGunakan /info untuk melihat daftar perintah lengkap.\n\nBot ini dapat membantu Anda dengan:\n• Manajemen keuangan (/saldo, /catat, dll)\n• Percakapan AI (langsung ketik pesan)\n• Briefing pagi & ringkasan chat grup (/ringkas)\n• Dan berbagai fitur lainnya!`;
 }
 
 function getInfoMessage(platform = 'whatsapp', lang = 'en') {

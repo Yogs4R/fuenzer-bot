@@ -177,6 +177,7 @@ class WhatsAppHandler {
 
         const dispatched = await dispatchCommand(command, args, realId, 'whatsapp', {
           lang,
+          chatId: msg.key.remoteJid,
           quotedText,
           notifyAdmin: async (textToAdmin) => {
             await this.sock.sendMessage(
