@@ -194,10 +194,10 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
   - [x] Implement lightweight i18n utility (`src/utils/i18n.js`) with English (`en`) default and Indonesian (`id`) translations (`src/locales/`).
   - [x] Register bilingual aliases for all existing commands across handlers (e.g. `/balance` ↔ `/saldo`).
   - [x] Implement `/lang [en|id]` preference management command and persist to user profile.
-- [ ] **Phase 2: Security, Storage & Buffer Ingestion**
-  - Implement AES-256-GCM encryption/decryption module in `src/utils/crypto.js`.
-  - Create `chat_buffer` and `user_summarize_settings` tables in Supabase.
-  - Implement `chatBufferService.js` to encrypt and enqueue incoming group messages.
+- [x] **Phase 2: Security, Storage & Buffer Ingestion**
+  - [x] Implement AES-256-GCM encryption/decryption module in `src/utils/crypto.js`.
+  - [x] Create `chat_buffer` and `user_summarize_settings` tables in Supabase (SQL migrations in `database/migration/`).
+  - [x] Implement `chatBufferService.js` to encrypt and enqueue incoming group messages.
 - [ ] **Phase 3: Summarizer Service with Gemma & Cron**
   - Implement `summarizeService.js` calling Gemma API with structured prompts (decrypting buffer on read).
   - Setup automated daily execution and 24-hour purge cron using `node-cron`.
