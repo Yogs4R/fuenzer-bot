@@ -162,6 +162,7 @@ Simple ticketing system to receive user questions and feedback:
 |---|---|---|---|
 | /start | Start bot and show quick menu | Baileys, Telegraf | /start |
 | /info | Show command categories and bot info | Baileys, Telegraf | /info |
+| /lang, /language | Check or switch bot interface language (`en` or `id`) | languageService, Supabase | /lang en |
 | /ping | Check bot online status and system footer | Node.js os module | /ping |
 | /model_info | Show available AI models and aliases | OpenRouter, aiPreferenceService | /model_info |
 | /switch | Switch active AI model per user | OpenRouter, aiPreferenceService | /switch elephant |
@@ -384,6 +385,7 @@ CREATE TABLE user_preferences (
     user_id TEXT PRIMARY KEY,
     platform TEXT,
     active_model TEXT DEFAULT 'openai/gpt-oss-120b',
+    language VARCHAR(5) DEFAULT 'en',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

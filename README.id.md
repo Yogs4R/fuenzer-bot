@@ -162,6 +162,7 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 |---|---|---|---|
 | /start | Mulai bot dan tampilkan menu cepat | Baileys, Telegraf | /start |
 | /info | Tampilkan kategori command dan info bot | Baileys, Telegraf | /info |
+| /lang, /language | Cek atau ubah bahasa antarmuka bot (`en` atau `id`) | languageService, Supabase | /lang id |
 | /ping | Cek status online bot dan footer sistem | Node.js os module | /ping |
 | /model_info | Tampilkan model AI dan alias yang tersedia | OpenRouter, aiPreferenceService | /model_info |
 | /switch | Ganti model AI aktif per pengguna | OpenRouter, aiPreferenceService | /switch elephant |
@@ -384,6 +385,7 @@ CREATE TABLE user_preferences (
     user_id TEXT PRIMARY KEY,
     platform TEXT,
     active_model TEXT DEFAULT 'openai/gpt-oss-120b',
+    language VARCHAR(5) DEFAULT 'en',
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
