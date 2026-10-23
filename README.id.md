@@ -51,6 +51,7 @@
 **Fuenzer Bot** adalah asisten virtual mandiri dengan ketersediaan tinggi (*high-availability*) yang dirancang untuk meningkatkan produktivitas harian Anda dengan memadukan pencatatan keuangan, penalaran AI multi-modal, pengolahan dokumen, dan pemantauan server langsung dari aplikasi chat sehari-hari (WhatsApp & Telegram) tanpa perlu berganti-ganti aplikasi.
 
 * **🔄 Arsitektur Omni-Channel:** Beroperasi secara bersamaan di WhatsApp (via Baileys) dan Telegram (via Telegraf).
+* **🌐 Dukungan Bilingual & Internasionalisasi:** Default Bahasa Inggris (`en`) untuk evaluasi global dengan dukungan penuh Bahasa Indonesia (`id`) via `/lang [en|id]` dan alias perintah dwibahasa 1-ke-1.
 * **🦥 Automated Morning Briefings:** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
 * **💰 Pencatatan Keuangan Praktis:** Catat pemasukan/pengeluaran secara instan via chat, cek saldo real-time, dan hasilkan grafik visual bulanan.
 * **🛠 Utilitas Serbaguna (Swiss Army Knife):** Buat stiker WebP, hapus latar belakang foto, kompres/gabungkan PDF, serta pantau kesehatan server cloud VM Anda.
@@ -96,6 +97,13 @@ Berjalan ganda secara independen namun terintegrasi penuh:
 - **WhatsApp Bot** (powered by Baileys)
 - **Telegram Bot** (powered by Telegraf)
 
+### 🌐 Dukungan Dwibahasa (Bilingual & i18n)
+Internasionalisasi penuh untuk kenyamanan pengguna lokal maupun internasional:
+- **Default Bahasa Inggris (`en`)**: Siap untuk evaluasi global dan standar internasional.
+- **Pilihan Bahasa Indonesia (`id`)**: Ganti preferensi bahasa dengan mudah kapan saja via `/lang en` atau `/lang id` (atau `/bahasa id`).
+- **Alias Command 1-ke-1**: Jalankan setiap perintah dalam bahasa Inggris maupun bahasa Indonesia (contoh: `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`, `/remind` ↔ `/ingatkan`).
+- **Tolerant Caching & Fallback**: Preferensi bahasa disimpan dalam cache in-memory dan disinkronkan ke Supabase PostgreSQL tanpa risiko crash saat koneksi offline.
+
 ### 🤖 AI Assistant
 Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melalui integrasi OpenRouter API. Siap menjawab pertanyaan teknis, diskusi, dan coding.
 - Dukungan **Multimodal** (mampu membaca file Gambar, dan mengekstrak isi Dokumen teks).
@@ -103,7 +111,7 @@ Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melal
 - Dukungan multi-model dengan command pergantian model per pengguna.
 - Metadata penggunaan model di balasan (token usage dan label RPM).
 - Mendukung jawaban multi-bahasa dengan menyesuaikan bahasa input pengguna.
-- Sebagian besar command bot masih dioptimalkan dengan label dan contoh berbahasa Indonesia.
+- Mendukung alias perintah dwibahasa penuh dan respons output yang terlokalisasi di seluruh modul.
 
 ### 📚 Research Tools
 Fitur riset referensi berbasis beberapa API publik (tanpa API key):

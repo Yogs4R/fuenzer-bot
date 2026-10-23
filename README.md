@@ -51,6 +51,7 @@
 **Fuenzer Bot** is a high-availability, standalone virtual assistant engineered to increase daily productivity by bringing financial management, multi-modal AI reasoning, document processing, and server monitoring directly into your everyday chat apps (WhatsApp & Telegram) with zero context switching.
 
 * **🔄 Omni-Channel Architecture:** Operates simultaneously on WhatsApp (via Baileys) and Telegram (via Telegraf).
+* **🌐 Bilingual & Internationalized:** Default English (`en`) for global evaluation with native Indonesian (`id`) support via `/lang [en|id]` and 1-to-1 bilingual command aliases.
 * **🦥 Automated Morning Briefings:** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma and soothing ElevenLabs voice notes.
 * **💰 Frictionless Personal Finance:** Track income and expenses on-the-fly, inspect real-time balances, and render visual monthly charts.
 * **🛠 Swiss Army Knife Utilities:** Generate/convert WebP stickers, remove image backgrounds, compress/merge PDFs, and monitor cloud VM server health.
@@ -96,6 +97,13 @@ Runs simultaneously, independently but fully integrated:
 - **WhatsApp Bot** (powered by Baileys)
 - **Telegram Bot** (powered by Telegraf)
 
+### 🌐 Bilingual Support & i18n
+Seamless internationalization catering to both global and Indonesian users:
+- **Default English (`en`)**: Ready for international evaluation and global communities.
+- **Indonesian (`id`) Toggle**: Switch language preferences on-the-fly using `/lang en` or `/lang id` (or `/bahasa id`).
+- **1-to-1 Bilingual Aliases**: Execute commands seamlessly in either English or Indonesian (e.g., `/balance` ↔ `/saldo`, `/record` ↔ `/catat`, `/weather` ↔ `/cuaca`, `/remind` ↔ `/ingatkan`).
+- **Tolerant Caching & Fallbacks**: In-memory caching with Supabase persistence and graceful offline fallback.
+
 ### 🤖 AI Assistant
 Advanced smart assistant powered by large language models (LLM) via OpenRouter API integration. Ready to answer technical questions, discussions, and coding.
 - **Multimodal** support (capable of reading Images, and extracting Text Documents).
@@ -103,7 +111,7 @@ Advanced smart assistant powered by large language models (LLM) via OpenRouter A
 - Multi-model support with user-level model switching command.
 - Built-in model usage metadata in replies (token usage and RPM label).
 - Supports multilingual answers by following the user's input language.
-- Most bot commands are still optimized with Indonesian command labels and examples.
+- Full bilingual command aliases and localized response outputs across all modules.
 
 ### 📚 Research Tools
 Research references powered by multiple public APIs (no API key required):
