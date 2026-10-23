@@ -88,7 +88,7 @@
     "section_cs": "🆘 *LAYANAN CS & FEEDBACK*\n- `/help` : Pusat Bantuan & Feedback",
     "section_donate": "☕ *DUKUNGAN BOT*\n- `/donate` : Link dukungan + QR donasi",
     "section_finance": "💰 *FITUR KEUANGAN*\n- `/saldo` : Lihat ringkasan saldo terbaru\n- `/catat <nominal> <ket>` : Catat pengeluaran\n- `/pemasukan <nominal> <ket>` : Catat pemasukan\n- `/riwayat` : Riwayat transaksi\n- `/laporan_chart` : Tampilkan grafik laporan\n- `/finance_info` : Panduan Lengkap fitur keuangan",
-    "section_system": "⚙️ *FITUR SISTEM*\n- `/ping` / `/system` : Cek status & statistik bot\n- `/info` / `/start` : Menampilkan panduan ini\n- `/lang [en|id]` : Ubah bahasa bot (English / Indonesia)",
+    "section_system": "⚙️ *FITUR SISTEM*\n- `/ping` : Cek status & statistik bot\n- `/info` / `/start` : Menampilkan panduan ini\n- `/lang [en|id]` : Ubah bahasa bot (English / Indonesia)",
     "section_ai": "🧠 *FITUR AI*\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol atau mengeksekusi perintah!\n- `/model_info` : Daftar model AI yang tersedia\n- `/switch` : Ganti model AI aktif",
     "section_utilities": "🛠️ *FITUR UTILITAS*\n- `/cuaca <kota>` : Info cuaca hari ini\n- `/sholat <kota>` : Jadwal sholat hari ini\n- `/remind add <waktu> <pesan>` : Pasang pengingat\n- `/short <url>` : Pendekkan link URL\n- `/research_info` : Referensi buku & jurnal\n- `/downloader` : Download media sosial & audio\n- `/me` : Tentang pembuat bot",
     "section_converter": "🖼️ *FITUR CONVERTER* 📄\n- `/img_info` : Panduan image tools\n- `/pdf_info` : Panduan PDF tools\n- `/sticker_info` : Panduan sticker tools",

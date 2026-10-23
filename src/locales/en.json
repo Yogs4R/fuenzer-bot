@@ -88,7 +88,7 @@
     "section_cs": "🆘 *HELP & FEEDBACK*\n- `/help` : Help center & user feedback",
     "section_donate": "☕ *SUPPORT*\n- `/donate` : Support links & QR donation",
     "section_finance": "💰 *FINANCE TOOLS*\n- `/balance` : Check account balance\n- `/record <amount> <desc>` : Record expense\n- `/income <amount> <desc>` : Record income\n- `/history` : View transaction ledger\n- `/chart` : Financial visualization chart\n- `/finance_info` : Comprehensive finance guide",
-    "section_system": "⚙️ *SYSTEM & DEVOPS*\n- `/ping` / `/system` : Bot health & resource stats\n- `/info` / `/start` : Show this guide\n- `/lang [en|id]` : Toggle bot language (English / Indonesian)",
+    "section_system": "⚙️ *SYSTEM & DEVOPS*\n- `/ping` : Bot health & resource stats\n- `/info` / `/start` : Show this guide\n- `/lang [en|id]` : Toggle bot language (English / Indonesian)",
     "section_ai": "🧠 *AI AGENT HARNESS*\nSend any normal message without '/' to chat or trigger tasks naturally!\n- `/model_info` : Available AI models\n- `/switch` : Switch active AI brain model",
     "section_utilities": "🛠️ *UTILITIES*\n- `/weather <city>` : Weather forecast\n- `/prayer <city>` : Islamic prayer schedule\n- `/remind add <time> <msg>` : Schedule reminders\n- `/short <url>` : URL shortener\n- `/research_info` : Reference finder (books/journals)\n- `/downloader` : Social media media/audio download\n- `/me` : About bot creator",
     "section_converter": "🖼️ *CONVERTER & MEDIA* 📄\n- `/img_info` : Image conversion & removal guide\n- `/pdf_info` : PDF tools & merge guide\n- `/sticker_info` : Sticker generator guide",

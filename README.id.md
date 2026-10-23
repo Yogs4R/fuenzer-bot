@@ -165,7 +165,7 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | `/start` | Mulai bot dan tampilkan menu cepat | Baileys, Telegraf | `/start` |
 | `/info` | Tampilkan kategori command dan panduan bot | Baileys, Telegraf | `/info` |
 | `/lang`, `/language` | Cek atau ubah bahasa antarmuka bot (`en` atau `id`) | languageService, Supabase | `/lang en`, `/lang id` |
-| `/ping`, `/system` | Cek status online bot dan metrik resource sistem | Node.js os module | `/ping`, `/system` |
+| `/ping` | Cek status online bot dan metrik resource sistem | Node.js os module | `/ping` |
 | `/balance` | Tampilkan ringkasan saldo keuangan terbaru | financeService, Supabase | `/balance` |
 | `/record`, `/expense` | Catat transaksi pengeluaran | financeService, Supabase | `/record 25000 lunch` |
 | `/income` | Catat transaksi pemasukan | financeService, Supabase | `/income 150000 freelance` |
@@ -201,7 +201,6 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | Command (ID) | Padanan English | Deskripsi | Contoh Penggunaan |
 |---|---|---|---|
 | `/bahasa` | `/lang` | Cek atau ubah bahasa antarmuka bot | `/bahasa id`, `/bahasa en` |
-| `/sistem` | `/system` | Cek status server dan metrik sistem | `/sistem` |
 | `/saldo` | `/balance` | Tampilkan ringkasan saldo keuangan | `/saldo` |
 | `/catat`, `/pengeluaran` | `/record`, `/expense` | Catat pengeluaran keuangan | `/catat 25000 makan siang` |
 | `/pemasukan` | `/income` | Catat pemasukan keuangan | `/pemasukan 150000 freelance` |

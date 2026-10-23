@@ -154,7 +154,7 @@ function setupTelegramBot() {
 
                 if (command === '/admin' && isAdmin(userId, 'telegram')) {
                     await sendTelegramReply(ctx, dispatched, buildAdminMenuKeyboard());
-                } else if ((command === '/monitor' || command === '/checkweb' || command === '/me' || command === '/about') && !dispatched.includes('AKSES DITOLAK')) {
+                } else if ((command === '/monitor' || command === '/me' || command === '/about') && !dispatched.includes('AKSES DITOLAK')) {
                     const linksKeyboard = buildMonitorLinksKeyboard();
                     await sendTelegramReply(ctx, dispatched, linksKeyboard || {});
                 } else {

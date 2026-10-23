@@ -14,7 +14,7 @@ function getAboutMe(platform) {
 }
 
 async function handleAboutMeCommand(command, args, userId, platform) {
-    if (command !== '/me') {
+    if (command !== '/me' && command !== '/about') {
         return 'Perintah tidak dikenali.';
     }
     return getAboutMe(platform);

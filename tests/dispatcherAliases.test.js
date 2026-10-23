@@ -6,7 +6,7 @@ async function runDispatcherAliasTests() {
   console.log('--- Running Dispatcher Alias Tests ---');
   clearLanguageCache();
 
-  const userId = 'unit-test-user-123';
+  const userId = `unit-test-user-${Date.now()}`;
   const platform = 'whatsapp';
 
   // 1. Language status command
@@ -21,13 +21,13 @@ async function runDispatcherAliasTests() {
   const langStatusId = await dispatchCommand('/bahasa', [], userId, platform, {});
   assert.ok(langStatusId.includes('Bahasa aktif'), `Expected ID status, got: ${langStatusId}`);
 
-  // 4. Test DevOps bilingual aliases: /ping, /system, /sistem
+  // 4. Test DevOps commands: /ping and /about
   const pingEn = await dispatchCommand('/ping', [], userId, platform, { lang: 'en' });
   assert.ok(pingEn.includes('Pong! 🏓'), `Expected Pong in /ping, got: ${pingEn}`);
   assert.ok(pingEn.includes('*CPU:*'), `Expected *CPU:* in English stats`);
 
-  const systemId = await dispatchCommand('/sistem', [], userId, platform, { lang: 'id' });
-  assert.ok(systemId.includes('Pong! 🏓'), `Expected Pong in /sistem, got: ${systemId}`);
+  const aboutReply = await dispatchCommand('/about', [], userId, platform, { lang: 'en' });
+  assert.ok(aboutReply.includes('Ridwan Yoga') || aboutReply.includes('Yoga'), `Expected creator info in /about, got: ${aboutReply}`);
 
   // 5. Switch back to English
   await dispatchCommand('/language', ['en'], userId, platform, {});

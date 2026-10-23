@@ -165,7 +165,7 @@ Simple ticketing system to receive user questions and feedback:
 | `/start` | Start bot and show quick menu | Baileys, Telegraf | `/start` |
 | `/info` | Show command categories and bot guide | Baileys, Telegraf | `/info` |
 | `/lang`, `/language` | Check or switch bot interface language (`en` or `id`) | languageService, Supabase | `/lang en`, `/lang id` |
-| `/ping`, `/system` | Check bot online status and system resource stats | Node.js os module | `/ping`, `/system` |
+| `/ping` | Check bot online status and system resource stats | Node.js os module | `/ping` |
 | `/balance` | Show latest wallet balance summary | financeService, Supabase | `/balance` |
 | `/record`, `/expense` | Record expense transaction | financeService, Supabase | `/record 25000 lunch` |
 | `/income` | Record income transaction | financeService, Supabase | `/income 150000 freelance` |
@@ -201,7 +201,6 @@ Simple ticketing system to receive user questions and feedback:
 | Command (ID) | English Equivalent | Deskripsi | Contoh Penggunaan |
 |---|---|---|---|
 | `/bahasa` | `/lang` | Cek atau ganti bahasa bot | `/bahasa id`, `/bahasa en` |
-| `/sistem` | `/system` | Cek status online & metrik resource sistem | `/sistem` |
 | `/saldo` | `/balance` | Tampilkan ringkasan saldo keuangan | `/saldo` |
 | `/catat`, `/pengeluaran` | `/record`, `/expense` | Catat pengeluaran keuangan | `/catat 25000 makan siang` |
 | `/pemasukan` | `/income` | Catat pemasukan keuangan | `/pemasukan 150000 freelance` |

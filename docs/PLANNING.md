@@ -147,7 +147,7 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
 * **Finance:** `/balance` ↔ `/saldo`, `/record` / `/expense` ↔ `/catat` / `/pengeluaran`, `/income` ↔ `/pemasukan`, `/history` ↔ `/riwayat`, `/delete` ↔ `/hapus`
 * **Weather:** `/weather` ↔ `/cuaca`, `/earthquake` ↔ `/gempa`
 * **Religion:** `/prayer` ↔ `/jadwalsholat`, `/qibla` ↔ `/kiblat`
-* **DevOps:** `/system` ↔ `/sistem`, `/ping`, `/checkweb`
+* **DevOps:** `/ping`, `/monitor`, `/about` ↔ `/me`
 * **Summarizer:** `/summarize` ↔ `/ringkas`
 
 ---

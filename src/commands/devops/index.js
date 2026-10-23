@@ -75,9 +75,7 @@ async function handleDevopsCommand(command, args = [], userId = '', platform = '
   const lang = context?.lang || 'en';
 
   switch (cleanCommand) {
-    case '/ping':
-    case '/system':
-    case '/sistem': {
+    case '/ping': {
       const footer = buildSystemStatsFooter(platform, lang);
       const pong = t('devops.ping_pong', {}, lang);
       return `${pong}\n\n${footer}`;
@@ -88,8 +86,7 @@ async function handleDevopsCommand(command, args = [], userId = '', platform = '
       return await handleAboutMeCommand(command, args, userId, platform);
     }
 
-    case '/monitor':
-    case '/checkweb': {
+    case '/monitor': {
       if (!isAdmin(userId, platform)) {
         const header = t('common.access_denied_header', {}, lang);
         const body = t('common.access_denied_body', {}, lang);

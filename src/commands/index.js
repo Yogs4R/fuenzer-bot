@@ -47,14 +47,11 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
         case '/bahasa':
             return handleLanguageCommand(cmd, args, userId, platform, enrichedContext);
 
-        // DevOps / System
+        // DevOps / Diagnostics
         case '/ping':
-        case '/system':
-        case '/sistem':
         case '/me':
         case '/about':
         case '/monitor':
-        case '/checkweb':
             return handleDevopsCommand(cmd, args, userId, platform, enrichedContext);
 
         // Finance (Bilingual Aliases)
