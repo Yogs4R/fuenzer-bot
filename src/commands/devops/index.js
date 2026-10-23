@@ -83,7 +83,7 @@ async function handleDevopsCommand(command, args = [], userId = '', platform = '
 
     case '/me':
     case '/about': {
-      return await handleAboutMeCommand(command, args, userId, platform);
+      return await handleAboutMeCommand(command, args, userId, platform, lang);
     }
 
     case '/monitor': {
