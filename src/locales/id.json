@@ -1,0 +1,97 @@
+{
+  "common": {
+    "unknown_command_header": "> *COMMAND TIDAK DIKENAL* 🤔",
+    "unknown_command_body": "Perintah \"{command}\" tidak tersedia.\nCoba /ping, /saldo, /catat, /pemasukan, /laporan_chart, atau /info.",
+    "access_denied_header": "> *AKSES DITOLAK* ❌",
+    "access_denied_body": "Command ini khusus admin.",
+    "too_short_header": "> *PESAN TERLALU PENDEK* 📏",
+    "too_short_body": "Maaf, pesan terlalu pendek atau kurang jelas.\nKetik /info untuk melihat daftar kemampuanku ya!",
+    "format_error_header": "> *ERROR FORMAT* ❌",
+    "input_error_header": "> *ERROR INPUT* ❌",
+    "general_error": "Terjadi kesalahan tak terduga. Silakan coba beberapa saat lagi."
+  },
+  "language": {
+    "current_header": "> *PENGATURAN BAHASA* 🌐",
+    "current_body": "Bahasa aktif: *Bahasa Indonesia* (id)\n\nUntuk mengubah bahasa, gunakan:\n• `/lang en` - Bahasa Inggris (Default)\n• `/lang id` - Bahasa Indonesia",
+    "switched": "> *BAHASA DIPERBARUI* ✅\n\nBahasa berhasil diubah ke *Bahasa Indonesia*.",
+    "invalid": "> *BAHASA TIDAK VALID* ❌\n\nBahasa yang didukung: `en` (Inggris) dan `id` (Indonesia).\nContoh: `/lang en` atau `/lang id`"
+  },
+  "devops": {
+    "ping_pong": "Pong! 🏓",
+    "cpu": "CPU",
+    "ram": "RAM",
+    "uptime": "UPTIME",
+    "status": "STATUS",
+    "online": "ONLINE",
+    "not_available": "Perintah devops tidak tersedia."
+  },
+  "finance": {
+    "balance_header": "> *RINGKASAN KEUANGAN* 💰",
+    "balance_total": "Total Saldo",
+    "balance_total_in": "Total Pemasukan",
+    "balance_total_out": "Total Pengeluaran",
+    "balance_empty": "Belum ada transaksi tercatat.\nMulai mencatat dengan: `/catat <jumlah> <deskripsi>`",
+    "record_format_error": "Format: {command} <jumlah> <deskripsi>\nContoh: {command} 50000 Makan siang",
+    "record_amount_error": "Jumlah harus angka positif.\nDiterima: {amount}\nContoh yang benar: {command} 50000 Makan siang",
+    "income_recorded": "> *PEMASUKAN TERCATAT* 💸",
+    "expense_recorded": "> *PENGELUARAN TERCATAT* 📝",
+    "amount": "Jumlah",
+    "description": "Keterangan",
+    "date": "Tanggal",
+    "history_header": "> *RIWAYAT TRANSAKSI* 📜",
+    "history_empty": "Belum ada transaksi tercatat.",
+    "history_type_in": "PEMASUKAN",
+    "history_type_out": "PENGELUARAN",
+    "history_footer": "Halaman {page}/{totalPages} • Menampilkan {count} dari {total} transaksi.\nGunakan `/hapus <id>` untuk menghapus atau `/edit <id> <jumlah> <deskripsi>` untuk mengedit.",
+    "delete_format_error": "Format: /hapus <id_transaksi>\nContoh: /hapus 123e4567\nGunakan /riwayat untuk melihat ID transaksi.",
+    "delete_success": "> *TRANSAKSI DIHAPUS* 🗑️\n\nTransaksi ID `{id}` berhasil dihapus.",
+    "delete_not_found": "Transaksi tidak ditemukan. Gunakan ID dari /riwayat.",
+    "edit_format_error": "Format: /edit <id> <jumlah_baru> <deskripsi_baru>\nContoh: /edit 123e4567 75000 Makan malam\nGunakan /riwayat untuk melihat ID transaksi.",
+    "edit_amount_error": "Jumlah baru harus angka positif.\nDiterima: {amount}\nContoh yang benar: /edit {id} 75000 Makan malam",
+    "edit_success": "> *TRANSAKSI DIPERBARUI* ✏️\n\nTransaksi `{id}` berhasil diperbarui.",
+    "chart_caption": "> *GRAFIK KEUANGAN* 📊\nGrafik ringkasan keuangan pengguna."
+  },
+  "weather": {
+    "format_error": "Format: /cuaca <nama_kota>\nContoh: /cuaca Jakarta",
+    "not_found": "Data cuaca untuk kota \"{city}\" tidak ditemukan.",
+    "report_title": "PRAKIRAAN CUACA",
+    "city": "Kota",
+    "temperature": "Suhu",
+    "condition": "Kondisi",
+    "humidity": "Kelembapan",
+    "wind": "Kecepatan Angin"
+  },
+  "religion": {
+    "format_error": "Format: /sholat <nama_kota>\nContoh: /sholat Jakarta",
+    "timetable_title": "JADWAL SHOLAT HARI INI",
+    "fajr": "Subuh",
+    "sunrise": "Terbit",
+    "dhuhr": "Dzuhur",
+    "asr": "Ashar",
+    "maghrib": "Maghrib",
+    "isha": "Isya",
+    "next_prayer": "Waktu sholat berikutnya: *{name}* dalam {duration}",
+    "city_not_found": "Kota \"{city}\" tidak ditemukan. Periksa kembali ejaan nama kota."
+  },
+  "reminder": {
+    "format_error": "Format: /remind add <waktu> <pesan>\nContoh: /remind add 15m Angkat jemuran\nSatuan: s (detik), m (menit), h (jam), d (hari)",
+    "add_success": "> *PENGINGAT DIBUAT* ⏰\n\nSaya akan mengingatkanmu dalam {time}: \"{message}\"",
+    "loop_success": "> *PENGINGAT BERULANG DIBUAT* 🔁\n\nInterval: setiap {time}\nPesan: \"{message}\"",
+    "list_header": "> *DAFTAR PENGINGAT AKTIF* 📋",
+    "list_empty": "Belum ada pengingat aktif.\nBuat pengingat baru dengan: `/remind add <waktu> <pesan>`",
+    "deleted": "> *PENGINGAT DIHAPUS* 🗑️\n\nPengingat `{id}` berhasil dihapus.",
+    "not_found": "Pengingat ID `{id}` tidak ditemukan."
+  },
+  "info": {
+    "main_title": "> *INFORMASI FUENZER BOT* 🤖",
+    "main_intro": "Saya adalah asisten virtual pribadi milik Ridwan Yoga Suryantara.",
+    "section_cs": "🆘 *LAYANAN CS & FEEDBACK*\n- `/help` : Pusat Bantuan & Feedback",
+    "section_donate": "☕ *DUKUNGAN BOT*\n- `/donate` : Link dukungan + QR donasi",
+    "section_finance": "💰 *FITUR KEUANGAN*\n- `/saldo` : Lihat ringkasan saldo terbaru\n- `/catat <nominal> <ket>` : Catat pengeluaran\n- `/pemasukan <nominal> <ket>` : Catat pemasukan\n- `/riwayat` : Riwayat transaksi\n- `/laporan_chart` : Tampilkan grafik laporan\n- `/finance_info` : Panduan Lengkap fitur keuangan",
+    "section_system": "⚙️ *FITUR SISTEM*\n- `/ping` / `/system` : Cek status & statistik bot\n- `/info` / `/start` : Menampilkan panduan ini\n- `/lang [en|id]` : Ubah bahasa bot (English / Indonesia)",
+    "section_ai": "🧠 *FITUR AI*\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol atau mengeksekusi perintah!\n- `/model_info` : Daftar model AI yang tersedia\n- `/switch` : Ganti model AI aktif",
+    "section_utilities": "🛠️ *FITUR UTILITAS*\n- `/cuaca <kota>` : Info cuaca hari ini\n- `/sholat <kota>` : Jadwal sholat hari ini\n- `/remind add <waktu> <pesan>` : Pasang pengingat\n- `/short <url>` : Pendekkan link URL\n- `/research_info` : Referensi buku & jurnal\n- `/downloader` : Download media sosial & audio\n- `/me` : Tentang pembuat bot",
+    "section_converter": "🖼️ *FITUR CONVERTER* 📄\n- `/img_info` : Panduan image tools\n- `/pdf_info` : Panduan PDF tools\n- `/sticker_info` : Panduan sticker tools",
+    "section_admin": "🛡️ *FITUR ADMIN*\n- `/admin` : Menu command admin"
+  }
+}

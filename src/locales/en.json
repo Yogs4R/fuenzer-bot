@@ -1,0 +1,97 @@
+{
+  "common": {
+    "unknown_command_header": "> *UNKNOWN COMMAND* 🤔",
+    "unknown_command_body": "Command \"{command}\" is not recognized.\nTry /ping, /balance, /record, /income, /chart, or /info.",
+    "access_denied_header": "> *ACCESS DENIED* ❌",
+    "access_denied_body": "This command is restricted to administrators.",
+    "too_short_header": "> *MESSAGE TOO SHORT* 📏",
+    "too_short_body": "Sorry, your message is too short or unclear.\nType /info to view available features!",
+    "format_error_header": "> *FORMAT ERROR* ❌",
+    "input_error_header": "> *INPUT ERROR* ❌",
+    "general_error": "An unexpected error occurred. Please try again later."
+  },
+  "language": {
+    "current_header": "> *LANGUAGE SETTINGS* 🌐",
+    "current_body": "Active language: *English* (en)\n\nTo change your language, use:\n• `/lang en` - English (Default)\n• `/lang id` - Indonesian",
+    "switched": "> *LANGUAGE UPDATED* ✅\n\nLanguage has been successfully switched to *English*.",
+    "invalid": "> *INVALID LANGUAGE* ❌\n\nSupported languages are: `en` (English) and `id` (Indonesian).\nExample: `/lang en` or `/lang id`"
+  },
+  "devops": {
+    "ping_pong": "Pong! 🏓",
+    "cpu": "CPU",
+    "ram": "RAM",
+    "uptime": "UPTIME",
+    "status": "STATUS",
+    "online": "ONLINE",
+    "not_available": "Devops command not available."
+  },
+  "finance": {
+    "balance_header": "> *FINANCE SUMMARY* 💰",
+    "balance_total": "Total Balance",
+    "balance_total_in": "Total Income",
+    "balance_total_out": "Total Expense",
+    "balance_empty": "No recorded transactions yet.\nStart logging with: `/record <amount> <description>`",
+    "record_format_error": "Format: {command} <amount> <description>\nExample: {command} 50000 Lunch",
+    "record_amount_error": "Amount must be a positive number.\nReceived: {amount}\nExample: {command} 50000 Lunch",
+    "income_recorded": "> *INCOME RECORDED* 💸",
+    "expense_recorded": "> *EXPENSE RECORDED* 📝",
+    "amount": "Amount",
+    "description": "Description",
+    "date": "Date",
+    "history_header": "> *TRANSACTION HISTORY* 📜",
+    "history_empty": "No transaction history recorded yet.",
+    "history_type_in": "INCOME",
+    "history_type_out": "EXPENSE",
+    "history_footer": "Page {page}/{totalPages} • Showing {count} of {total} transactions.\nUse `/delete <id>` to delete or `/edit <id> <amount> <description>` to modify.",
+    "delete_format_error": "Format: /delete <transaction_id>\nExample: /delete 123e4567\nUse /history to view transaction IDs.",
+    "delete_success": "> *TRANSACTION DELETED* 🗑️\n\nTransaction ID `{id}` has been deleted.",
+    "delete_not_found": "Transaction not found. Check the ID from /history.",
+    "edit_format_error": "Format: /edit <id> <new_amount> <new_description>\nExample: /edit 123e4567 75000 Dinner\nUse /history to find transaction IDs.",
+    "edit_amount_error": "New amount must be a positive number.\nReceived: {amount}\nExample: /edit {id} 75000 Dinner",
+    "edit_success": "> *TRANSACTION UPDATED* ✏️\n\nTransaction `{id}` has been updated successfully.",
+    "chart_caption": "> *FINANCE CHART* 📊\nFinancial summary chart for user."
+  },
+  "weather": {
+    "format_error": "Format: /weather <city_name>\nExample: /weather Jakarta",
+    "not_found": "Weather data for \"{city}\" was not found.",
+    "report_title": "WEATHER FORECAST",
+    "city": "City",
+    "temperature": "Temperature",
+    "condition": "Condition",
+    "humidity": "Humidity",
+    "wind": "Wind Speed"
+  },
+  "religion": {
+    "format_error": "Format: /prayer <city_name>\nExample: /prayer Jakarta",
+    "timetable_title": "PRAYER TIMES TODAY",
+    "fajr": "Fajr",
+    "sunrise": "Sunrise",
+    "dhuhr": "Dhuhr",
+    "asr": "Asr",
+    "maghrib": "Maghrib",
+    "isha": "Isha",
+    "next_prayer": "Next prayer: *{name}* in {duration}",
+    "city_not_found": "City \"{city}\" not found. Please check spelling."
+  },
+  "reminder": {
+    "format_error": "Format: /remind add <time> <message>\nExample: /remind add 15m Take out the laundry\nUnits: s (seconds), m (minutes), h (hours), d (days)",
+    "add_success": "> *REMINDER SET* ⏰\n\nI will remind you in {time}: \"{message}\"",
+    "loop_success": "> *RECURRING REMINDER SET* 🔁\n\nInterval: every {time}\nMessage: \"{message}\"",
+    "list_header": "> *ACTIVE REMINDERS* 📋",
+    "list_empty": "You have no active reminders.\nSet one with: `/remind add <time> <message>`",
+    "deleted": "> *REMINDER DELETED* 🗑️\n\nReminder `{id}` has been removed.",
+    "not_found": "Reminder ID `{id}` was not found."
+  },
+  "info": {
+    "main_title": "> *FUENZER BOT INFORMATION* 🤖",
+    "main_intro": "I am an intelligent personal productivity bot designed for automated daily briefs, task management, and omni-channel utility.",
+    "section_cs": "🆘 *HELP & FEEDBACK*\n- `/help` : Help center & user feedback",
+    "section_donate": "☕ *SUPPORT*\n- `/donate` : Support links & QR donation",
+    "section_finance": "💰 *FINANCE TOOLS*\n- `/balance` : Check account balance\n- `/record <amount> <desc>` : Record expense\n- `/income <amount> <desc>` : Record income\n- `/history` : View transaction ledger\n- `/chart` : Financial visualization chart\n- `/finance_info` : Comprehensive finance guide",
+    "section_system": "⚙️ *SYSTEM & DEVOPS*\n- `/ping` / `/system` : Bot health & resource stats\n- `/info` / `/start` : Show this guide\n- `/lang [en|id]` : Toggle bot language (English / Indonesian)",
+    "section_ai": "🧠 *AI AGENT HARNESS*\nSend any normal message without '/' to chat or trigger tasks naturally!\n- `/model_info` : Available AI models\n- `/switch` : Switch active AI brain model",
+    "section_utilities": "🛠️ *UTILITIES*\n- `/weather <city>` : Weather forecast\n- `/prayer <city>` : Islamic prayer schedule\n- `/remind add <time> <msg>` : Schedule reminders\n- `/short <url>` : URL shortener\n- `/research_info` : Reference finder (books/journals)\n- `/downloader` : Social media media/audio download\n- `/me` : About bot creator",
+    "section_converter": "🖼️ *CONVERTER & MEDIA* 📄\n- `/img_info` : Image conversion & removal guide\n- `/pdf_info` : PDF tools & merge guide\n- `/sticker_info` : Sticker generator guide",
+    "section_admin": "🛡️ *ADMIN*\n- `/admin` : Admin management commands"
+  }
+}
