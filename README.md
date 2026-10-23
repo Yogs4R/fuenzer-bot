@@ -202,6 +202,7 @@ Simple ticketing system to receive user questions and feedback:
 | `/topdf` | Convert document/media to PDF | converterService, CloudConvert | `/topdf` |
 | `/pdf` | Compress, convert, rotate, extract, merge PDF | converterService, CloudConvert, PDF tools | `/pdf compress` |
 | `/sticker` | Convert image or short video to sticker | stickerService | `/sticker` (reply to photo) |
+| `/short`, `/shortlink` | Shorten URL using is.gd | shortenerService, is.gd API | `/short https://github.com` |
 | `/donate` | Show support links and donation QR | donateService | `/donate` |
 
 ### 2. Indonesian Command Aliases (`id` - Bahasa Indonesia)
@@ -220,9 +221,14 @@ Simple ticketing system to receive user questions and feedback:
 | `/ingatkan` | `/remind` | Buat jadwal pengingat | `/ingatkan add 10m jemuran` |
 | `/buku` | `/book` | Cari referensi buku | `/buku clean code` |
 | `/jurnal` | `/journal` | Cari jurnal ilmiah | `/jurnal machine learning` |
-| `/artikel` | `/article` | Cari artikel ilmiah | `/artikel healthcare` |
-| `/terjemah` | `/translate` | Terjemahkan teks | `/terjemah en Selamat pagi` |
+| `/artikel`, `/paper` | `/article`, `/paper` | Cari artikel ilmiah | `/artikel healthcare` |
+| `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks | `/terjemah en Selamat pagi` |
+| `/model`, `/models` | `/model_info` | Daftar model AI yang tersedia | `/model` |
 | `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
+| `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
+| `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
+| `/suara` | `/audio` | Unduh audio YouTube | `/suara https://...` |
+| `/shortlink`, `/pendekkan` | `/short` | Pendekkan link URL | `/shortlink https://...` |
 | `/hapusbg` | `/removebg` | Hapus latar belakang gambar | `/hapusbg` |
 | `/tosticker` | `/sticker` | Ubah media jadi stiker | `/tosticker` |
 
