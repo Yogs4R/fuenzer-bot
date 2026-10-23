@@ -18,6 +18,7 @@ const {
 } = require('./adapters/waMediaAdapter');
 const { getUserLanguage } = require('../services/languageService');
 const { t } = require('../utils/i18n');
+const { enqueueMessage } = require('../services/chatBufferService');
 
 function normalizeWhatsAppId(value) {
   return String(value || '')
@@ -122,6 +123,17 @@ class WhatsAppHandler {
       const isReplyToBot = normalizeWhatsAppId(contextInfo?.participant) === botNumber;
 
       if (isGroup && !isBotMentioned && !isReplyToBot && !(hasActiveMergeSession && hasPdfDocument)) {
+        const trimmedText = String(text || '').trim();
+        if (trimmedText && !trimmedText.startsWith('/')) {
+          enqueueMessage({
+            platform: 'whatsapp',
+            chatId: msg.key.remoteJid,
+            senderName: msg.pushName || '',
+            messageText: trimmedText
+          }).catch((err) => {
+            console.warn(`[waHandler] Buffer enqueue error: ${err.message}`);
+          });
+        }
         return;
       }
 

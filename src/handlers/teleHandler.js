@@ -11,6 +11,7 @@ const { pdfMergeSessionManager } = require('../utils/sessionManager');
 const { logCommand } = require('../services/logService');
 const { getUserLanguage } = require('../services/languageService');
 const { t } = require('../utils/i18n');
+const { enqueueMessage } = require('../services/chatBufferService');
 
 const {
     isTelegramPdfDocument,
@@ -115,6 +116,19 @@ function setupTelegramBot() {
         const isMentioned = botUsername && text.includes(`@${botUsername}`);
 
         if (isGroup && !isMentioned && !(hasActiveMergeSession && hasPdfDocument)) {
+            const trimmedText = String(text || '').trim();
+            if (trimmedText && !trimmedText.startsWith('/')) {
+                const senderName = [ctx.from?.first_name, ctx.from?.last_name].filter(Boolean).join(' ') || ctx.from?.username || '';
+                enqueueMessage({
+                    platform: 'telegram',
+                    chatId: String(ctx.chat.id),
+                    chatName: ctx.chat.title || '',
+                    senderName,
+                    messageText: trimmedText
+                }).catch((err) => {
+                    console.warn(`[teleHandler] Buffer enqueue error: ${err.message}`);
+                });
+            }
             return;
         }
 
