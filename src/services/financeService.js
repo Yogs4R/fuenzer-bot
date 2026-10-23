@@ -1,6 +1,7 @@
 // Finance services (currency, stocks, etc.)
 const supabase = require('../lib/supabaseClient');
 const { formatRupiah, formatBulletList } = require('../utils/formatter');
+const { t } = require('../utils/i18n');
 
 const SHORT_ID_LENGTH = 8;
 
@@ -8,11 +9,11 @@ function toShortTransactionId(transactionId) {
   return String(transactionId || '').slice(0, SHORT_ID_LENGTH);
 }
 
-async function resolveTransactionId(userId, transactionIdInput) {
+async function resolveTransactionId(userId, transactionIdInput, lang = 'en') {
   const rawId = String(transactionIdInput || '').trim().toLowerCase();
 
   if (!rawId) {
-    return { errorMessage: 'ID transaksi tidak valid.' };
+    return { errorMessage: t('finance.delete_not_found', {}, lang) };
   }
 
   if (rawId.length === 36) {
@@ -26,7 +27,7 @@ async function resolveTransactionId(userId, transactionIdInput) {
 
   if (error) {
     console.error('Error resolving transaction ID:', error);
-    return { errorMessage: `Gagal memproses ID transaksi: ${error.message}` };
+    return { errorMessage: `${t('common.general_error', {}, lang)} (${error.message})` };
   }
 
   const matches = (data || []).filter((record) =>
@@ -34,51 +35,58 @@ async function resolveTransactionId(userId, transactionIdInput) {
   );
 
   if (matches.length === 0) {
-    return { errorMessage: 'Transaksi tidak ditemukan. Gunakan ID dari /riwayat.' };
+    return { errorMessage: t('finance.delete_not_found', {}, lang) };
   }
 
   if (matches.length > 1) {
     const candidates = matches.slice(0, 3).map((record) => toShortTransactionId(record.id)).join(', ');
-    return { errorMessage: `ID tidak unik. Coba gunakan ID lebih panjang. Kandidat: ${candidates}` };
+    return { errorMessage: `ID ambiguous. Try a longer ID prefix. Candidates: ${candidates}` };
   }
 
   const resolvedId = matches[0].id;
   return { resolvedId, shortId: toShortTransactionId(resolvedId) };
 }
 
-function formatHistoryText(records, page, pageSize, totalCount) {
+function formatHistoryText(records, page, pageSize, totalCount, lang = 'en') {
+  const header = t('finance.history_header', {}, lang);
+
   if (!records || records.length === 0) {
-    const header = '> *RIWAYAT TRANSAKSI TERAKHIR* 📜';
-    const body = formatBulletList(['Belum ada transaksi tercatat.']);
+    const body = formatBulletList([t('finance.history_empty', {}, lang)]);
     return `${header}\n\n${body}`;
   }
 
   const startIndex = (page - 1) * pageSize;
   const transactions = records.map((record, index) => {
     const typeEmoji = record.type === 'IN' ? '💸' : '📝';
-    const typeText = record.type === 'IN' ? 'PEMASUKAN' : 'PENGELUARAN';
-    const date = new Date(record.created_at).toLocaleDateString('id-ID');
+    const typeText = record.type === 'IN'
+      ? t('finance.history_type_in', {}, lang)
+      : t('finance.history_type_out', {}, lang);
+    const date = new Date(record.created_at).toLocaleDateString(lang === 'en' ? 'en-US' : 'id-ID');
 
     const itemHeader = `*${startIndex + index + 1}. ${typeEmoji} ${typeText}*`;
     const itemBody = formatBulletList({
       ID: `${toShortTransactionId(record.id)}`,
-      Jumlah: formatRupiah(record.amount),
-      Desk: record.description,
-      Tanggal: date
+      [t('finance.amount', {}, lang)]: formatRupiah(record.amount),
+      [t('finance.description', {}, lang)]: record.description,
+      [t('finance.date', {}, lang)]: date
     });
 
     return `${itemHeader}\n${itemBody}`;
   });
 
   const totalPages = Math.max(1, Math.ceil((totalCount || records.length) / pageSize));
-  const header = '> *RIWAYAT TRANSAKSI* 📜';
   const body = transactions.join('\n\n');
-  const footer = `Halaman ${page}/${totalPages} • Menampilkan ${records.length} dari ${totalCount || records.length} transaksi.\nGunakan \`/hapus <id8>\` untuk menghapus atau \`/edit <id8> <jumlah> <deskripsi>\` untuk mengedit.`;
+  const footer = t('finance.history_footer', {
+    page,
+    totalPages,
+    count: records.length,
+    total: totalCount || records.length
+  }, lang);
 
   return `${header}\n\n${body}\n\n${footer}`;
 }
 
-async function getHistoryPage(userId, page = 1, pageSize = 5) {
+async function getHistoryPage(userId, page = 1, pageSize = 5, lang = 'en') {
   try {
     const safePageSize = Number.isInteger(pageSize) && pageSize > 0 ? pageSize : 5;
     const safePage = Number.isInteger(page) && page > 0 ? page : 1;
@@ -95,11 +103,11 @@ async function getHistoryPage(userId, page = 1, pageSize = 5) {
 
     if (error) {
       console.error('Error querying paginated finance history:', error);
-      const header = '> *ERROR RIWAYAT* ❌';
-      const body = formatBulletList([`Gagal mengambil riwayat: ${error.message}`]);
+      const header = t('common.general_error', {}, lang);
+      const body = formatBulletList([error.message]);
       return {
         text: `${header}\n\n${body}`,
-        page: safePage,
+        page: 1,
         totalPages: 1,
         totalCount: 0,
         hasPrev: false,
@@ -112,10 +120,10 @@ async function getHistoryPage(userId, page = 1, pageSize = 5) {
     const normalizedPage = Math.min(safePage, totalPages);
 
     if (normalizedPage !== safePage) {
-      return await getHistoryPage(userId, normalizedPage, safePageSize);
+      return await getHistoryPage(userId, normalizedPage, safePageSize, lang);
     }
 
-    const text = formatHistoryText(data || [], normalizedPage, safePageSize, totalCount);
+    const text = formatHistoryText(data || [], normalizedPage, safePageSize, totalCount, lang);
 
     return {
       text,
@@ -127,8 +135,8 @@ async function getHistoryPage(userId, page = 1, pageSize = 5) {
     };
   } catch (error) {
     console.error('Unexpected error in getHistoryPage:', error);
-    const header = '> *ERROR SISTEM* ❌';
-    const body = formatBulletList([`Terjadi kesalahan tak terduga: ${error.message}`]);
+    const header = t('common.general_error', {}, lang);
+    const body = formatBulletList([error.message]);
     return {
       text: `${header}\n\n${body}`,
       page: 1,
@@ -141,37 +149,35 @@ async function getHistoryPage(userId, page = 1, pageSize = 5) {
 }
 
 // Get transaction history
-async function getHistory(userId, limit = 5) {
+async function getHistory(userId, limit = 5, lang = 'en') {
   try {
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 5;
-    const paged = await getHistoryPage(userId, 1, safeLimit);
+    const paged = await getHistoryPage(userId, 1, safeLimit, lang);
     return paged.text;
   } catch (error) {
     console.error('Unexpected error in getHistory:', error);
-    const header = '> *ERROR SISTEM* ❌';
-    const body = formatBulletList([`Terjadi kesalahan tak terduga: ${error.message}`]);
+    const header = t('common.general_error', {}, lang);
+    const body = formatBulletList([error.message]);
     return `${header}\n\n${body}`;
   }
 }
 
 // Delete a transaction
-async function deleteTransaction(userId, transactionId) {
+async function deleteTransaction(userId, transactionId, lang = 'en') {
   try {
-    // Validate and resolve transactionId (short/full)
     if (!transactionId || typeof transactionId !== 'string' || transactionId.trim().length === 0) {
-      const header = '> *ERROR FORMAT* ❌';
-      const body = formatBulletList(['ID transaksi tidak valid.']);
+      const header = t('common.format_error_header', {}, lang);
+      const body = formatBulletList([t('finance.delete_format_error', {}, lang)]);
       return `${header}\n\n${body}`;
     }
 
-    const { resolvedId, shortId, errorMessage } = await resolveTransactionId(userId, transactionId);
+    const { resolvedId, shortId, errorMessage } = await resolveTransactionId(userId, transactionId, lang);
     if (errorMessage) {
-      const header = '> *TRANSAKSI TIDAK DITEMUKAN* 🔍';
+      const header = t('common.format_error_header', {}, lang);
       const body = formatBulletList([errorMessage]);
       return `${header}\n\n${body}`;
     }
 
-    // Delete transaction where id matches and belongs to user
     const { error } = await supabase
       .from('finance')
       .delete()
@@ -180,52 +186,42 @@ async function deleteTransaction(userId, transactionId) {
 
     if (error) {
       console.error('Error deleting transaction:', error);
-      const header = '> *ERROR HAPUS* ❌';
-      const body = formatBulletList([`Gagal menghapus transaksi: ${error.message}`]);
+      const header = t('common.general_error', {}, lang);
+      const body = formatBulletList([error.message]);
       return `${header}\n\n${body}`;
     }
 
-    const header = '> *TRANSAKSI DIHAPUS* ✅';
-    const body = formatBulletList([
-      `ID: \`${shortId}\``,
-      'Status: Berhasil dihapus'
-    ]);
-    const footer = 'Transaksi telah dihapus dari catatan keuangan.';
-    
-    return `${header}\n\n${body}\n\n${footer}`;
+    return t('finance.delete_success', { id: shortId }, lang);
   } catch (error) {
     console.error('Unexpected error in deleteTransaction:', error);
-    const header = '> *ERROR SISTEM* ❌';
-    const body = formatBulletList([`Terjadi kesalahan tak terduga: ${error.message}`]);
+    const header = t('common.general_error', {}, lang);
+    const body = formatBulletList([error.message]);
     return `${header}\n\n${body}`;
   }
 }
 
 // Edit a transaction
-async function editTransaction(userId, transactionId, newAmount, newDescription) {
+async function editTransaction(userId, transactionId, newAmount, newDescription, lang = 'en') {
   try {
-    // Validate transactionId
     if (!transactionId || typeof transactionId !== 'string' || transactionId.trim().length === 0) {
-      const header = '> *ERROR FORMAT* ❌';
-      const body = formatBulletList(['ID transaksi tidak valid.']);
+      const header = t('common.format_error_header', {}, lang);
+      const body = formatBulletList([t('finance.edit_format_error', {}, lang)]);
       return `${header}\n\n${body}`;
     }
 
-    // Validate amount
     if (isNaN(newAmount) || newAmount <= 0) {
-      const header = '> *ERROR INPUT* ❌';
-      const body = formatBulletList(['Jumlah baru harus angka positif.']);
+      const header = t('common.input_error_header', {}, lang);
+      const body = formatBulletList([t('finance.edit_amount_error', { id: transactionId, amount: newAmount }, lang)]);
       return `${header}\n\n${body}`;
     }
 
-    const { resolvedId, shortId, errorMessage } = await resolveTransactionId(userId, transactionId);
+    const { resolvedId, shortId, errorMessage } = await resolveTransactionId(userId, transactionId, lang);
     if (errorMessage) {
-      const header = '> *TRANSAKSI TIDAK DITEMUKAN* 🔍';
+      const header = t('common.format_error_header', {}, lang);
       const body = formatBulletList([errorMessage]);
       return `${header}\n\n${body}`;
     }
 
-    // Update transaction where id matches and belongs to user
     const { data, error } = await supabase
       .from('finance')
       .update({
@@ -239,93 +235,84 @@ async function editTransaction(userId, transactionId, newAmount, newDescription)
 
     if (error) {
       console.error('Error editing transaction:', error);
-      const header = '> *ERROR EDIT* ❌';
-      const body = formatBulletList([`Gagal mengedit transaksi: ${error.message}`]);
+      const header = t('common.general_error', {}, lang);
+      const body = formatBulletList([error.message]);
       return `${header}\n\n${body}`;
     }
 
     if (!data || data.length === 0) {
-      const header = '> *TRANSAKSI TIDAK DITEMUKAN* 🔍';
-      const body = formatBulletList(['Transaksi tidak ditemukan atau tidak dapat diakses.']);
+      const header = t('common.format_error_header', {}, lang);
+      const body = formatBulletList([t('finance.delete_not_found', {}, lang)]);
       return `${header}\n\n${body}`;
     }
 
-    const updated = data[0];
-    const typeText = updated.type === 'IN' ? 'PEMASUKAN' : 'PENGELUARAN';
-    const header = '> *TRANSAKSI DIEDIT* ✅';
-    const body = formatBulletList([
-      `ID: \`${shortId}\``,
-      `Tipe: ${typeText}`,
-      `Jumlah: ${formatRupiah(updated.amount)}`,
-      `Deskripsi: ${updated.description}`
-    ]);
-    const footer = 'Transaksi berhasil diperbarui. Gunakan \`/riwayat\` untuk melihat perubahan.';
-    
-    return `${header}\n\n${body}\n\n${footer}`;
+    return t('finance.edit_success', { id: shortId }, lang);
   } catch (error) {
     console.error('Unexpected error in editTransaction:', error);
-    const header = '> *ERROR SISTEM* ❌';
-    const body = formatBulletList([`Terjadi kesalahan tak terduga: ${error.message}`]);
+    const header = t('common.general_error', {}, lang);
+    const body = formatBulletList([error.message]);
     return `${header}\n\n${body}`;
   }
 }
 
-// Check balance for a user
-async function checkSaldo(userId) {
+// Check balance
+async function checkSaldo(userId, lang = 'en') {
   try {
-    // Query the finance table for the user
     const { data, error } = await supabase
       .from('finance')
       .select('amount, type')
       .eq('user_id', userId);
 
     if (error) {
-      console.error('Error querying finance data:', error);
-      // Header + Body + Footer
-      const header = '> *ERROR QUERY SALDO* ❌';
-      const body = formatBulletList([`Gagal mengambil data saldo: ${error.message}`]);
+      console.error('Error querying finance data for balance:', error);
+      const header = t('common.general_error', {}, lang);
+      const body = formatBulletList([error.message]);
       return `${header}\n\n${body}`;
     }
 
-    // Calculate total balance
-    let total = 0;
-    data.forEach(record => {
+    if (!data || data.length === 0) {
+      const header = t('finance.balance_header', {}, lang);
+      const body = t('finance.balance_empty', {}, lang);
+      return `${header}\n\n${body}`;
+    }
+
+    let totalIn = 0;
+    let totalOut = 0;
+    data.forEach((record) => {
       if (record.type === 'IN') {
-        total += record.amount;
+        totalIn += record.amount;
       } else if (record.type === 'OUT') {
-        total -= record.amount;
+        totalOut += record.amount;
       }
     });
 
-    // Format response according to Hybrid UI v3
-    const header = '> *INFO SALDO DOMPET* 💰';
-    const body = formatBulletList([
-      `Saldo: ${formatRupiah(total)}`,
-      `Status: ${total >= 0 ? 'Aman Bro!' : 'Hati-hati minus!'}`
-    ]);
-    const footer = 'Gunakan \`/catat <jumlah> <deskripsi>\` untuk mencatat pengeluaran atau \`/pemasukan <jumlah> <deskripsi>\` untuk mencatat pemasukan.';
+    const total = totalIn - totalOut;
+    const header = t('finance.balance_header', {}, lang);
+    const body = formatBulletList({
+      [t('finance.balance_total', {}, lang)]: formatRupiah(total),
+      [t('finance.balance_total_in', {}, lang)]: formatRupiah(totalIn),
+      [t('finance.balance_total_out', {}, lang)]: formatRupiah(totalOut)
+    });
     
-    return `${header}\n\n${body}\n\n${footer}`;
+    return `${header}\n\n${body}`;
   } catch (error) {
     console.error('Unexpected error in checkSaldo:', error);
-    const header = '> *ERROR SISTEM* ❌';
-    const body = formatBulletList([`Terjadi kesalahan tak terduga: ${error.message}`]);
+    const header = t('common.general_error', {}, lang);
+    const body = formatBulletList([error.message]);
     return `${header}\n\n${body}`;
   }
 }
 
 // Add a transaction
-async function addTransaction(userId, amount, type, description, platform) {
+async function addTransaction(userId, amount, type, description, platform, lang = 'en') {
   try {
-    // Validate amount
     if (isNaN(amount) || amount <= 0) {
-      const header = '> *ERROR INPUT* ❌';
-      const body = formatBulletList(['Jumlah harus angka positif.']);
+      const header = t('common.input_error_header', {}, lang);
+      const body = formatBulletList([t('finance.record_amount_error', { command: '/record', amount }, lang)]);
       return `${header}\n\n${body}`;
     }
 
-    // Insert transaction
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('finance')
       .insert({
         user_id: userId,
@@ -338,35 +325,33 @@ async function addTransaction(userId, amount, type, description, platform) {
 
     if (error) {
       console.error('Error inserting transaction:', error);
-      const header = '> *ERROR TRANSAKSI* ❌';
-      const body = formatBulletList([`Gagal mencatat transaksi: ${error.message}`]);
+      const header = t('common.general_error', {}, lang);
+      const body = formatBulletList([error.message]);
       return `${header}\n\n${body}`;
     }
 
-    // Format success response according to Hybrid UI v3
-    const typeText = type === 'IN' ? 'PEMASUKAN' : 'PENGELUARAN';
-    const header = '> *TRANSAKSI BERHASIL* ✅';
-    const body = formatBulletList([
-      `Tipe: ${typeText}`,
-      `Jumlah: ${formatRupiah(amount)}`,
-      `Deskripsi: ${description}`,
-      `Platform: ${platform}`
-    ]);
-    const footer = 'Transaksi telah tercatat dengan baik. Gunakan \`/saldo\` untuk melihat saldo terkini.';
-    
-    return `${header}\n\n${body}\n\n${footer}`;
+    const header = type === 'IN' 
+      ? t('finance.income_recorded', {}, lang)
+      : t('finance.expense_recorded', {}, lang);
+
+    const body = formatBulletList({
+      [t('finance.amount', {}, lang)]: formatRupiah(amount),
+      [t('finance.description', {}, lang)]: description,
+      Platform: platform
+    });
+
+    return `${header}\n\n${body}`;
   } catch (error) {
     console.error('Unexpected error in addTransaction:', error);
-    const header = '> *ERROR SISTEM* ❌';
-    const body = formatBulletList([`Terjadi kesalahan tak terduga: ${error.message}`]);
+    const header = t('common.general_error', {}, lang);
+    const body = formatBulletList([error.message]);
     return `${header}\n\n${body}`;
   }
 }
 
 // Generate finance chart
-async function getFinanceChart(userId) {
+async function getFinanceChart(userId, lang = 'en') {
   try {
-    // Query all finance data for the user
     const { data, error } = await supabase
       .from('finance')
       .select('amount, type')
@@ -374,15 +359,14 @@ async function getFinanceChart(userId) {
 
     if (error) {
       console.error('Error querying finance data for chart:', error);
-      const header = '> *ERROR QUERY DATA* ❌';
-      const body = formatBulletList([`Gagal mengambil data laporan: ${error.message}`]);
+      const header = t('common.general_error', {}, lang);
+      const body = formatBulletList([error.message]);
       return `${header}\n\n${body}`;
     }
 
-    // Calculate total IN and OUT
     let totalIn = 0;
     let totalOut = 0;
-    data.forEach(record => {
+    (data || []).forEach((record) => {
       if (record.type === 'IN') {
         totalIn += record.amount;
       } else if (record.type === 'OUT') {
@@ -390,11 +374,13 @@ async function getFinanceChart(userId) {
       }
     });
 
-    // Prepare chart configuration
+    const inLabel = t('finance.history_type_in', {}, lang);
+    const outLabel = t('finance.history_type_out', {}, lang);
+
     const chartConfig = {
       type: 'doughnut',
       data: {
-        labels: ['Pemasukan', 'Pengeluaran'],
+        labels: [inLabel, outLabel],
         datasets: [{
           data: [totalIn, totalOut],
           backgroundColor: ['#4CAF50', '#F44336'],
@@ -410,7 +396,7 @@ async function getFinanceChart(userId) {
           },
           title: {
             display: true,
-            text: 'Laporan Keuangan',
+            text: lang === 'en' ? 'Financial Report' : 'Laporan Keuangan',
             font: {
               size: 16
             }
@@ -419,16 +405,11 @@ async function getFinanceChart(userId) {
       }
     };
 
-    // Generate chart URL
     const chartUrl = 'https://quickchart.io/chart?c=' + encodeURIComponent(JSON.stringify(chartConfig));
-
-    const header = '> *LAPORAN GRAFIK KEUANGAN* 📊';
-    const body = formatBulletList({
-      'Pemasukan': formatRupiah(totalIn),
-      'Pengeluaran': formatRupiah(totalOut)
+    const captionText = t('finance.chart_caption', {}, lang) + '\n\n' + formatBulletList({
+      [inLabel]: formatRupiah(totalIn),
+      [outLabel]: formatRupiah(totalOut)
     });
-    const footer = 'Tetap hemat dan bijak mengatur keuangan ya!';
-    const captionText = `${header}\n\n${body}\n\n${footer}`;
 
     return {
       type: 'image',
@@ -437,8 +418,8 @@ async function getFinanceChart(userId) {
     };
   } catch (error) {
     console.error('Unexpected error in getFinanceChart:', error);
-    const header = '> *ERROR SISTEM* ❌';
-    const body = formatBulletList([`Terjadi kesalahan tak terduga: ${error.message}`]);
+    const header = t('common.general_error', {}, lang);
+    const body = formatBulletList([error.message]);
     return `${header}\n\n${body}`;
   }
 }
