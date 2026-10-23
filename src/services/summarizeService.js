@@ -108,7 +108,7 @@ Aturan format:
  * @param {string} [params.modelOverride] - Optional model override
  * @returns {Promise<{ success: boolean, summaryText?: string, messageCount?: number, model?: string, reason?: string, error?: string }>}
  */
-async function generateGroupSummary({ platform, chatId, language = 'en', modelOverride }) {
+async function generateGroupSummary({ platform, chatId, language = 'en', modelOverride, autoMarkSummarized = false }) {
   const cleanPlatform = String(platform || '').toLowerCase().trim();
   const cleanChatId = String(chatId || '').trim();
   const resolvedLang = language === 'id' ? 'id' : 'en';
@@ -156,9 +156,9 @@ async function generateGroupSummary({ platform, chatId, language = 'en', modelOv
       throw new Error('Received empty response from Gemma model.');
     }
 
-    // 3. Mark processed messages as summarized (Starts 24-hour retention grace period)
+    // 3. Mark processed messages as summarized only if requested (default false to keep pending until delivery)
     const messageIds = messages.map((m) => m.id).filter(Boolean);
-    if (messageIds.length > 0) {
+    if (autoMarkSummarized && messageIds.length > 0) {
       await chatBufferService.markMessagesAsSummarized(messageIds);
     }
 
@@ -166,6 +166,7 @@ async function generateGroupSummary({ platform, chatId, language = 'en', modelOv
       success: true,
       summaryText,
       messageCount: messages.length,
+      messageIds,
       model: selectedModel,
       usage: completion.usage
     };

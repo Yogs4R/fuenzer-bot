@@ -19,7 +19,7 @@ const AI_MODELS = {
     type: 'free'
   },
   'nvidia-nemotron': {
-    id: 'nvidia/nemotron-3.5-super-vl',
+    id: 'nvidia/nemotron-3.5-super-vl:free',
     name: 'NVIDIA Nemotron 3.5 Super VL',
     type: 'free'
   },

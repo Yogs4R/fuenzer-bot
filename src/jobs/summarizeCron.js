@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const supabase = require('../lib/supabaseClient');
 const { generateGroupSummary } = require('../services/summarizeService');
+const { markMessagesAsSummarized, resolveMonitoredGroupIds } = require('../services/chatBufferService');
 const { formatWhatsAppReply } = require('../handlers/adapters/waMediaAdapter');
 const { formatTelegramHtml, formatBodyBold } = require('../utils/textFormatter');
 const { t } = require('../utils/i18n');
@@ -61,15 +62,11 @@ function startSummarizeCron(getWaSocket, telegramBot = null) {
         console.log(`[summarizeCron] Triggering morning briefing for ${platform}:${userId} at ${currentTimeStr}...`);
 
         try {
-          const summaryResult = await generateGroupSummary({
-            platform,
-            chatId: userId,
-            language
-          });
+          // Resolve monitored group IDs for this user/platform (Fix for [P1])
+          const groupIds = await resolveMonitoredGroupIds(platform, userId);
 
-          if (!summaryResult.success) {
-            console.log(`[summarizeCron] Summary skipped for ${platform}:${userId}: ${summaryResult.reason || summaryResult.error}`);
-            // Still update last_run_at so we don't spam checks in the same minute
+          if (groupIds.length === 0) {
+            console.log(`[summarizeCron] No pending group messages found for ${platform}:${userId}.`);
             await supabase
               .from('user_summarize_settings')
               .update({ last_run_at: now.toISOString() })
@@ -78,22 +75,45 @@ function startSummarizeCron(getWaSocket, telegramBot = null) {
             continue;
           }
 
-          const header = t('summarize.briefing_header', {}, language);
-          const fullBriefingText = `${header}\n\n${summaryResult.summaryText}`;
+          for (const groupId of groupIds) {
+            const summaryResult = await generateGroupSummary({
+              platform,
+              chatId: groupId,
+              language,
+              autoMarkSummarized: false
+            });
 
-          if (platform === 'whatsapp') {
-            const sock = typeof getWaSocket === 'function' ? getWaSocket() : getWaSocket;
-            if (sock) {
-              const formattedReply = formatWhatsAppReply(fullBriefingText);
-              await sock.sendMessage(userId, { text: formattedReply });
-              console.log(`[summarizeCron] WhatsApp briefing delivered to ${userId}.`);
+            if (!summaryResult.success) {
+              console.log(`[summarizeCron] Summary skipped for group ${groupId}: ${summaryResult.reason || summaryResult.error}`);
+              continue;
             }
-          } else if (platform === 'telegram' && telegramBot) {
-            const chatId = Number(userId);
-            if (Number.isFinite(chatId)) {
-              const formattedHtml = formatBodyBold(formatTelegramHtml(fullBriefingText));
-              await telegramBot.telegram.sendMessage(chatId, formattedHtml, { parse_mode: 'HTML' });
-              console.log(`[summarizeCron] Telegram briefing delivered to ${chatId}.`);
+
+            const header = t('summarize.briefing_header', {}, language);
+            const fullBriefingText = `${header}\n\n${summaryResult.summaryText}`;
+
+            let deliverySuccess = false;
+
+            if (platform === 'whatsapp') {
+              const sock = typeof getWaSocket === 'function' ? getWaSocket() : getWaSocket;
+              if (sock) {
+                const formattedReply = formatWhatsAppReply(fullBriefingText);
+                await sock.sendMessage(userId, { text: formattedReply });
+                deliverySuccess = true;
+                console.log(`[summarizeCron] WhatsApp briefing delivered to ${userId} for group ${groupId}.`);
+              }
+            } else if (platform === 'telegram' && telegramBot) {
+              const chatId = Number(userId);
+              if (Number.isFinite(chatId)) {
+                const formattedHtml = formatBodyBold(formatTelegramHtml(fullBriefingText));
+                await telegramBot.telegram.sendMessage(chatId, formattedHtml, { parse_mode: 'HTML' });
+                deliverySuccess = true;
+                console.log(`[summarizeCron] Telegram briefing delivered to ${chatId} for group ${groupId}.`);
+              }
+            }
+
+            // Fix for [P2]: Mark rows as summarized ONLY after successful delivery
+            if (deliverySuccess && summaryResult.messageIds?.length > 0) {
+              await markMessagesAsSummarized(summaryResult.messageIds);
             }
           }
 

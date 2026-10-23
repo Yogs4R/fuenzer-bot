@@ -84,9 +84,18 @@ async function runTests() {
   console.log('✅ Test 6: /summarize status outputs clean bilingual status reports.');
 
   // Test 7: /summarize now with empty buffer
-  const nowReplyEn = await handleSummarizeCommand('/summarize', ['now'], 'user-test-empty', 'whatsapp', { lang: 'en', chatId: 'empty-group' });
+  const nowReplyEn = await handleSummarizeCommand('/summarize', ['now'], 'user-test-empty', 'whatsapp', { lang: 'en', chatId: 'empty-group-99999@g.us' });
   assert.ok(nowReplyEn.includes('No pending group messages'), 'Should inform user that buffer is empty');
   console.log('✅ Test 7: /summarize now gracefully handles empty message buffers.');
+
+  // Test 8: resolveMonitoredGroupIds
+  const { resolveMonitoredGroupIds } = require('../src/services/chatBufferService');
+  const explicitGroup = await resolveMonitoredGroupIds('whatsapp', '120363000000000000@g.us');
+  assert.deepStrictEqual(explicitGroup, ['120363000000000000@g.us'], 'Explicit group JID must be resolved directly');
+
+  const explicitTgGroup = await resolveMonitoredGroupIds('telegram', '-100123456789');
+  assert.deepStrictEqual(explicitTgGroup, ['-100123456789'], 'Explicit Telegram group ID must be resolved directly');
+  console.log('✅ Test 8: resolveMonitoredGroupIds resolves explicit group identifiers accurately.');
 
   console.log('✅ All summarizeService & /summarize tests passed successfully!\n');
 }

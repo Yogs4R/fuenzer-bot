@@ -1,7 +1,9 @@
 const {
   getUserSummarizeSettings,
   upsertUserSummarizeSettings,
-  getPendingMessages
+  getPendingMessages,
+  markMessagesAsSummarized,
+  resolveMonitoredGroupIds
 } = require('../../services/chatBufferService');
 const { generateGroupSummary, DEFAULT_GEMMA_MODEL } = require('../../services/summarizeService');
 const { t } = require('../../utils/i18n');
@@ -37,7 +39,8 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
     case 'on':
     case 'aktif': {
       await upsertUserSummarizeSettings(userId, platform, {
-        isActive: true
+        isActive: true,
+        language: lang
       });
       const settings = await getUserSummarizeSettings(userId, platform);
       const scheduleTime = settings?.schedule_time || '08:00';
@@ -61,7 +64,8 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
 
       await upsertUserSummarizeSettings(userId, platform, {
         scheduleTime: timeInput,
-        isActive: true
+        isActive: true,
+        language: lang
       });
 
       return t('summarize.schedule_updated', { time: timeInput }, lang);
@@ -69,10 +73,20 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
 
     case 'now':
     case 'sekarang': {
+      let chatIdToSummarize = targetChatId;
+      // If run in private DM (targetChatId === userId), resolve active group IDs
+      if (targetChatId === userId && !userId.includes('@g.us') && !userId.startsWith('-')) {
+        const candidateGroups = await resolveMonitoredGroupIds(platform, userId);
+        if (candidateGroups.length > 0) {
+          chatIdToSummarize = candidateGroups[0];
+        }
+      }
+
       const summaryResult = await generateGroupSummary({
         platform,
-        chatId: targetChatId,
-        language: lang
+        chatId: chatIdToSummarize,
+        language: lang,
+        autoMarkSummarized: false
       });
 
       if (!summaryResult.success) {
@@ -82,6 +96,11 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
         return t('summarize.error_failed', { error: summaryResult.error || 'Unknown error' }, lang);
       }
 
+      // Mark processed messages as summarized only after successful summary generation
+      if (summaryResult.messageIds?.length > 0) {
+        await markMessagesAsSummarized(summaryResult.messageIds);
+      }
+
       const header = t('summarize.briefing_header', {}, lang);
       return `${header}\n\n${summaryResult.summaryText}`;
     }
@@ -89,7 +108,16 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
     case 'status':
     default: {
       const settings = await getUserSummarizeSettings(userId, platform);
-      const pendingMessages = await getPendingMessages(platform, targetChatId, { limit: 500 });
+
+      let bufferChatId = targetChatId;
+      if (targetChatId === userId && !userId.includes('@g.us') && !userId.startsWith('-')) {
+        const candidateGroups = await resolveMonitoredGroupIds(platform, userId);
+        if (candidateGroups.length > 0) {
+          bufferChatId = candidateGroups[0];
+        }
+      }
+
+      const pendingMessages = await getPendingMessages(platform, bufferChatId, { limit: 500 });
       const isActive = settings?.is_active ?? false;
       const scheduleTime = settings?.schedule_time || '08:00';
       const activeModel = process.env.GEMMA_MODEL || DEFAULT_GEMMA_MODEL;
