@@ -39,6 +39,32 @@ const {
     formatBodyBold
 } = require('../utils/textFormatter');
 
+function getTelegramBotUsername() {
+    const fromBotInfo = bot.botInfo?.username;
+    const fromEnv = process.env.TELEGRAM_BOT_USERNAME;
+    const username = String(fromBotInfo || fromEnv || '')
+        .replace(/^@+/, '')
+        .replace(/\s+/g, '')
+        .trim();
+
+    return username;
+}
+
+function sanitizeTelegramIncomingText(rawText) {
+    let text = String(rawText || '').trim();
+    const botUsername = getTelegramBotUsername();
+
+    if (!botUsername) {
+        return text;
+    }
+
+    const escapedBotUsername = escapeRegex(botUsername);
+
+    text = text.replace(new RegExp(`^\\/(\\w+)@${escapedBotUsername}(?=\\s|$)`, 'i'), '/$1');
+    text = text.replace(new RegExp(`(^|\\s)@${escapedBotUsername}\\b`, 'gi'), '$1');
+
+    return text.replace(/\s{2,}/g, ' ').trim();
+}
 
 function buildMainMenuKeyboard() {
     return Markup.inlineKeyboard([
