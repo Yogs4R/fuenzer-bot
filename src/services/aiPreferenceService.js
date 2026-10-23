@@ -121,7 +121,8 @@ function getModelById(modelId) {
   return entry || null;
 }
 
-function buildWhatsAppModelInfoMessage() {
+function buildWhatsAppModelInfoMessage(lang = 'en') {
+  const isEn = lang === 'en';
   const defaultModel = { alias: DEFAULT_AI_MODEL_ALIAS, ...AI_MODELS[DEFAULT_AI_MODEL_ALIAS] };
   const freeModels = getModelAliasList().filter((model) => model.type === 'free');
   const premiumModels = getModelAliasList().filter((model) => model.type === 'premium');
@@ -129,7 +130,7 @@ function buildWhatsAppModelInfoMessage() {
   const renderModel = (index, model, options = {}) => {
     const parts = [
       `${index}. *${model.name}*`,
-      `Ketik: \`/switch ${model.alias}\``,
+      isEn ? `Type: \`/switch ${model.alias}\`` : `Ketik: \`/switch ${model.alias}\``,
       `📝 ${model.description}`
     ];
 
@@ -142,22 +143,23 @@ function buildWhatsAppModelInfoMessage() {
   };
 
   return [
-    '> 🤖 DAFTAR MODEL AI FUENZER BOT',
-    'Ketik /switch <alias> untuk mengganti "otak" AI.',
+    isEn ? '> 🤖 FUENZER BOT AI MODEL DIRECTORY' : '> 🤖 DAFTAR MODEL AI FUENZER BOT',
+    isEn ? 'Type /switch <alias> to change active AI model.' : 'Ketik /switch <alias> untuk mengganti "otak" AI.',
     '',
-    '*DEFAULT MODEL (Bawaan)*',
+    isEn ? '*DEFAULT MODEL*' : '*DEFAULT MODEL (Bawaan)*',
     renderModel(1, defaultModel),
     '',
-    '*GRATIS (Training Models)*',
-    '⚠️ Catatan: Chat mungkin dicatat untuk training.',
+    isEn ? '*FREE (Training Models)*' : '*GRATIS (Training Models)*',
+    isEn ? '⚠️ Note: Chat may be logged for public training.' : '⚠️ Catatan: Chat mungkin dicatat untuk training.',
     freeModels.map((model, index) => renderModel(index + 1, model, { freeOnly: true })).join('\n\n'),
     '',
-    '*PREMIUM (Berbayar)*',
+    isEn ? '*PREMIUM*' : '*PREMIUM (Berbayar)*',
     premiumModels.map((model, index) => renderModel(index + 1, model)).join('\n\n')
   ].join('\n');
 }
 
-function buildTelegramModelInfoMessage() {
+function buildTelegramModelInfoMessage(lang = 'en') {
+  const isEn = lang === 'en';
   const defaultModel = { alias: DEFAULT_AI_MODEL_ALIAS, ...AI_MODELS[DEFAULT_AI_MODEL_ALIAS] };
   const freeModels = getModelAliasList().filter((model) => model.type === 'free');
   const premiumModels = getModelAliasList().filter((model) => model.type === 'premium');
@@ -165,7 +167,7 @@ function buildTelegramModelInfoMessage() {
   const renderModel = (index, model, options = {}) => {
     const parts = [
       `${index}. <b>${model.name}</b>`,
-      `Ketik: <pre>/switch ${model.alias}</pre>`,
+      isEn ? `Type: <pre>/switch ${model.alias}</pre>` : `Ketik: <pre>/switch ${model.alias}</pre>`,
       `📝 ${model.description}`
     ];
 
@@ -178,29 +180,29 @@ function buildTelegramModelInfoMessage() {
   };
 
   return [
-    '<b>🤖 DAFTAR MODEL AI FUENZER BOT</b>',
-    'Ketik <code>/switch &lt;alias&gt;</code> untuk mengganti "otak" AI.',
+    isEn ? '<b>🤖 FUENZER BOT AI MODEL DIRECTORY</b>' : '<b>🤖 DAFTAR MODEL AI FUENZER BOT</b>',
+    isEn ? 'Type <code>/switch &lt;alias&gt;</code> to change active AI model.' : 'Ketik <code>/switch &lt;alias&gt;</code> untuk mengganti "otak" AI.',
     '',
-    '<b>DEFAULT MODEL (Bawaan)</b>',
+    isEn ? '<b>DEFAULT MODEL</b>' : '<b>DEFAULT MODEL (Bawaan)</b>',
     renderModel(1, defaultModel),
     '',
-    '<b>GRATIS (Training Models)</b>',
-    '⚠️ Catatan: Chat mungkin dicatat untuk training.',
+    isEn ? '<b>FREE (Training Models)</b>' : '<b>GRATIS (Training Models)</b>',
+    isEn ? '⚠️ Note: Chat may be logged for public training.' : '⚠️ Catatan: Chat mungkin dicatat untuk training.',
     freeModels.map((model, index) => renderModel(index + 1, model, { freeOnly: true })).join('\n\n'),
     '',
-    '<b>PREMIUM (Berbayar)</b>',
+    isEn ? '<b>PREMIUM</b>' : '<b>PREMIUM (Berbayar)</b>',
     premiumModels.map((model, index) => renderModel(index + 1, model)).join('\n\n')
   ].join('\n');
 }
 
-function buildModelInfoMessage(platform = 'telegram') {
+function buildModelInfoMessage(platform = 'telegram', lang = 'en') {
   const platformName = normalizePlatform(platform);
   const isWhatsApp = platformName === 'whatsapp';
   if (isWhatsApp) {
-    return buildWhatsAppModelInfoMessage();
+    return buildWhatsAppModelInfoMessage(lang);
   }
 
-  return buildTelegramModelInfoMessage();
+  return buildTelegramModelInfoMessage(lang);
 }
 
 async function getActiveModel(userId, platform) {

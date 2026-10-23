@@ -79,7 +79,10 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
 
         // AI & Translations
         case '/translate':
+        case '/terjemahkan':
         case '/terjemah':
+        case '/model':
+        case '/models':
         case '/model_info':
         case '/switch':
             return handleAiCommand(cmd, args, userId, platform, enrichedContext);
@@ -102,12 +105,14 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
         case '/journal':
         case '/artikel':
         case '/article':
+        case '/paper':
             return handleResearchCommand(cmd, args, userId, platform, enrichedContext);
 
         // Google / CS Integration
         case '/help':
         case '/bantuan':
         case '/feedback':
+        case '/saran':
         case '/ask':
             return handleGoogleCommand(cmd, args, userId, platform, enrichedContext);
 
@@ -127,17 +132,21 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
             return handleInfoCommand(cmd, args, userId, platform, enrichedContext);
 
         // Downloader
-        case '/download': {
+        case '/download':
+        case '/unduh': {
             const targetUrl = args.join(' ').trim();
-            return handleDownloadCommand(targetUrl, platform);
+            return handleDownloadCommand(targetUrl, platform, lang);
         }
-        case '/audio': {
+        case '/audio':
+        case '/suara': {
             const targetUrl = args.join(' ').trim();
-            return handleAudioCommand(targetUrl, platform);
+            return handleAudioCommand(targetUrl, platform, lang);
         }
 
         // Utilities
         case '/short':
+        case '/shortlink':
+        case '/pendekkan':
             return handleShortCommand(args, platform, enrichedContext);
 
         // Admin Only Commands
