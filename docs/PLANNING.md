@@ -211,8 +211,11 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
   - [x] Ephemeral cloud browser sessions via Browserbase REST API & CDP WebSocket (`playwright-core`).
   - [x] Dedicated bilingual command `/browse <url>` (EN) and `/jelajah <url>` (ID).
   - [x] Full viewport screenshot capture and text content excerpting delivered natively with live session inspector URL.
-- [ ] **Phase 7: Discord & Slack Listeners (Omnichannel Expansion)**
-  - Add basic message listeners in Discord.js and Slack Bolt.
+- [x] **Phase 7: Discord & Slack Listeners (Omnichannel Expansion)**
+  - [x] Implement Discord.js transport adapter (`src/lib/discordClient.js` & `src/handlers/discordHandler.js`) with message buffering, command dispatching, and AI chat.
+  - [x] Implement Slack Bolt Socket Mode transport adapter (`src/lib/slackClient.js` & `src/handlers/slackHandler.js`) with message buffering, command dispatching, and AI chat.
+  - [x] Post-Phase 6 verification fixes: DM group chat buffer resolution, model switch persistence, markdown table converter, Telegram asterisks fix, and resilient ElevenLabs voice briefing delivery.
+  - [x] Non-blocking conditional initialization in `src/index.js` and automated tests in `tests/omnichannel.test.js`.
 - [ ] **Phase 8: English Documentation & DEV Submission**
   - Update `README.md` in English highlighting the "Slow and Steady" architecture, AES-256 privacy, and AI Agent Harness.
   - Draft submission for DEV Challenge Week 3.
