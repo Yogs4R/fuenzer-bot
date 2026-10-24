@@ -148,6 +148,7 @@ function setupDiscordBot(client) {
         const context = {
           lang,
           chatId: message.channel.id,
+          isGroup: isGuild,
           guildId: message.guild?.id || null,
           quotedText: message.reference ? `[Referenced Message in ${message.channel.id}]` : '',
           notifyAdmin: async (textToAdmin) => {

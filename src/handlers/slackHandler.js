@@ -92,6 +92,83 @@ function formatSlackMrkdwn(text) {
 }
 
 /**
+ * Builds the execution context for Slack commands, ensuring callbacks and group context are present.
+ */
+function buildSlackCommandContext(client, event, say, lang, isGroup) {
+  return {
+    lang,
+    chatId: event.channel,
+    isGroup: Boolean(isGroup),
+    quotedText: event.thread_ts ? `[Thread Message in ${event.channel}]` : '',
+    notifyAdmin: async (adminText) => {
+      await say({ text: formatSlackMrkdwn(`[Admin Notice]\n${adminText}`) });
+    },
+    sendToUser: async (targetId, userText) => {
+      try {
+        const dm = await client.conversations.open({ users: targetId });
+        if (dm.ok && dm.channel?.id) {
+          await client.chat.postMessage({
+            channel: dm.channel.id,
+            text: formatSlackMrkdwn(userText)
+          });
+        }
+      } catch (dmErr) {
+        console.warn(`[slackHandler] Could not DM Slack user ${targetId}:`, dmErr.message);
+      }
+    }
+  };
+}
+
+/**
+ * Handles sending structured dispatched replies (audio, images, or text) to Slack.
+ */
+async function sendSlackDispatchedReply(client, event, say, dispatched) {
+  if (dispatched === null || dispatched === undefined) return;
+
+  // Audio voice briefing payload
+  if (typeof dispatched === 'object' && dispatched?.audio) {
+    if (dispatched.message) {
+      await say({ text: formatSlackMrkdwn(dispatched.message) });
+    }
+    try {
+      console.log(`[slackHandler] Uploading audio briefing to Slack channel ${event.channel}...`);
+      if (typeof client.filesUploadV2 === 'function') {
+        await client.filesUploadV2({
+          channel_id: event.channel,
+          file: dispatched.audio,
+          filename: 'briefing.mp3',
+          title: 'Morning Briefing'
+        });
+      }
+    } catch (audioErr) {
+      console.error('[slackHandler] Failed to upload audio file to Slack:', audioErr.message);
+    }
+    return;
+  }
+
+  // Image payload
+  if (typeof dispatched === 'object' && (dispatched?.type === 'image' || dispatched?.image)) {
+    const caption = formatSlackMrkdwn(dispatched.caption || '');
+    if (typeof client.filesUploadV2 === 'function' && dispatched.image) {
+      await client.filesUploadV2({
+        channel_id: event.channel,
+        file: dispatched.image,
+        filename: 'image.png',
+        initial_comment: caption
+      });
+    } else {
+      await say({ text: caption });
+    }
+    return;
+  }
+
+  const replyString = typeof dispatched === 'string' ? dispatched : (dispatched.message || '');
+  if (replyString) {
+    await say({ text: formatSlackMrkdwn(replyString) });
+  }
+}
+
+/**
  * Attaches Slack event listeners to Bolt App instance.
  *
  * @param {import('@slack/bolt').App} app
@@ -140,73 +217,9 @@ function setupSlackBot(app) {
       await logCommand(userId, 'slack', command);
 
       try {
-        const context = {
-          lang,
-          chatId: event.channel,
-          quotedText: event.thread_ts ? `[Thread Message in ${event.channel}]` : '',
-          notifyAdmin: async (adminText) => {
-            await say({ text: formatSlackMrkdwn(`[Admin Notice]\n${adminText}`) });
-          },
-          sendToUser: async (targetId, userText) => {
-            try {
-              const dm = await client.conversations.open({ users: targetId });
-              if (dm.ok && dm.channel?.id) {
-                await client.chat.postMessage({
-                  channel: dm.channel.id,
-                  text: formatSlackMrkdwn(userText)
-                });
-              }
-            } catch (dmErr) {
-              console.warn(`[slackHandler] Could not DM Slack user ${targetId}:`, dmErr.message);
-            }
-          }
-        };
-
+        const context = buildSlackCommandContext(client, event, say, lang, isChannel);
         const dispatched = await dispatchCommand(command, args, userId, 'slack', context);
-
-        if (dispatched !== null && dispatched !== undefined) {
-          // Audio voice briefing payload
-          if (typeof dispatched === 'object' && dispatched?.audio) {
-            if (dispatched.message) {
-              await say({ text: formatSlackMrkdwn(dispatched.message) });
-            }
-            try {
-              console.log(`[slackHandler] Uploading audio briefing to Slack channel ${event.channel}...`);
-              if (typeof client.filesUploadV2 === 'function') {
-                await client.filesUploadV2({
-                  channel_id: event.channel,
-                  file: dispatched.audio,
-                  filename: 'briefing.mp3',
-                  title: 'Morning Briefing'
-                });
-              }
-            } catch (audioErr) {
-              console.error('[slackHandler] Failed to upload audio file to Slack:', audioErr.message);
-            }
-            return;
-          }
-
-          // Image payload
-          if (typeof dispatched === 'object' && (dispatched?.type === 'image' || dispatched?.image)) {
-            const caption = formatSlackMrkdwn(dispatched.caption || '');
-            if (typeof client.filesUploadV2 === 'function' && dispatched.image) {
-              await client.filesUploadV2({
-                channel_id: event.channel,
-                file: dispatched.image,
-                filename: 'image.png',
-                initial_comment: caption
-              });
-            } else {
-              await say({ text: caption });
-            }
-            return;
-          }
-
-          const replyString = typeof dispatched === 'string' ? dispatched : (dispatched.message || '');
-          if (replyString) {
-            await say({ text: formatSlackMrkdwn(replyString) });
-          }
-        }
+        await sendSlackDispatchedReply(client, event, say, dispatched);
       } catch (cmdErr) {
         console.error(`[slackHandler] Error executing command ${command}:`, cmdErr);
         await say({ text: `⚠️ Error: ${cmdErr.message}` });
@@ -239,15 +252,15 @@ function setupSlackBot(app) {
       const userId = event.user;
       const lang = await getUserLanguage(userId, 'slack');
 
-      const dispatched = await dispatchCommand(command, args, userId, 'slack', {
-        lang,
-        chatId: event.channel,
-        quotedText: ''
-      });
+      await logCommand(userId, 'slack', command);
 
-      if (dispatched) {
-        const reply = typeof dispatched === 'string' ? dispatched : (dispatched.message || '');
-        await say({ text: formatSlackMrkdwn(reply) });
+      try {
+        const context = buildSlackCommandContext(client, event, say, lang, true);
+        const dispatched = await dispatchCommand(command, args, userId, 'slack', context);
+        await sendSlackDispatchedReply(client, event, say, dispatched);
+      } catch (cmdErr) {
+        console.error(`[slackHandler] Error executing mentioned command ${command}:`, cmdErr);
+        await say({ text: `⚠️ Error: ${cmdErr.message}` });
       }
       return;
     }

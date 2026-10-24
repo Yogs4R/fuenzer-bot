@@ -96,10 +96,12 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
     case 'now':
     case 'sekarang': {
       let chatIdToSummarize = targetChatId;
-      const isGroupChat = targetChatId.includes('@g.us') || targetChatId.startsWith('-');
+      const isExplicitGroup = context.isGroup !== undefined
+        ? Boolean(context.isGroup)
+        : (targetChatId.includes('@g.us') || targetChatId.startsWith('-'));
 
-      // If run in private DM (!isGroupChat), resolve active monitored group IDs
-      if (!isGroupChat) {
+      // If run in private DM (!isExplicitGroup), resolve active monitored group IDs
+      if (!isExplicitGroup) {
         const candidateGroups = await resolveMonitoredGroupIds(platform, userId);
         if (candidateGroups.length > 0) {
           chatIdToSummarize = candidateGroups[0];
@@ -164,8 +166,10 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
       const settings = await getUserSummarizeSettings(userId, platform);
 
       let bufferChatId = targetChatId;
-      const isGroupChat = targetChatId.includes('@g.us') || targetChatId.startsWith('-');
-      if (!isGroupChat) {
+      const isExplicitGroup = context.isGroup !== undefined
+        ? Boolean(context.isGroup)
+        : (targetChatId.includes('@g.us') || targetChatId.startsWith('-'));
+      if (!isExplicitGroup) {
         const candidateGroups = await resolveMonitoredGroupIds(platform, userId);
         if (candidateGroups.length > 0) {
           bufferChatId = candidateGroups[0];
