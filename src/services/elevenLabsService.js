@@ -42,23 +42,30 @@ function cleanTextForSpeech(text) {
  * @param {string} fullSummaryText - Full summary produced by Gemma
  * @returns {string} Extracted executive summary text
  */
+/**
+ * Extracts the 2–3 sentence executive summary (Sloth TL;DR) from the 3-part structured briefing.
+ *
+ * @param {string} fullSummaryText - Full summary produced by Gemma
+ * @returns {string} Extracted executive summary text
+ */
 function extractSlothTldr(fullSummaryText) {
   if (!fullSummaryText || typeof fullSummaryText !== 'string') return '';
 
   // 1. Target section 1: Sloth TL;DR or Ringkasan Santai up to section 2 (Action Items / Tindak Lanjut)
   const sectionMatch = fullSummaryText.match(
-    /(?:1\.\s*)?[🦥*#\s]*(?:Sloth TL;DR|Ringkasan Santai)[^\n]*\n+([\s\S]*?)(?=(?:2\.\s*)?[🎯*#\s]*(?:Key Action Items|Poin Tindakan|Tindak Lanjut)|$)/i
+    /(?:Sloth TL;DR|Ringkasan Santai)[^\n]*\n+([\s\S]*?)(?=\n+[#*\s\d.:-]*(?:🎯|Key Action|Poin Tindakan|Tindak Lanjut)|$)/i
   );
 
   if (sectionMatch && sectionMatch[1]?.trim()) {
-    return cleanTextForSpeech(sectionMatch[1]);
+    const cleaned = cleanTextForSpeech(sectionMatch[1]);
+    if (cleaned.length > 10) return cleaned;
   }
 
-  // 2. Fallback: Take the first substantial paragraph
+  // 2. Fallback: Take the first substantial non-header paragraph
   const paragraphs = fullSummaryText
     .split(/\n\s*\n/)
     .map((p) => p.trim())
-    .filter((p) => p.length > 20 && !p.startsWith('>') && !p.startsWith('#'));
+    .filter((p) => p.length > 20 && !p.startsWith('>') && !p.startsWith('#') && !/^[🦥🎯📊]/.test(p));
 
   const candidate = paragraphs[0] || fullSummaryText.slice(0, 300);
   return cleanTextForSpeech(candidate);
@@ -77,6 +84,7 @@ async function synthesizeSpeech({ text, voiceId = null, modelId = null } = {}) {
   const apiKey = process.env.ELEVENLABS_API_KEY;
 
   if (!apiKey || apiKey === 'YOUR_ELEVENLABS_API_KEY') {
+    console.warn('[elevenLabsService] ELEVENLABS_API_KEY is not configured or placeholder.');
     return {
       success: false,
       reason: 'missing_api_key',
@@ -86,6 +94,7 @@ async function synthesizeSpeech({ text, voiceId = null, modelId = null } = {}) {
 
   const cleanedText = cleanTextForSpeech(text);
   if (!cleanedText) {
+    console.warn('[elevenLabsService] cleanTextForSpeech produced empty text.');
     return {
       success: false,
       reason: 'empty_text',
@@ -98,6 +107,7 @@ async function synthesizeSpeech({ text, voiceId = null, modelId = null } = {}) {
 
   try {
     const url = `${ELEVENLABS_API_BASE}/text-to-speech/${selectedVoiceId}`;
+    console.log(`[elevenLabsService] Calling ElevenLabs TTS API (${selectedVoiceId}, length: ${cleanedText.length} chars)...`);
 
     const response = await axios.post(
       url,
@@ -123,6 +133,7 @@ async function synthesizeSpeech({ text, voiceId = null, modelId = null } = {}) {
     );
 
     const audioBuffer = Buffer.from(response.data);
+    console.log(`[elevenLabsService] TTS synthesized successfully. Audio size: ${audioBuffer.length} bytes.`);
 
     return {
       success: true,
@@ -138,7 +149,7 @@ async function synthesizeSpeech({ text, voiceId = null, modelId = null } = {}) {
         : JSON.stringify(err.response.data)
       : err.message;
 
-    console.warn(`[elevenLabsService] TTS synthesis failed (${selectedVoiceId}):`, errorDetails);
+    console.error(`[elevenLabsService] TTS synthesis failed (${selectedVoiceId}):`, errorDetails);
 
     return {
       success: false,

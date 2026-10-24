@@ -212,22 +212,28 @@ class WhatsAppHandler {
           }
 
           if (typeof dispatched === 'object' && dispatched?.audio) {
-            if (dispatched.message) {
+            try {
+              if (dispatched.message) {
+                await this.sock.sendMessage(
+                  msg.key.remoteJid,
+                  { text: formatWhatsAppReply(dispatched.message) },
+                  { quoted: msg }
+                );
+              }
+              console.log(`[waHandler] Sending audio (${dispatched.audio?.length} bytes) to ${msg.key.remoteJid}...`);
               await this.sock.sendMessage(
                 msg.key.remoteJid,
-                { text: formatWhatsAppReply(dispatched.message) },
+                {
+                  audio: dispatched.audio,
+                  mimetype: dispatched.mimetype || 'audio/mpeg',
+                  ptt: Boolean(dispatched.ptt)
+                },
                 { quoted: msg }
               );
+              console.log(`[waHandler] Audio sent successfully to ${msg.key.remoteJid}.`);
+            } catch (audioSendErr) {
+              console.error(`[waHandler] Failed to send audio to ${msg.key.remoteJid}:`, audioSendErr);
             }
-            await this.sock.sendMessage(
-              msg.key.remoteJid,
-              {
-                audio: dispatched.audio,
-                mimetype: dispatched.mimetype || 'audio/mpeg',
-                ptt: Boolean(dispatched.ptt)
-              },
-              { quoted: msg }
-            );
             return;
           }
 
@@ -304,7 +310,7 @@ class WhatsAppHandler {
               });
             }
 
-            const chatResult = await processAiChat(aiPayload, userId, 'whatsapp', { realId });
+            const chatResult = await processAiChat(aiPayload, realId || userId, 'whatsapp', { realId });
             replyText = chatResult.fullText;
           } catch (error) {
             console.error('Error saat memproses AI di WhatsApp:', error);

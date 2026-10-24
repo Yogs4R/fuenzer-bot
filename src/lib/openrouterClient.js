@@ -74,6 +74,8 @@ const generationConfig = {
   max_tokens: 1024,
 };
 
+const { convertMarkdownTablesToBullets } = require('../utils/textFormatter');
+
 /**
  * Fungsi untuk membersihkan dan memformat Markdown AI agar sesuai dengan standar WhatsApp
  * @param {string} text - Teks mentah dari AI
@@ -82,7 +84,7 @@ const generationConfig = {
 function formatForWhatsApp(text) {
   if (!text) return text;
   
-  let formattedText = text;
+  let formattedText = convertMarkdownTablesToBullets(text);
   
   // Ubah Bold: **teks** menjadi *teks*
   formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '*$1*');

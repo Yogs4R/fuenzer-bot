@@ -35,6 +35,18 @@ function isAdmin(userId, platform) {
     return adminIds.includes(normalizedUserId);
   }
 
+  if (platformName === 'discord') {
+    const adminIds = parseCommaSeparatedList(process.env.ADMIN_DISCORD_IDS);
+    const cleanUserId = stripWrappingQuotes(userId);
+    return adminIds.includes(cleanUserId);
+  }
+
+  if (platformName === 'slack') {
+    const adminIds = parseCommaSeparatedList(process.env.ADMIN_SLACK_IDS);
+    const cleanUserId = stripWrappingQuotes(userId);
+    return adminIds.includes(cleanUserId);
+  }
+
   return false;
 }
 

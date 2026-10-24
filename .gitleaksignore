@@ -1,0 +1,5 @@
+# Gitleaks ignore list for known false positives
+# Format: <fingerprint>
+
+# Ignore false positive dummy snowflake ID in .env.example
+df49ef5cbd209ffc13c31878bfc3b173a0f0395f:.env.example:discord-client-id:42

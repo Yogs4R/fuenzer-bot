@@ -96,8 +96,12 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
     case 'now':
     case 'sekarang': {
       let chatIdToSummarize = targetChatId;
-      // If run in private DM (targetChatId === userId), resolve active group IDs
-      if (targetChatId === userId && !userId.includes('@g.us') && !userId.startsWith('-')) {
+      const isExplicitGroup = context.isGroup !== undefined
+        ? Boolean(context.isGroup)
+        : (targetChatId.includes('@g.us') || targetChatId.startsWith('-'));
+
+      // If run in private DM (!isExplicitGroup), resolve active monitored group IDs
+      if (!isExplicitGroup) {
         const candidateGroups = await resolveMonitoredGroupIds(platform, userId);
         if (candidateGroups.length > 0) {
           chatIdToSummarize = candidateGroups[0];
@@ -126,9 +130,9 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
       const header = t('summarize.briefing_header', {}, lang);
       const fullText = `${header}\n\n${summaryResult.summaryText}`;
 
-      // Synthesize audio voice note if user has voice enabled and ElevenLabs key is configured
+      // Synthesize audio voice note if user has voice enabled (defaults to true) and ElevenLabs key is configured
       const settings = await getUserSummarizeSettings(userId, platform);
-      const isVoiceActive = Boolean(settings?.voice_note_enabled);
+      const isVoiceActive = settings ? Boolean(settings.voice_note_enabled) : true;
 
       if (isVoiceActive && process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY !== 'YOUR_ELEVENLABS_API_KEY') {
         try {
@@ -136,16 +140,21 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
           if (tldrText) {
             const ttsResult = await synthesizeSpeech({ text: tldrText });
             if (ttsResult.success && ttsResult.audioBuffer) {
+              console.log(`[summarizeCommand] Voice briefing synthesized (${ttsResult.audioBuffer.length} bytes), returning audio payload.`);
               return {
                 message: fullText,
                 audio: ttsResult.audioBuffer,
                 mimetype: ttsResult.mimeType || 'audio/mpeg',
                 ptt: false
               };
+            } else {
+              console.warn('[summarizeCommand] Voice synthesis failed:', ttsResult.error, ttsResult.details);
             }
+          } else {
+            console.warn('[summarizeCommand] extractSlothTldr produced empty text from summary.');
           }
         } catch (voiceErr) {
-          console.warn('[summarizeCommand] Voice synthesis failed for /summarize now:', voiceErr.message);
+          console.error('[summarizeCommand] Voice synthesis exception for /summarize now:', voiceErr.message);
         }
       }
 
@@ -157,7 +166,10 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
       const settings = await getUserSummarizeSettings(userId, platform);
 
       let bufferChatId = targetChatId;
-      if (targetChatId === userId && !userId.includes('@g.us') && !userId.startsWith('-')) {
+      const isExplicitGroup = context.isGroup !== undefined
+        ? Boolean(context.isGroup)
+        : (targetChatId.includes('@g.us') || targetChatId.startsWith('-'));
+      if (!isExplicitGroup) {
         const candidateGroups = await resolveMonitoredGroupIds(platform, userId);
         if (candidateGroups.length > 0) {
           bufferChatId = candidateGroups[0];
