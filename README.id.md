@@ -217,7 +217,8 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | `/translate` | Terjemahkan teks atau pesan | aiClient, OpenRouter | `/translate id Hello world` |
 | `/model_info` | Tampilkan daftar model AI yang tersedia | OpenRouter, aiPreferenceService | `/model_info` |
 | `/switch` | Ganti model AI aktif per pengguna | OpenRouter, aiPreferenceService | `/switch gemma4` |
-| `/summarize` | Ringkasan chat AI & briefing pagi (`on`, `off`, `schedule <HH:mm>`, `voice on|off`, `now`, `status`) | summarizeService, OpenRouter Gemma, ElevenLabs, node-cron | `/summarize on`, `/summarize voice on`, `/summarize now` |
+| `/summarize` | Ringkasan chat AI & briefing pagi (`on`, `off`, `schedule <HH:mm>`, `voice on\|off`, `now`, `status`) | summarizeService, OpenRouter Gemma, ElevenLabs, node-cron | `/summarize on`, `/summarize voice on`, `/summarize now` |
+| `/browse` | Agen cloud browser: jelajah web anti-bot, ambil screenshot, dan ekstrak teks | browserbaseService, Playwright Core, Browserbase CDP | `/browse github.com` |
 | `/help` | Pusat bantuan dan layanan Customer Service | csService | `/help` |
 | `/feedback` | Kirim feedback ke Google Sheets | csService, GAS | `/feedback great bot` |
 | `/ask` | Kirim pertanyaan ke admin via CS | csService, GAS | `/ask how to donate?` |
@@ -252,6 +253,7 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks atau pesan | `/terjemah en Selamat pagi` |
 | `/model`, `/models` | `/model_info` | Tampilkan daftar model AI yang tersedia | `/model` |
 | `/ringkas` | `/summarize` | Ringkas chat grup & briefing pagi otomatis | `/ringkas on`, `/ringkas sekarang`, `/ringkas jadwal 07:30`, `/ringkas voice on` |
+| `/jelajah` | `/browse` | Buka web via browser cloud anti-bot, ambil screenshot, dan ekstrak teks | `/jelajah detik.com` |
 | `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
 | `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
 | `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
@@ -303,7 +305,9 @@ File `.env` berisi seluruh konfigurasi penting. Pastikan Anda menyalin `.env.exa
 - **Telegram**: `TELEGRAM_BOT_TOKEN` dan `TELEGRAM_BOT_USERNAME` (Dari BotFather), serta `TELEGRAM_SESSION_DIR` (Folder session).
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Role anon), `SUPABASE_SECRET_KEY` (Service role untuk bypass RLS bot admin).
 - **API AI**: `GEMINI_API_KEY` atau `OPENROUTER_API_KEY` (dengan opsi `GEMMA_MODEL` untuk model default summarizer, default: `google/gemma-4-26b-a4b-it`).
-- **Audio & Pesan Suara (ElevenLabs)**: `ELEVENLABS_API_KEY` untuk sintesis voice note briefing audio, dengan opsi tambahan `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) dan `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
+- **Internasionalisasi (i18n)**: `DEFAULT_LANGUAGE` (Bahasa default bot, `en` untuk Inggris atau `id` untuk Indonesia).
+- **Partner API (Audio & Suara - ElevenLabs)**: `ELEVENLABS_API_KEY` untuk sintesis voice note briefing audio, dengan opsi tambahan `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) dan `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
+- **Partner API (Cloud Browser Automation - Browserbase)**: `BROWSERBASE_API_KEY` dan `BROWSERBASE_PROJECT_ID` untuk eksekusi cloud browser anti-bot/CAPTCHA bypass, pengambilan screenshot, serta tautan live debug inspector.
 - **API Lainnya**: `OPENWEATHER_API_KEY` untuk info cuaca, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (ss web), dan `GAS_WEBAPP_URL` untuk layanan Google Sheets feedback.
 - **Keamanan & Privasi Data (AES-256-GCM)**: `ENCRYPTION_KEY` (Kunci rahasia 32-byte untuk enkripsi percakapan grup). Generate kunci hex 64-karakter (32 byte) dengan perintah:
   ```bash

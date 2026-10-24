@@ -207,10 +207,12 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
 - [x] **Phase 5: AI Agent Harness (Natural Language Tool Calling)**
   - [x] Implement `aiHarnessService.js` with tool definitions for finance, reminders, weather, prayer times, and book research.
   - [x] Connect conversational prompt pipeline to allow conversational command execution with friendly replies.
-- [ ] **Phase 6: Discord & Slack Listeners (Omnichannel Expansion)**
+- [x] **Phase 6: Browserbase Dedicated Browsing Agent**
+  - [x] Ephemeral cloud browser sessions via Browserbase REST API & CDP WebSocket (`playwright-core`).
+  - [x] Dedicated bilingual command `/browse <url>` (EN) and `/jelajah <url>` (ID).
+  - [x] Full viewport screenshot capture and text content excerpting delivered natively with live session inspector URL.
+- [ ] **Phase 7: Discord & Slack Listeners (Omnichannel Expansion)**
   - Add basic message listeners in Discord.js and Slack Bolt.
-- [ ] **Phase 7: Browserbase Dedicated Command**
-  - Implement standalone browser automation command.
 - [ ] **Phase 8: English Documentation & DEV Submission**
   - Update `README.md` in English highlighting the "Slow and Steady" architecture, AES-256 privacy, and AI Agent Harness.
   - Draft submission for DEV Challenge Week 3.

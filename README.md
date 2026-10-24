@@ -218,6 +218,7 @@ Simple ticketing system to receive user questions and feedback:
 | `/model_info` | Show available AI models and aliases | OpenRouter, aiPreferenceService | `/model_info` |
 | `/switch` | Switch active AI model per user | OpenRouter, aiPreferenceService | `/switch gemma4` |
 | `/summarize` | AI group chat summarizer & morning briefing (`on`, `off`, `schedule <HH:mm>`, `voice on\|off`, `now`, `status`) | summarizeService, OpenRouter Gemma, ElevenLabs, node-cron | `/summarize on`, `/summarize voice on`, `/summarize now` |
+| `/browse` | Cloud browser agent: navigate web, bypass bot protections, take screenshot, extract text | browserbaseService, Playwright Core, Browserbase CDP | `/browse github.com` |
 | `/help` | Show help center and Customer Service menu | csService | `/help` |
 | `/feedback` | Send feedback (saved to Google Sheets) | csService, GAS | `/feedback great bot` |
 | `/ask` | Send question to admin via CS | csService, GAS | `/ask how to donate?` |
@@ -252,6 +253,7 @@ Simple ticketing system to receive user questions and feedback:
 | `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks | `/terjemah en Selamat pagi` |
 | `/model`, `/models` | `/model_info` | Daftar model AI yang tersedia | `/model` |
 | `/ringkas` | `/summarize` | Ringkas chat grup & briefing pagi otomatis | `/ringkas on`, `/ringkas sekarang`, `/ringkas jadwal 07:30`, `/ringkas voice on` |
+| `/jelajah` | `/browse` | Buka web via browser cloud anti-bot, ambil screenshot, dan ekstrak teks | `/jelajah detik.com` |
 | `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
 | `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
 | `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
@@ -303,7 +305,9 @@ The `.env` file contains all essential configuration strings. Copy `.env.example
 - **Telegram**: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (From BotFather), and `TELEGRAM_SESSION_DIR` (Session folder).
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Anon public key), `SUPABASE_SECRET_KEY` (Service role to bypass RLS for admin).
 - **AI APIs**: `GEMINI_API_KEY` or `OPENROUTER_API_KEY` (with optional `GEMMA_MODEL` for default summarizer model, default: `google/gemma-4-26b-a4b-it`).
-- **Audio & Speech (ElevenLabs)**: `ELEVENLABS_API_KEY` for text-to-speech voice note synthesis, with optional `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) and `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
+- **Internationalization (i18n)**: `DEFAULT_LANGUAGE` (Default bot locale, `en` for English or `id` for Indonesian).
+- **Partner APIs (Speech & Audio - ElevenLabs)**: `ELEVENLABS_API_KEY` for text-to-speech voice note synthesis, with optional `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) and `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
+- **Partner APIs (Cloud Browser Automation - Browserbase)**: `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` for managed cloud browser execution, anti-bot/CAPTCHA bypass, screenshot rendering, and live debug inspector links.
 - **Other APIs**: `OPENWEATHER_API_KEY` for weather features, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (web screenshots), and `GAS_WEBAPP_URL` for Google Sheets feedback service.
 - **Security & Data Privacy (AES-256-GCM)**: `ENCRYPTION_KEY` (32-byte secret key used to encrypt group chats at rest). Generate a secure 64-character hex key (32 bytes) by running:
   ```bash
