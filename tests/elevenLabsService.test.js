@@ -12,12 +12,13 @@ console.log('--- Running elevenLabsService & Voice Note Tests ---');
 
 async function runTests() {
   // Test 1: cleanTextForSpeech normalizes markdown, URLs, and emojis
-  const dirtyText = 'Hello *world*! Check `npm test` and https://example.com 🦥 #heading\n> quote line\n- list item';
+  const dirtyText = 'Hello *world*! Check `npm test` and https://somelink/resource 🦥 #heading\n> quote line\n- list item';
   const cleaned = cleanTextForSpeech(dirtyText);
   assert.ok(!cleaned.includes('*'), 'Asterisks must be stripped');
   assert.ok(!cleaned.includes('`'), 'Backticks must be stripped');
   assert.ok(!/https?:\/\//i.test(cleaned), 'URLs must be stripped');
-  assert.ok(!cleaned.includes('example.com'), 'URL domain must be stripped');
+  assert.ok(!cleaned.includes('somelink'), 'URL host must be stripped');
+  assert.ok(!cleaned.includes('resource'), 'URL path must be stripped');
   assert.ok(!cleaned.includes('🦥'), 'Emojis must be stripped');
   assert.ok(!cleaned.includes('>'), 'Blockquote markers must be stripped');
   assert.ok(cleaned.includes('Hello world! Check npm test and heading quote line list item'), 'Clean text must retain spoken content');
