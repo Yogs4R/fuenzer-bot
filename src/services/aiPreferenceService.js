@@ -106,7 +106,7 @@ function buildTelegramModelInfoMessage(lang = 'en') {
 
   return [
     `<b>🤖 ${t('ai.model_dir_title', {}, lang)}</b>`,
-    t('ai.model_dir_switch_hint', {}, lang).replace(/`/g, '<code>').replace(/\/switch <alias>/g, '/switch &lt;alias&gt;').replace(/<\/code>/g, '</code>'),
+    t('ai.model_dir_switch_hint', {}, lang).replace(/`([^`]+)`/g, (_, code) => `<code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code>`),
     '',
     `<b>${t('ai.model_dir_default', {}, lang)}</b>`,
     renderModel(1, defaultModel),
@@ -193,7 +193,7 @@ async function setActiveModel(userId, platform, alias, lang = 'en') {
 
     if (updateError) {
       console.error(`Error updating AI preference for ${normalizedPlatform}/${normalizedUserId}:`, updateError);
-      throw new Error(isEn ? 'Failed to save AI model preference.' : 'Gagal menyimpan preferensi model AI.');
+      throw new Error(t('ai.model_save_failed', {}, lang));
     }
   } else {
     const { error: insertError } = await supabase
@@ -208,7 +208,7 @@ async function setActiveModel(userId, platform, alias, lang = 'en') {
 
     if (insertError) {
       console.error(`Error creating AI preference for ${normalizedPlatform}/${normalizedUserId}:`, insertError);
-      throw new Error(isEn ? 'Failed to save AI model preference.' : 'Gagal menyimpan preferensi model AI.');
+      throw new Error(t('ai.model_save_failed', {}, lang));
     }
   }
 

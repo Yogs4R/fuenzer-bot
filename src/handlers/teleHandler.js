@@ -98,11 +98,13 @@ function buildMonitorLinksKeyboard() {
 
 async function sendTelegramReply(ctx, payload, extra = {}) {
     if (payload && typeof payload === 'object' && (payload.type === 'image' || payload.image)) {
-        const caption = formatTelegramHtml(payload.caption || '');
+        const rawCaption = payload.caption || '';
+        const safeRawCaption = rawCaption.length > 850 ? rawCaption.slice(0, 846) + '...' : rawCaption;
+        const caption = formatTelegramHtml(safeRawCaption);
         const processedCaption = caption ? formatBodyBold(caption) : '';
         const photoSource = payload.image ? { source: payload.image } : payload.url;
         await ctx.replyWithPhoto(photoSource, {
-            caption: processedCaption ? (processedCaption.length > 1024 ? processedCaption.slice(0, 1020) + '...' : processedCaption) : undefined,
+            caption: processedCaption || undefined,
             parse_mode: 'HTML',
             ...extra
         });
