@@ -157,28 +157,58 @@ async function executeToolCall(toolName, args = {}, context = {}) {
       case 'record_expense': {
         const amount = Number(args.amount);
         const description = String(args.description || 'Pengeluaran').trim();
-        const output = await financeService.addTransaction(userId, amount, 'OUT', description, platform, lang);
+        const txResult = typeof financeService.addTransactionRecord === 'function'
+          ? await financeService.addTransactionRecord(userId, amount, 'OUT', description, platform, lang)
+          : { success: true, message: await financeService.addTransaction(userId, amount, 'OUT', description, platform, lang) };
+
+        if (!txResult.success) {
+          return {
+            success: false,
+            tool: 'record_expense',
+            type: 'OUT',
+            amount,
+            description,
+            error: txResult.error || 'Failed to record expense',
+            output: txResult.message
+          };
+        }
+
         return {
           success: true,
           tool: 'record_expense',
           type: 'OUT',
           amount,
           description,
-          output
+          output: txResult.message
         };
       }
 
       case 'record_income': {
         const amount = Number(args.amount);
         const description = String(args.description || 'Pemasukan').trim();
-        const output = await financeService.addTransaction(userId, amount, 'IN', description, platform, lang);
+        const txResult = typeof financeService.addTransactionRecord === 'function'
+          ? await financeService.addTransactionRecord(userId, amount, 'IN', description, platform, lang)
+          : { success: true, message: await financeService.addTransaction(userId, amount, 'IN', description, platform, lang) };
+
+        if (!txResult.success) {
+          return {
+            success: false,
+            tool: 'record_income',
+            type: 'IN',
+            amount,
+            description,
+            error: txResult.error || 'Failed to record income',
+            output: txResult.message
+          };
+        }
+
         return {
           success: true,
           tool: 'record_income',
           type: 'IN',
           amount,
           description,
-          output
+          output: txResult.message
         };
       }
 

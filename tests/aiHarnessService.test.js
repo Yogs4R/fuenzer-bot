@@ -83,6 +83,18 @@ async function runTests() {
   assert.strictEqual(reminderResult.success, false, 'Invalid time must fail safely');
   assert.ok(reminderResult.error.length > 0, 'Error message must be populated');
   console.log('✅ Test 8: Reminder tool dispatch validates delay format safely.');
+
+  // Test 9: Failed transaction write (invalid/negative amount) reports success: false
+  const negativeExpense = await executeToolCall('record_expense', { amount: -5000, description: 'kopi' }, { userId: 'user-test', lang: 'en' });
+  assert.strictEqual(negativeExpense.success, false, 'Negative expense amount must return success: false');
+  assert.ok(negativeExpense.error.length > 0, 'Error message must explain the failure');
+  console.log('✅ Test 9: Negative expense amount accurately reported as failure.');
+
+  // Test 10: Zero/NaN income amount reports success: false
+  const zeroIncome = await executeToolCall('record_income', { amount: 0, description: 'bonus' }, { userId: 'user-test', lang: 'id' });
+  assert.strictEqual(zeroIncome.success, false, 'Zero income amount must return success: false');
+  assert.ok(zeroIncome.error.length > 0, 'Error message must explain the failure');
+  console.log('✅ Test 10: Zero income amount accurately reported as failure.');
 }
 
 runTests()

@@ -2,6 +2,7 @@
 const supabase = require('../lib/supabaseClient');
 const { formatRupiah, formatBulletList } = require('../utils/formatter');
 const { t } = require('../utils/i18n');
+const { encrypt, decrypt } = require('../utils/crypto');
 
 const SHORT_ID_LENGTH = 8;
 
@@ -123,7 +124,19 @@ async function getHistoryPage(userId, page = 1, pageSize = 5, lang = 'en') {
       return await getHistoryPage(userId, normalizedPage, safePageSize, lang);
     }
 
-    const text = formatHistoryText(data || [], normalizedPage, safePageSize, totalCount, lang);
+    const decryptedRecords = (data || []).map((record) => {
+      let cleanDesc = record.description;
+      if (process.env.ENCRYPTION_KEY && record.description) {
+        try {
+          cleanDesc = decrypt(record.description);
+        } catch (_) {
+          cleanDesc = record.description;
+        }
+      }
+      return { ...record, description: cleanDesc };
+    });
+
+    const text = formatHistoryText(decryptedRecords, normalizedPage, safePageSize, totalCount, lang);
 
     return {
       text,
@@ -222,11 +235,16 @@ async function editTransaction(userId, transactionId, newAmount, newDescription,
       return `${header}\n\n${body}`;
     }
 
+    let storedDescription = newDescription;
+    if (process.env.ENCRYPTION_KEY && newDescription) {
+      storedDescription = encrypt(newDescription);
+    }
+
     const { data, error } = await supabase
       .from('finance')
       .update({
         amount: newAmount,
-        description: newDescription,
+        description: storedDescription,
         updated_at: new Date().toISOString()
       })
       .eq('id', resolvedId)
@@ -303,31 +321,47 @@ async function checkSaldo(userId, lang = 'en') {
   }
 }
 
-// Add a transaction
-async function addTransaction(userId, amount, type, description, platform, lang = 'en') {
+// Add a transaction record (structured result with encryption at rest)
+async function addTransactionRecord(userId, amount, type, description, platform, lang = 'en') {
   try {
     if (isNaN(amount) || amount <= 0) {
       const header = t('common.input_error_header', {}, lang);
-      const body = formatBulletList([t('finance.record_amount_error', { command: '/record', amount }, lang)]);
-      return `${header}\n\n${body}`;
+      const errorMessage = t('finance.record_amount_error', { command: '/record', amount }, lang);
+      const body = formatBulletList([errorMessage]);
+      return {
+        success: false,
+        error: errorMessage,
+        message: `${header}\n\n${body}`
+      };
     }
 
-    const { error } = await supabase
+    let storedDescription = description;
+    if (process.env.ENCRYPTION_KEY && description) {
+      storedDescription = encrypt(description);
+    }
+
+    const { data, error } = await supabase
       .from('finance')
       .insert({
         user_id: userId,
         amount: amount,
         type: type,
-        description: description,
+        description: storedDescription,
         platform: platform,
         created_at: new Date().toISOString()
-      });
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('Error inserting transaction:', error);
       const header = t('common.general_error', {}, lang);
       const body = formatBulletList([error.message]);
-      return `${header}\n\n${body}`;
+      return {
+        success: false,
+        error: error.message,
+        message: `${header}\n\n${body}`
+      };
     }
 
     const header = type === 'IN' 
@@ -340,13 +374,27 @@ async function addTransaction(userId, amount, type, description, platform, lang 
       Platform: platform
     });
 
-    return `${header}\n\n${body}`;
+    return {
+      success: true,
+      data,
+      message: `${header}\n\n${body}`
+    };
   } catch (error) {
-    console.error('Unexpected error in addTransaction:', error);
+    console.error('Unexpected error in addTransactionRecord:', error);
     const header = t('common.general_error', {}, lang);
     const body = formatBulletList([error.message]);
-    return `${header}\n\n${body}`;
+    return {
+      success: false,
+      error: error.message,
+      message: `${header}\n\n${body}`
+    };
   }
+}
+
+// Add a transaction (returns string response for legacy/dispatcher compatibility)
+async function addTransaction(userId, amount, type, description, platform, lang = 'en') {
+  const result = await addTransactionRecord(userId, amount, type, description, platform, lang);
+  return result.message;
 }
 
 // Generate finance chart
@@ -427,6 +475,7 @@ async function getFinanceChart(userId, lang = 'en') {
 module.exports = {
   checkSaldo,
   addTransaction,
+  addTransactionRecord,
   getFinanceChart,
   getHistory,
   getHistoryPage,
