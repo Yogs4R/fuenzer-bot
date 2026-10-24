@@ -132,6 +132,7 @@ Designed for the DEV Challenge Week 3 ("Slow and Steady"):
 ### 🤖 AI Assistant
 Advanced smart assistant powered by large language models (LLM) via OpenRouter API integration. Ready to answer technical questions, discussions, and coding.
 - **Multimodal** support (capable of reading Images, and extracting Text Documents).
+- **AI Agent Harness (Natural Language Tool Calling)**: Beyond manual slash commands, users can chat casually in English or Indonesian to log expenses (*"Bro, log $15 for lunch and check weather in Tokyo"*), set reminders (*"Remind me in 30m to check the oven"*), query prayer times, or search books. The harness automatically maps conversational intents to domain tools with warm, friendly confirmations.
 - **Fast Translator** command using `/translate`.
 - Multi-model support with user-level model switching command.
 - Built-in model usage metadata in replies (token usage and RPM label).

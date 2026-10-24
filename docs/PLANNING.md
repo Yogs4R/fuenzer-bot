@@ -204,9 +204,9 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
 - [x] **Phase 4: ElevenLabs Audio Briefing**
   - [x] Connect ElevenLabs TTS to synthesize the executive summary.
   - [x] Send voice notes natively to WhatsApp & Telegram.
-- [ ] **Phase 5: AI Agent Harness (Natural Language Tool Calling)**
-  - Implement `aiHarnessService.js` with tool definitions for finance, reminders, and weather.
-  - Connect conversational prompt pipeline to allow conversational command execution with friendly replies.
+- [x] **Phase 5: AI Agent Harness (Natural Language Tool Calling)**
+  - [x] Implement `aiHarnessService.js` with tool definitions for finance, reminders, weather, prayer times, and book research.
+  - [x] Connect conversational prompt pipeline to allow conversational command execution with friendly replies.
 - [ ] **Phase 6: Discord & Slack Listeners (Omnichannel Expansion)**
   - Add basic message listeners in Discord.js and Slack Bolt.
 - [ ] **Phase 7: Browserbase Dedicated Command**
