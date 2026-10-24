@@ -1,0 +1,5 @@
+[allowlist]
+description = "Allowlist example files containing placeholder templates"
+paths = [
+  '''^\.env\.example$'''
+]
