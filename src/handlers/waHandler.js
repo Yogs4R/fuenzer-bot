@@ -198,11 +198,12 @@ class WhatsAppHandler {
             await updateStatusAnswered(args[0]);
           }
 
-          if (typeof dispatched === 'object' && dispatched?.type === 'image') {
+          if (typeof dispatched === 'object' && (dispatched?.type === 'image' || dispatched?.image)) {
+            const imagePayload = dispatched.image ? dispatched.image : { url: dispatched.url };
             await this.sock.sendMessage(
               msg.key.remoteJid,
               {
-                image: { url: dispatched.url },
+                image: imagePayload,
                 caption: formatWhatsAppReply(dispatched.caption || '')
               },
               { quoted: msg }

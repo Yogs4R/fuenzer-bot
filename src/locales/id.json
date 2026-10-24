@@ -89,7 +89,7 @@
     "section_donate": "☕ *DUKUNGAN BOT*\n- `/donate` : Link dukungan + QR donasi",
     "section_finance": "💰 *FITUR KEUANGAN*\n- `/saldo` : Lihat ringkasan saldo terbaru\n- `/catat <nominal> <ket>` : Catat pengeluaran\n- `/pemasukan <nominal> <ket>` : Catat pemasukan\n- `/riwayat` : Riwayat transaksi\n- `/laporan_chart` : Tampilkan grafik laporan\n- `/finance_info` : Panduan Lengkap fitur keuangan",
     "section_system": "⚙️ *FITUR SISTEM*\n- `/ping` : Cek status & statistik bot\n- `/info` / `/start` : Menampilkan panduan ini\n- `/lang [en|id]` : Ubah bahasa bot (English / Indonesia)",
-    "section_ai": "🧠 *FITUR AI*\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol atau mengeksekusi perintah!\n- `/model_info` : Daftar model AI yang tersedia\n- `/switch` : Ganti model AI aktif\n- `/ringkas` : Ringkas chat grup & briefing pagi",
+    "section_ai": "🧠 *FITUR AI*\nKirimkan pesan biasa (tanpa awalan '/') untuk ngobrol atau mengeksekusi perintah!\n- `/model_info` : Daftar model AI yang tersedia\n- `/switch` : Ganti model AI aktif\n- `/ringkas` : Ringkas chat grup & briefing pagi\n- `/jelajah <url>` : Agen cloud browser & tangkapan web",
     "section_utilities": "🛠️ *FITUR UTILITAS*\n- `/cuaca <kota>` : Info cuaca hari ini\n- `/sholat <kota>` : Jadwal sholat hari ini\n- `/remind add <waktu> <pesan>` : Pasang pengingat\n- `/short <url>` : Pendekkan link URL\n- `/research_info` : Referensi buku & jurnal\n- `/downloader` : Download media sosial & audio\n- `/me` : Tentang pembuat bot",
     "section_converter": "🖼️ *FITUR CONVERTER* 📄\n- `/img_info` : Panduan image tools\n- `/pdf_info` : Panduan PDF tools\n- `/sticker_info` : Panduan sticker tools",
     "section_admin": "🛡️ *FITUR ADMIN*\n- `/admin` : Menu command admin"
@@ -106,6 +106,16 @@
     "switch_missing_alias": "❌ Ketik alias modelnya! Contoh: /switch {alias}. Cek /model_info.",
     "switch_unknown_alias": "❌ Alias model tidak ditemukan. Alias tersedia: {aliases}. Cek /model_info.",
     "switch_success": "✅ Berhasil! Otak AI kamu sekarang menggunakan *{model}*.",
+    "model_dir_title": "DAFTAR MODEL AI FUENZER BOT",
+    "model_dir_switch_hint": "Ketik `/switch <alias>` untuk mengganti model AI aktif.",
+    "model_dir_default": "MODEL DEFAULT (Bawaan)",
+    "model_dir_free": "MODEL GRATIS (Data Latihan)",
+    "model_dir_free_note": "Catatan: Percakapan mungkin dicatat untuk latihan.",
+    "model_dir_premium": "MODEL PREMIUM",
+    "model_type_command": "Ketik",
+    "model_invalid_user": "User ID tidak valid.",
+    "model_invalid_platform": "Platform tidak valid.",
+    "model_save_failed": "Gagal menyimpan preferensi model AI.",
     "translate_usage": "Format: /translate <bahasa> <teks atau reply pesan>\nContoh: /translate en Selamat pagi",
     "error_rate_limit_header": "> *RATE LIMIT AI* ⏳",
     "error_rate_limit_body": "Maaf, request AI sedang padat (429 Rate Limit).\nSilakan coba lagi beberapa saat.",
@@ -213,5 +223,22 @@
     "group_label": "Grup",
     "generating": "⏳ Menganalisis dan merangkum obrolan grup dengan Google Gemma...",
     "error_failed": "Gagal membuat ringkasan: {error}"
+  },
+  "browser": {
+    "agent_header": "> *AGEN BROWSERBASE CLOUD* 🌐",
+    "capture_header": "> *TANGKAPAN BROWSERBASE CLOUD* 🌐",
+    "usage_label": "Penggunaan",
+    "example_label": "Contoh",
+    "features_label": "Fitur",
+    "usage_text": "`/jelajah <url>`",
+    "example_text": "`/jelajah detik.com`",
+    "features_text": "Membuka web via browser cloud anti-bot, mengambil screenshot visual, dan mengekstrak isi teks halaman.",
+    "page_title": "Judul Halaman",
+    "url_label": "URL",
+    "content_snippet": "Cuplikan Konten",
+    "live_inspector": "Inspeksi Sesi",
+    "missing_api_key": "API key Browserbase belum dikonfigurasi. Silakan atur BROWSERBASE_API_KEY di file .env Anda.",
+    "invalid_url": "Format URL tidak valid. Masukkan alamat web yang benar (contoh: /jelajah github.com).",
+    "failed": "Gagal menjelajahi halaman web yang diminta."
   }
 }

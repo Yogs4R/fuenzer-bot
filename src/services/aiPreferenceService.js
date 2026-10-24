@@ -1,4 +1,5 @@
 const supabase = require('../lib/supabaseClient');
+const { t } = require('../utils/i18n');
 
 const DEFAULT_AI_MODEL_ALIAS = 'gpt-oss';
 
@@ -62,59 +63,59 @@ function getModelById(modelId) {
 }
 
 function buildWhatsAppModelInfoMessage(lang = 'en') {
-  const isEn = lang === 'en';
   const defaultModel = { alias: DEFAULT_AI_MODEL_ALIAS, ...AI_MODELS[DEFAULT_AI_MODEL_ALIAS] };
   const freeModels = getModelAliasList().filter((model) => model.type === 'free');
   const premiumModels = getModelAliasList().filter((model) => model.type === 'premium');
+  const typeCmd = t('ai.model_type_command', {}, lang);
 
   const renderModel = (index, model) => {
     return [
       `${index}. *${model.name}*`,
-      `   ${isEn ? 'Type' : 'Ketik'}: \`/switch ${model.alias}\``
+      `   ${typeCmd}: \`/switch ${model.alias}\``
     ].join('\n');
   };
 
   return [
-    isEn ? '> 🤖 *FUENZER BOT AI MODEL DIRECTORY*' : '> 🤖 *DAFTAR MODEL AI FUENZER BOT*',
-    isEn ? 'Type `/switch <alias>` to change active AI model.' : 'Ketik `/switch <alias>` untuk mengganti model AI aktif.',
+    `> 🤖 *${t('ai.model_dir_title', {}, lang)}*`,
+    t('ai.model_dir_switch_hint', {}, lang),
     '',
-    isEn ? '*DEFAULT MODEL*' : '*MODEL DEFAULT (Bawaan)*',
+    `*${t('ai.model_dir_default', {}, lang)}*`,
     renderModel(1, defaultModel),
     '',
-    isEn ? '*FREE MODELS (Training Data)*' : '*MODEL GRATIS (Data Latihan)*',
-    isEn ? '_Note: Conversations may be logged for training._' : '_Catatan: Percakapan mungkin dicatat untuk latihan._',
+    `*${t('ai.model_dir_free', {}, lang)}*`,
+    `_${t('ai.model_dir_free_note', {}, lang)}_`,
     freeModels.map((model, index) => renderModel(index + 1, model)).join('\n\n'),
     '',
-    isEn ? '*PREMIUM MODELS*' : '*MODEL PREMIUM*',
+    `*${t('ai.model_dir_premium', {}, lang)}*`,
     premiumModels.map((model, index) => renderModel(index + 1, model)).join('\n\n')
   ].join('\n');
 }
 
 function buildTelegramModelInfoMessage(lang = 'en') {
-  const isEn = lang === 'en';
   const defaultModel = { alias: DEFAULT_AI_MODEL_ALIAS, ...AI_MODELS[DEFAULT_AI_MODEL_ALIAS] };
   const freeModels = getModelAliasList().filter((model) => model.type === 'free');
   const premiumModels = getModelAliasList().filter((model) => model.type === 'premium');
+  const typeCmd = t('ai.model_type_command', {}, lang);
 
   const renderModel = (index, model) => {
     return [
       `${index}. <b>${model.name}</b>`,
-      `   ${isEn ? 'Type' : 'Ketik'}: <code>/switch ${model.alias}</code>`
+      `   ${typeCmd}: <code>/switch ${model.alias}</code>`
     ].join('\n');
   };
 
   return [
-    isEn ? '<b>🤖 FUENZER BOT AI MODEL DIRECTORY</b>' : '<b>🤖 DAFTAR MODEL AI FUENZER BOT</b>',
-    isEn ? 'Type <code>/switch &lt;alias&gt;</code> to change active AI model.' : 'Ketik <code>/switch &lt;alias&gt;</code> untuk mengganti model AI aktif.',
+    `<b>🤖 ${t('ai.model_dir_title', {}, lang)}</b>`,
+    t('ai.model_dir_switch_hint', {}, lang).replace(/`/g, '<code>').replace(/\/switch <alias>/g, '/switch &lt;alias&gt;').replace(/<\/code>/g, '</code>'),
     '',
-    isEn ? '<b>DEFAULT MODEL</b>' : '<b>MODEL DEFAULT (Bawaan)</b>',
+    `<b>${t('ai.model_dir_default', {}, lang)}</b>`,
     renderModel(1, defaultModel),
     '',
-    isEn ? '<b>FREE MODELS (Training Data)</b>' : '<b>MODEL GRATIS (Data Latihan)</b>',
-    isEn ? '<i>Note: Conversations may be logged for training.</i>' : '<i>Catatan: Percakapan mungkin dicatat untuk latihan.</i>',
+    `<b>${t('ai.model_dir_free', {}, lang)}</b>`,
+    `<i>${t('ai.model_dir_free_note', {}, lang)}</i>`,
     freeModels.map((model, index) => renderModel(index + 1, model)).join('\n\n'),
     '',
-    isEn ? '<b>PREMIUM MODELS</b>' : '<b>MODEL PREMIUM</b>',
+    `<b>${t('ai.model_dir_premium', {}, lang)}</b>`,
     premiumModels.map((model, index) => renderModel(index + 1, model)).join('\n\n')
   ].join('\n');
 }
@@ -158,18 +159,17 @@ async function setActiveModel(userId, platform, alias, lang = 'en') {
   const normalizedPlatform = normalizePlatform(platform);
   const normalizedAlias = String(alias || '').trim().toLowerCase();
   const model = AI_MODELS[normalizedAlias];
-  const isEn = lang === 'en';
-
   if (!normalizedUserId) {
-    throw new Error(isEn ? 'Invalid User ID.' : 'User ID tidak valid.');
+    throw new Error(t('ai.model_invalid_user', {}, lang));
   }
 
   if (!normalizedPlatform) {
-    throw new Error(isEn ? 'Invalid platform.' : 'Platform tidak valid.');
+    throw new Error(t('ai.model_invalid_platform', {}, lang));
   }
 
   if (!model) {
-    throw new Error(isEn ? 'AI model alias not found.' : 'Alias model tidak ditemukan.');
+    const knownAliases = Object.keys(AI_MODELS).join(', ');
+    throw new Error(t('ai.switch_unknown_alias', { aliases: knownAliases }, lang));
   }
 
   const { data: existingPreference, error: existingError } = await supabase
@@ -181,7 +181,7 @@ async function setActiveModel(userId, platform, alias, lang = 'en') {
 
   if (existingError && existingError.code !== 'PGRST116') {
     console.error(`Error checking AI preference for ${normalizedPlatform}/${normalizedUserId}:`, existingError);
-    throw new Error(isEn ? 'Failed to save AI model preference.' : 'Gagal menyimpan preferensi model AI.');
+    throw new Error(t('ai.model_save_failed', {}, lang));
   }
 
   if (existingPreference) {
