@@ -6,6 +6,7 @@ const {
   resolveMonitoredGroupIds
 } = require('../../services/chatBufferService');
 const { generateGroupSummary, DEFAULT_GEMMA_MODEL } = require('../../services/summarizeService');
+const { extractSlothTldr, synthesizeSpeech } = require('../../services/elevenLabsService');
 const { t } = require('../../utils/i18n');
 
 /**
@@ -28,7 +29,7 @@ function isValidScheduleTime(timeStr) {
  * @param {string} userId - User identifier (WhatsApp JID or Telegram ID)
  * @param {string} platform - 'whatsapp' | 'telegram'
  * @param {Object} [context] - Context with lang, quotedText, etc.
- * @returns {Promise<string>}
+ * @returns {Promise<string|Object>}
  */
 async function handleSummarizeCommand(command, args = [], userId = '', platform = 'whatsapp', context = {}) {
   const lang = context.lang || 'en';
@@ -71,6 +72,27 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
       return t('summarize.schedule_updated', { time: timeInput }, lang);
     }
 
+    case 'voice':
+    case 'vn':
+    case 'suara': {
+      const mode = String(args[1] || '').toLowerCase().trim();
+      if (mode === 'on' || mode === 'aktif') {
+        await upsertUserSummarizeSettings(userId, platform, {
+          voiceNoteEnabled: true,
+          language: lang
+        });
+        return t('summarize.voice_enabled', {}, lang);
+      }
+      if (mode === 'off' || mode === 'nonaktif') {
+        await upsertUserSummarizeSettings(userId, platform, {
+          voiceNoteEnabled: false,
+          language: lang
+        });
+        return t('summarize.voice_disabled', {}, lang);
+      }
+      return t('summarize.invalid_voice_option', {}, lang);
+    }
+
     case 'now':
     case 'sekarang': {
       let chatIdToSummarize = targetChatId;
@@ -102,7 +124,28 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
       }
 
       const header = t('summarize.briefing_header', {}, lang);
-      return `${header}\n\n${summaryResult.summaryText}`;
+      const fullText = `${header}\n\n${summaryResult.summaryText}`;
+
+      // Synthesize audio voice note if user has voice enabled and ElevenLabs key is configured
+      const settings = await getUserSummarizeSettings(userId, platform);
+      const isVoiceActive = settings?.voice_note_enabled ?? true;
+
+      if (isVoiceActive && process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY !== 'YOUR_ELEVENLABS_API_KEY') {
+        const tldrText = extractSlothTldr(summaryResult.summaryText);
+        if (tldrText) {
+          const ttsResult = await synthesizeSpeech({ text: tldrText });
+          if (ttsResult.success && ttsResult.audioBuffer) {
+            return {
+              message: fullText,
+              audio: ttsResult.audioBuffer,
+              mimetype: 'audio/mp4',
+              ptt: true
+            };
+          }
+        }
+      }
+
+      return fullText;
     }
 
     case 'status':
@@ -120,16 +163,18 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
       const pendingMessages = await getPendingMessages(platform, bufferChatId, { limit: 500 });
       const isActive = settings?.is_active ?? false;
       const scheduleTime = settings?.schedule_time || '08:00';
+      const isVoiceActive = settings?.voice_note_enabled ?? true;
       const activeModel = process.env.GEMMA_MODEL || DEFAULT_GEMMA_MODEL;
 
       const header = t('summarize.status_header', {}, lang);
       const statusLine = t('summarize.status_active', { status: isActive ? 'ON (Active)' : 'OFF (Inactive)' }, lang);
       const scheduleLine = t('summarize.status_schedule', { time: scheduleTime }, lang);
+      const voiceLine = t('summarize.status_voice', { status: isVoiceActive ? 'ON' : 'OFF' }, lang);
       const countLine = t('summarize.status_buffer_count', { count: pendingMessages.length }, lang);
       const modelLine = t('summarize.status_model', { model: activeModel }, lang);
       const footer = t('summarize.status_footer', {}, lang);
 
-      return [header, '', statusLine, scheduleLine, countLine, modelLine, '', footer].join('\n');
+      return [header, '', statusLine, scheduleLine, voiceLine, countLine, modelLine, '', footer].join('\n');
     }
   }
 }
