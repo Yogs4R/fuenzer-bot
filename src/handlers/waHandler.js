@@ -222,8 +222,8 @@ class WhatsAppHandler {
               msg.key.remoteJid,
               {
                 audio: dispatched.audio,
-                mimetype: dispatched.mimetype || 'audio/mp4',
-                ptt: dispatched.ptt !== undefined ? dispatched.ptt : true
+                mimetype: dispatched.mimetype || 'audio/mpeg',
+                ptt: Boolean(dispatched.ptt)
               },
               { quoted: msg }
             );

@@ -16,7 +16,8 @@ async function runTests() {
   const cleaned = cleanTextForSpeech(dirtyText);
   assert.ok(!cleaned.includes('*'), 'Asterisks must be stripped');
   assert.ok(!cleaned.includes('`'), 'Backticks must be stripped');
-  assert.ok(!cleaned.includes('https://example.com'), 'URLs must be stripped');
+  assert.ok(!/https?:\/\//i.test(cleaned), 'URLs must be stripped');
+  assert.ok(!cleaned.includes('example.com'), 'URL domain must be stripped');
   assert.ok(!cleaned.includes('🦥'), 'Emojis must be stripped');
   assert.ok(!cleaned.includes('>'), 'Blockquote markers must be stripped');
   assert.ok(cleaned.includes('Hello world! Check npm test and heading quote line list item'), 'Clean text must retain spoken content');

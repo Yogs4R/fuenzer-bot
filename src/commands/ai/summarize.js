@@ -128,20 +128,24 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
 
       // Synthesize audio voice note if user has voice enabled and ElevenLabs key is configured
       const settings = await getUserSummarizeSettings(userId, platform);
-      const isVoiceActive = settings?.voice_note_enabled ?? true;
+      const isVoiceActive = Boolean(settings?.voice_note_enabled);
 
       if (isVoiceActive && process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY !== 'YOUR_ELEVENLABS_API_KEY') {
-        const tldrText = extractSlothTldr(summaryResult.summaryText);
-        if (tldrText) {
-          const ttsResult = await synthesizeSpeech({ text: tldrText });
-          if (ttsResult.success && ttsResult.audioBuffer) {
-            return {
-              message: fullText,
-              audio: ttsResult.audioBuffer,
-              mimetype: 'audio/mp4',
-              ptt: true
-            };
+        try {
+          const tldrText = extractSlothTldr(summaryResult.summaryText);
+          if (tldrText) {
+            const ttsResult = await synthesizeSpeech({ text: tldrText });
+            if (ttsResult.success && ttsResult.audioBuffer) {
+              return {
+                message: fullText,
+                audio: ttsResult.audioBuffer,
+                mimetype: ttsResult.mimeType || 'audio/mpeg',
+                ptt: false
+              };
+            }
           }
+        } catch (voiceErr) {
+          console.warn('[summarizeCommand] Voice synthesis failed for /summarize now:', voiceErr.message);
         }
       }
 
