@@ -132,6 +132,7 @@ Dirancang khusus untuk DEV Challenge Week 3 ("Slow and Steady"):
 ### 🤖 AI Assistant
 Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melalui integrasi OpenRouter API. Siap menjawab pertanyaan teknis, diskusi, dan coding.
 - Dukungan **Multimodal** (mampu membaca file Gambar, dan mengekstrak isi Dokumen teks).
+- **AI Agent Harness (Natural Language Tool Calling)**: Selain perintah slash manual, pengguna dapat berbicara secara santai dalam bahasa Indonesia atau Inggris untuk mencatat pengeluaran (*"Bro, catat 35rb buat beli kopi dan cek cuaca Bandung"*), pasang pengingat (*"Ingatkan 1 jam lagi untuk kirim laporan"*), cek jadwal sholat, atau cari buku referensi. Harness secara otomatis memetakan maksud pengguna ke tools domain terkait dengan konfirmasi bernada santai.
 - Fitur **Penerjemah Bahasa** cepat menggunakan command `/translate`.
 - Dukungan multi-model dengan command pergantian model per pengguna.
 - Metadata penggunaan model di balasan (token usage dan label RPM).

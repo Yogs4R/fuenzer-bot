@@ -293,4 +293,62 @@ async function translateText(lang, text) {
       : String(content || '').trim();
 }
 
-module.exports = { askGemini, askGeminiDetailed, askAi, askAiDetailed, translateText, modelName };
+/**
+ * Executes a chat completion with optional structured tool schemas.
+ *
+ * @param {Object} options
+ * @param {string} options.model - OpenRouter model ID
+ * @param {Array<Object>} options.messages - Chat message array
+ * @param {Array<Object>} [options.tools] - OpenAI-compatible tool definitions
+ * @param {number} [options.temperature] - Generation temperature
+ * @param {number} [options.max_tokens] - Max output tokens
+ * @returns {Promise<{ message: Object, finish_reason: string, usage: Object, rpm: Object, raw: Object }>}
+ */
+async function createChatCompletionWithTools({
+  model,
+  messages,
+  tools = undefined,
+  temperature = 0.7,
+  max_tokens = 1024
+}) {
+  if (!apiKey) {
+    throw new Error('API key OpenRouter tidak ditemukan. Periksa file .env Anda.');
+  }
+
+  const payload = {
+    model: model || modelName,
+    messages,
+    temperature,
+    max_tokens
+  };
+
+  if (Array.isArray(tools) && tools.length > 0) {
+    payload.tools = tools;
+    payload.tool_choice = 'auto';
+  }
+
+  const response = await openai.chat.completions.create(payload);
+
+  const usage = extractUsageMetadata(response);
+  const rpm = trackRequestAndGetRpmStatus();
+  const choice = response?.choices?.[0];
+
+  return {
+    message: choice?.message,
+    finish_reason: choice?.finish_reason,
+    usage,
+    rpm,
+    raw: response
+  };
+}
+
+module.exports = {
+  askGemini,
+  askGeminiDetailed,
+  askAi,
+  askAiDetailed,
+  translateText,
+  createChatCompletionWithTools,
+  modelName
+};
+
