@@ -73,7 +73,21 @@ async function runDispatcherAliasTests() {
   const bookId = await dispatchCommand('/buku', [], userId, platform, { lang: 'id' });
   assert.ok(bookId.includes('Masukkan kata kunci buku'), `Expected Indonesian book prompt, got: ${bookId}`);
 
-  // 11. Test unknown command routing returns null (delegated to platform adapter)
+  // 11. Test Browserbase /browse and /jelajah
+  const browseEn = await dispatchCommand('/browse', [], userId, platform, { lang: 'en' });
+  assert.ok(browseEn.includes('BROWSERBASE CLOUD AGENT'), `Expected English browser agent header, got: ${browseEn}`);
+
+  const browseId = await dispatchCommand('/jelajah', [], userId, platform, { lang: 'id' });
+  assert.ok(browseId.includes('AGEN BROWSERBASE CLOUD'), `Expected Indonesian browser agent header, got: ${browseId}`);
+
+  // 12. Verify /web and /buka aliases are removed
+  const webCmd = await dispatchCommand('/web', [], userId, platform, {});
+  assert.strictEqual(webCmd, null, 'Expected /web to be unregistered and return null');
+
+  const bukaCmd = await dispatchCommand('/buka', [], userId, platform, {});
+  assert.strictEqual(bukaCmd, null, 'Expected /buka to be unregistered and return null');
+
+  // 13. Test unknown command routing returns null (delegated to platform adapter)
   const unknown = await dispatchCommand('/random_unknown_cmd_123', [], userId, platform, {});
   assert.strictEqual(unknown, null, 'Expected unknown command to return null from dispatchCommand');
 
