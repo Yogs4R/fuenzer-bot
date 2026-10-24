@@ -210,6 +210,26 @@ class WhatsAppHandler {
             return;
           }
 
+          if (typeof dispatched === 'object' && dispatched?.audio) {
+            if (dispatched.message) {
+              await this.sock.sendMessage(
+                msg.key.remoteJid,
+                { text: formatWhatsAppReply(dispatched.message) },
+                { quoted: msg }
+              );
+            }
+            await this.sock.sendMessage(
+              msg.key.remoteJid,
+              {
+                audio: dispatched.audio,
+                mimetype: dispatched.mimetype || 'audio/mp4',
+                ptt: dispatched.ptt !== undefined ? dispatched.ptt : true
+              },
+              { quoted: msg }
+            );
+            return;
+          }
+
           replyText = typeof dispatched === 'string' ? dispatched : (dispatched.message || '');
         } else {
           switch (command) {
