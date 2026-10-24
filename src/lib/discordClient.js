@@ -22,6 +22,9 @@ function getDiscordClient() {
 
   try {
     discordClient = new Client({
+      rest: {
+        makeRequest: fetch
+      },
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,

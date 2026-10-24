@@ -141,11 +141,13 @@ async function handleSummarizeCommand(command, args = [], userId = '', platform 
             const ttsResult = await synthesizeSpeech({ text: tldrText });
             if (ttsResult.success && ttsResult.audioBuffer) {
               console.log(`[summarizeCommand] Voice briefing synthesized (${ttsResult.audioBuffer.length} bytes), returning audio payload.`);
+              const estimatedSeconds = Math.max(1, Math.round(ttsResult.audioBuffer.length / 16000));
               return {
                 message: fullText,
                 audio: ttsResult.audioBuffer,
                 mimetype: ttsResult.mimeType || 'audio/mpeg',
-                ptt: false
+                ptt: false,
+                seconds: estimatedSeconds
               };
             } else {
               console.warn('[summarizeCommand] Voice synthesis failed:', ttsResult.error, ttsResult.details);

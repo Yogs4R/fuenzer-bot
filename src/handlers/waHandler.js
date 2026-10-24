@@ -226,7 +226,8 @@ class WhatsAppHandler {
                 {
                   audio: dispatched.audio,
                   mimetype: dispatched.mimetype || 'audio/mpeg',
-                  ptt: Boolean(dispatched.ptt)
+                  ptt: Boolean(dispatched.ptt),
+                  seconds: dispatched.seconds || Math.max(1, Math.round((dispatched.audio?.length || 0) / 16000))
                 },
                 { quoted: msg }
               );

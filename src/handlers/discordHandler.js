@@ -1,6 +1,7 @@
 // Discord message & event dispatcher handler
 // Invariant: [AD-01] Transport-agnostic, passes normalized payload to chatBufferService & dispatchCommand
 
+const { AttachmentBuilder } = require('discord.js');
 const { enqueueMessage } = require('../services/chatBufferService');
 const { dispatchCommand } = require('../commands/index');
 const { processAiChat } = require('../commands/ai/index');
@@ -176,13 +177,9 @@ function setupDiscordBot(client) {
             }
             try {
               console.log(`[discordHandler] Sending audio briefing to Discord channel ${message.channel.id}...`);
+              const fileAttachment = new AttachmentBuilder(dispatched.audio, { name: 'briefing.mp3' });
               await message.channel.send({
-                files: [
-                  {
-                    attachment: dispatched.audio,
-                    name: 'briefing.mp3'
-                  }
-                ]
+                files: [fileAttachment]
               });
             } catch (audioErr) {
               console.error('[discordHandler] Failed to send audio file to Discord:', audioErr.message);
@@ -192,10 +189,11 @@ function setupDiscordBot(client) {
 
           // Image payload
           if (typeof dispatched === 'object' && (dispatched?.type === 'image' || dispatched?.image)) {
-            const attachment = dispatched.image || dispatched.url;
+            const rawAttachment = dispatched.image || dispatched.url;
+            const fileAttachment = rawAttachment ? new AttachmentBuilder(rawAttachment, { name: 'image.png' }) : null;
             await message.channel.send({
               content: dispatched.caption || '',
-              files: attachment ? [attachment] : []
+              files: fileAttachment ? [fileAttachment] : []
             });
             return;
           }

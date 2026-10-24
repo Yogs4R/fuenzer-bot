@@ -142,6 +142,9 @@ async function sendSlackDispatchedReply(client, event, say, dispatched) {
       }
     } catch (audioErr) {
       console.error('[slackHandler] Failed to upload audio file to Slack:', audioErr.message);
+      if (audioErr.message?.includes('missing_scope')) {
+        console.warn('[slackHandler] Action Required: To allow file uploads in Slack, please add the "files:write" Bot Token Scope in your Slack App Dashboard (OAuth & Permissions) and reinstall the app.');
+      }
     }
     return;
   }
