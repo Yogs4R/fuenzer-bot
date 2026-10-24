@@ -200,7 +200,13 @@ function setupTelegramBot() {
                     if (dispatched.message) {
                         await sendTelegramReply(ctx, dispatched.message);
                     }
-                    await ctx.replyWithVoice({ source: dispatched.audio });
+                    try {
+                        console.log(`[teleHandler] Sending voice note to chat ${ctx.chat.id}...`);
+                        await ctx.replyWithVoice({ source: dispatched.audio });
+                    } catch (voiceErr) {
+                        console.warn(`[teleHandler] replyWithVoice failed (${voiceErr.message}), falling back to replyWithAudio...`);
+                        await ctx.replyWithAudio({ source: dispatched.audio, filename: 'briefing.mp3' });
+                    }
                     return;
                 }
 
