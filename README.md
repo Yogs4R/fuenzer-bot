@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/banner.webp" alt="Fuenzer Bot Banner" width="70%" />
+  <img src="assets/images/banner.png" alt="Fuenzer Bot Banner" width="70%" />
 </p>
 
 <h1 align="center">Fuenzer Bot</h1>
@@ -638,4 +638,4 @@ The `/ask` and `/feedback` features require a Web App URL from Google Apps Scrip
    ```env
    GAS_WEBAPP_URL="YOUR_WEBAPP_URL_HERE"
    ```
-
+
