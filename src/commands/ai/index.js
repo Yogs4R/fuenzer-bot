@@ -1,6 +1,8 @@
 // AI commands and reasoning isolation handler
 const { AI_MODELS, buildModelInfoMessage, setActiveModel, getActiveModel } = require('../../services/aiPreferenceService');
 const { askAiDetailed, translateText } = require('../../lib/openrouterClient');
+const { runAiHarnessChat } = require('../../services/aiHarnessService');
+const { getUserLanguage } = require('../../services/languageService');
 const { appendFooter } = require('../../utils/textFormatter');
 const { t } = require('../../utils/i18n');
 
@@ -121,8 +123,30 @@ async function handleAiCommand(command, args = [], userId = '', platform = 'what
 async function processAiChat(payload, userId, platform = 'whatsapp', extra = {}) {
   try {
     const realId = extra?.realId || userId;
-    const aiResult = await askAiDetailed(payload, userId, platform, realId);
-    const footer = buildAiStatsFooter(aiResult, platform);
+    const lang = await getUserLanguage(realId || userId, platform);
+
+    let aiResult;
+
+    // Use AI Agent Harness with Tool Calling for plain-text conversational messages
+    if (typeof payload === 'string') {
+      try {
+        aiResult = await runAiHarnessChat({
+          text: payload,
+          userId,
+          platform,
+          lang,
+          realId
+        });
+      } catch (harnessErr) {
+        console.warn(`[processAiChat] Harness execution failed, falling back to askAiDetailed:`, harnessErr.message);
+        aiResult = await askAiDetailed(payload, userId, platform, realId);
+      }
+    } else {
+      // Multimodal payload (image/doc)
+      aiResult = await askAiDetailed(payload, userId, platform, realId);
+    }
+
+    const footer = buildAiStatsFooter(aiResult, platform, lang);
     return {
       success: true,
       text: aiResult.text,
