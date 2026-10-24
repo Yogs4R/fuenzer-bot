@@ -52,7 +52,9 @@
 
 * **🔄 Omni-Channel Architecture:** Operates simultaneously on WhatsApp (via Baileys) and Telegram (via Telegraf).
 * **🌐 Bilingual & Internationalized:** Default English (`en`) for global evaluation with native Indonesian (`id`) support via `/lang [en|id]` and 1-to-1 bilingual command aliases.
-* **🦥 Automated Morning Briefings:** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma and soothing ElevenLabs voice notes.
+* **🦥 Automated Morning Briefings (Gemma & ElevenLabs):** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma alongside soothing ElevenLabs audio voice note briefings.
+* **🧠 Conversational AI Agent Harness:** Interact casually in natural language without typing slash commands; the bot automatically executes finance logging, weather lookups, reminders, prayer times, and book research via structured tool calling.
+* **🌐 Dedicated Cloud Browsing Agent (Browserbase):** Inspect, navigate, and bypass anti-bot protections on remote web pages via `/browse <url>` to capture full viewport screenshots and extract clean text excerpts directly to your chat.
 * **🔒 Privacy-First AES-256-GCM Encryption:** All buffered group messages and sender names are encrypted at rest with AES-256-GCM (`iv:authTag:ciphertext`) with an automated 24-hour retention purge.
 * **💰 Frictionless Personal Finance:** Track income and expenses on-the-fly, inspect real-time balances, and render visual monthly charts.
 * **🛠 Swiss Army Knife Utilities:** Generate/convert WebP stickers, remove image backgrounds, compress/merge PDFs, and monitor cloud VM server health.
@@ -139,6 +141,14 @@ Advanced smart assistant powered by large language models (LLM) via OpenRouter A
 - Supports multilingual answers by following the user's input language.
 - Full bilingual command aliases and localized response outputs across all modules.
 
+### 🌐 Cloud Browser Agent (Browserbase Automation)
+Dedicated cloud-based web automation agent triggered via `/browse <url>` (EN) or `/jelajah <url>` (ID):
+- **Managed Remote Cloud Execution**: Runs in Browserbase's isolated cloud infrastructure via Playwright CDP (`connectOverCDP`), requiring zero local Chromium binaries on your server.
+- **Anti-Bot & CAPTCHA Bypass**: Automatically bypasses bot-detection firewalls (`solveCaptchas: true` and `blockAds: true`) to navigate challenging dynamic websites.
+- **Visual Viewport Capture**: Delivers a crisp, high-resolution JPEG screenshot directly into your WhatsApp or Telegram chat.
+- **Readable Content Excerpt**: Extracts clean DOM text snippets from the destination page without manual scraping scripts.
+- **Live Debugger Inspector**: Generates a shareable session debug URL (`debuggerFullscreenUrl`) allowing developers and judges to inspect execution traces and replay interactions in real time.
+
 ### 📚 Research Tools
 Research references powered by multiple public APIs (no API key required):
 - Book discovery from Open Library, journal lookup from Crossref, and scientific article lookup from OpenAlex.
@@ -218,6 +228,7 @@ Simple ticketing system to receive user questions and feedback:
 | `/model_info` | Show available AI models and aliases | OpenRouter, aiPreferenceService | `/model_info` |
 | `/switch` | Switch active AI model per user | OpenRouter, aiPreferenceService | `/switch gemma4` |
 | `/summarize` | AI group chat summarizer & morning briefing (`on`, `off`, `schedule <HH:mm>`, `voice on\|off`, `now`, `status`) | summarizeService, OpenRouter Gemma, ElevenLabs, node-cron | `/summarize on`, `/summarize voice on`, `/summarize now` |
+| `/browse` | Cloud browser agent: navigate web, bypass bot protections, take screenshot, extract text | browserbaseService, Playwright Core, Browserbase CDP | `/browse github.com` |
 | `/help` | Show help center and Customer Service menu | csService | `/help` |
 | `/feedback` | Send feedback (saved to Google Sheets) | csService, GAS | `/feedback great bot` |
 | `/ask` | Send question to admin via CS | csService, GAS | `/ask how to donate?` |
@@ -252,6 +263,7 @@ Simple ticketing system to receive user questions and feedback:
 | `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks | `/terjemah en Selamat pagi` |
 | `/model`, `/models` | `/model_info` | Daftar model AI yang tersedia | `/model` |
 | `/ringkas` | `/summarize` | Ringkas chat grup & briefing pagi otomatis | `/ringkas on`, `/ringkas sekarang`, `/ringkas jadwal 07:30`, `/ringkas voice on` |
+| `/jelajah` | `/browse` | Buka web via browser cloud anti-bot, ambil screenshot, dan ekstrak teks | `/jelajah detik.com` |
 | `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
 | `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
 | `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
@@ -303,7 +315,9 @@ The `.env` file contains all essential configuration strings. Copy `.env.example
 - **Telegram**: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (From BotFather), and `TELEGRAM_SESSION_DIR` (Session folder).
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Anon public key), `SUPABASE_SECRET_KEY` (Service role to bypass RLS for admin).
 - **AI APIs**: `GEMINI_API_KEY` or `OPENROUTER_API_KEY` (with optional `GEMMA_MODEL` for default summarizer model, default: `google/gemma-4-26b-a4b-it`).
-- **Audio & Speech (ElevenLabs)**: `ELEVENLABS_API_KEY` for text-to-speech voice note synthesis, with optional `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) and `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
+- **Internationalization (i18n)**: `DEFAULT_LANGUAGE` (Default bot locale, `en` for English or `id` for Indonesian).
+- **Partner APIs (Speech & Audio - ElevenLabs)**: `ELEVENLABS_API_KEY` for text-to-speech voice note synthesis, with optional `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) and `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
+- **Partner APIs (Cloud Browser Automation - Browserbase)**: `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` for managed cloud browser execution, anti-bot/CAPTCHA bypass, screenshot rendering, and live debug inspector links.
 - **Other APIs**: `OPENWEATHER_API_KEY` for weather features, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (web screenshots), and `GAS_WEBAPP_URL` for Google Sheets feedback service.
 - **Security & Data Privacy (AES-256-GCM)**: `ENCRYPTION_KEY` (32-byte secret key used to encrypt group chats at rest). Generate a secure 64-character hex key (32 bytes) by running:
   ```bash
@@ -624,4 +638,4 @@ The `/ask` and `/feedback` features require a Web App URL from Google Apps Scrip
    ```env
    GAS_WEBAPP_URL="YOUR_WEBAPP_URL_HERE"
    ```
-
+

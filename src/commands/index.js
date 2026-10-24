@@ -12,6 +12,7 @@ const { handleInfoCommand } = require('./info/index');
 const { handleShortCommand } = require('./utility/index');
 const { handleLanguageCommand } = require('./language/index');
 const { handleSummarizeCommand } = require('./ai/summarize');
+const { handleBrowserCommand } = require('./browser/index');
 const { getUserLanguage } = require('../services/languageService');
 const { t } = require('../utils/i18n');
 const {
@@ -92,6 +93,11 @@ async function dispatchCommand(command, args = [], userId = '', platform = 'tele
         case '/summarize':
         case '/ringkas':
             return handleSummarizeCommand(cmd, args, userId, platform, enrichedContext);
+
+        // Dedicated Cloud Browsing Agent (Browserbase)
+        case '/browse':
+        case '/jelajah':
+            return handleBrowserCommand(cmd, args, userId, platform, enrichedContext);
 
         // Weather
         case '/cuaca':

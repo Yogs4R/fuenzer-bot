@@ -97,11 +97,14 @@ function buildMonitorLinksKeyboard() {
 }
 
 async function sendTelegramReply(ctx, payload, extra = {}) {
-    if (payload && typeof payload === 'object' && payload.type === 'image') {
-        const caption = formatTelegramHtml(payload.caption || '');
+    if (payload && typeof payload === 'object' && (payload.type === 'image' || payload.image)) {
+        const rawCaption = payload.caption || '';
+        const safeRawCaption = rawCaption.length > 850 ? rawCaption.slice(0, 846) + '...' : rawCaption;
+        const caption = formatTelegramHtml(safeRawCaption);
         const processedCaption = caption ? formatBodyBold(caption) : '';
-        await ctx.replyWithPhoto(payload.url, {
-            caption: processedCaption,
+        const photoSource = payload.image ? { source: payload.image } : payload.url;
+        await ctx.replyWithPhoto(photoSource, {
+            caption: processedCaption || undefined,
             parse_mode: 'HTML',
             ...extra
         });
@@ -198,6 +201,11 @@ function setupTelegramBot() {
                         await sendTelegramReply(ctx, dispatched.message);
                     }
                     await ctx.replyWithVoice({ source: dispatched.audio });
+                    return;
+                }
+
+                if (typeof dispatched === 'object' && (dispatched?.type === 'image' || dispatched?.image)) {
+                    await sendTelegramReply(ctx, dispatched);
                     return;
                 }
 

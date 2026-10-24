@@ -52,7 +52,9 @@
 
 * **🔄 Arsitektur Omni-Channel:** Beroperasi secara bersamaan di WhatsApp (via Baileys) dan Telegram (via Telegraf).
 * **🌐 Dukungan Bilingual & Internasionalisasi:** Default Bahasa Inggris (`en`) untuk evaluasi global dengan dukungan penuh Bahasa Indonesia (`id`) via `/lang [en|id]` dan alias perintah dwibahasa 1-ke-1.
-* **🦥 Automated Morning Briefings:** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
+* **🦥 Automated Morning Briefings (Gemma & ElevenLabs):** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
+* **🧠 Conversational AI Agent Harness:** Ngobrol santai secara natural tanpa mengetik slash command; bot otomatis mencatat keuangan, cek cuaca, pasang pengingat, jadwal sholat, hingga riset buku via pemanggilan tools.
+* **🌐 Agen Cloud Browser Mandiri (Browserbase):** Akses, jelajahi, dan lewati proteksi anti-bot di website mana saja via `/jelajah <url>` untuk mengambil screenshot visual penuh dan mengekstrak cuplikan teks langsung ke ruang chat.
 * **🔒 Privasi Terjaga dengan Enkripsi AES-256-GCM:** Semua percakapan grup yang ditampung dienkripsi sebelum disimpan ke database dengan format `iv:authTag:ciphertext` serta pembersihan otomatis (*retention purge*) 24 jam.
 * **💰 Pencatatan Keuangan Praktis:** Catat pemasukan/pengeluaran secara instan via chat, cek saldo real-time, dan hasilkan grafik visual bulanan.
 * **🛠 Utilitas Serbaguna (Swiss Army Knife):** Buat stiker WebP, hapus latar belakang foto, kompres/gabungkan PDF, serta pantau kesehatan server cloud VM Anda.
@@ -139,6 +141,14 @@ Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melal
 - Mendukung jawaban multi-bahasa dengan menyesuaikan bahasa input pengguna.
 - Mendukung alias perintah dwibahasa penuh dan respons output yang terlokalisasi di seluruh modul.
 
+### 🌐 Agen Cloud Browser (Browserbase Automation)
+Agen otomasi browser cloud mandiri yang dipanggil via command `/jelajah <url>` (ID) atau `/browse <url>` (EN):
+- **Eksekusi Remote di Cloud**: Berjalan di lingkungan container Browserbase yang terisolasi via Playwright CDP (`connectOverCDP`), tanpa memerlukan binary Chromium lokal di server VM Anda.
+- **Bypass Proteksi Anti-Bot & CAPTCHA**: Otomatis mengatasi proteksi Cloudflare/antibot (`solveCaptchas: true` dan `blockAds: true`) saat membuka situs dinamis yang kompleks.
+- **Tangkapan Layar Resolusi Tinggi**: Mengirimkan file gambar JPEG langsung ke obrolan WhatsApp atau Telegram Anda.
+- **Ekstraksi Cuplikan Teks**: Menampilkan ringkasan teks bersih langsung dari DOM halaman web tujuan.
+- **Inspeksi Sesi Langsung (Debugger)**: Menghasilkan link sesi live (`debuggerFullscreenUrl`) agar Anda dapat melihat rekaman interaksi web secara real-time.
+
 ### 📚 Research Tools
 Fitur riset referensi berbasis beberapa API publik (tanpa API key):
 - Rekomendasi buku dari Open Library, pencarian jurnal dari Crossref, dan pencarian artikel ilmiah dari OpenAlex.
@@ -217,7 +227,8 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | `/translate` | Terjemahkan teks atau pesan | aiClient, OpenRouter | `/translate id Hello world` |
 | `/model_info` | Tampilkan daftar model AI yang tersedia | OpenRouter, aiPreferenceService | `/model_info` |
 | `/switch` | Ganti model AI aktif per pengguna | OpenRouter, aiPreferenceService | `/switch gemma4` |
-| `/summarize` | Ringkasan chat AI & briefing pagi (`on`, `off`, `schedule <HH:mm>`, `voice on|off`, `now`, `status`) | summarizeService, OpenRouter Gemma, ElevenLabs, node-cron | `/summarize on`, `/summarize voice on`, `/summarize now` |
+| `/summarize` | Ringkasan chat AI & briefing pagi (`on`, `off`, `schedule <HH:mm>`, `voice on\|off`, `now`, `status`) | summarizeService, OpenRouter Gemma, ElevenLabs, node-cron | `/summarize on`, `/summarize voice on`, `/summarize now` |
+| `/browse` | Agen cloud browser: jelajah web anti-bot, ambil screenshot, dan ekstrak teks | browserbaseService, Playwright Core, Browserbase CDP | `/browse github.com` |
 | `/help` | Pusat bantuan dan layanan Customer Service | csService | `/help` |
 | `/feedback` | Kirim feedback ke Google Sheets | csService, GAS | `/feedback great bot` |
 | `/ask` | Kirim pertanyaan ke admin via CS | csService, GAS | `/ask how to donate?` |
@@ -252,6 +263,7 @@ Sistem tiket sederhana untuk menerima pertanyaan dan masukan pengguna:
 | `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks atau pesan | `/terjemah en Selamat pagi` |
 | `/model`, `/models` | `/model_info` | Tampilkan daftar model AI yang tersedia | `/model` |
 | `/ringkas` | `/summarize` | Ringkas chat grup & briefing pagi otomatis | `/ringkas on`, `/ringkas sekarang`, `/ringkas jadwal 07:30`, `/ringkas voice on` |
+| `/jelajah` | `/browse` | Buka web via browser cloud anti-bot, ambil screenshot, dan ekstrak teks | `/jelajah detik.com` |
 | `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
 | `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
 | `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
@@ -303,7 +315,9 @@ File `.env` berisi seluruh konfigurasi penting. Pastikan Anda menyalin `.env.exa
 - **Telegram**: `TELEGRAM_BOT_TOKEN` dan `TELEGRAM_BOT_USERNAME` (Dari BotFather), serta `TELEGRAM_SESSION_DIR` (Folder session).
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Role anon), `SUPABASE_SECRET_KEY` (Service role untuk bypass RLS bot admin).
 - **API AI**: `GEMINI_API_KEY` atau `OPENROUTER_API_KEY` (dengan opsi `GEMMA_MODEL` untuk model default summarizer, default: `google/gemma-4-26b-a4b-it`).
-- **Audio & Pesan Suara (ElevenLabs)**: `ELEVENLABS_API_KEY` untuk sintesis voice note briefing audio, dengan opsi tambahan `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) dan `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
+- **Internasionalisasi (i18n)**: `DEFAULT_LANGUAGE` (Bahasa default bot, `en` untuk Inggris atau `id` untuk Indonesia).
+- **Partner API (Audio & Suara - ElevenLabs)**: `ELEVENLABS_API_KEY` untuk sintesis voice note briefing audio, dengan opsi tambahan `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) dan `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
+- **Partner API (Cloud Browser Automation - Browserbase)**: `BROWSERBASE_API_KEY` dan `BROWSERBASE_PROJECT_ID` untuk eksekusi cloud browser anti-bot/CAPTCHA bypass, pengambilan screenshot, serta tautan live debug inspector.
 - **API Lainnya**: `OPENWEATHER_API_KEY` untuk info cuaca, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (ss web), dan `GAS_WEBAPP_URL` untuk layanan Google Sheets feedback.
 - **Keamanan & Privasi Data (AES-256-GCM)**: `ENCRYPTION_KEY` (Kunci rahasia 32-byte untuk enkripsi percakapan grup). Generate kunci hex 64-karakter (32 byte) dengan perintah:
   ```bash
@@ -624,4 +638,4 @@ Fitur `/ask` dan `/feedback` membutuhkan URL Web App dari Google Apps Script (GA
    ```env
    GAS_WEBAPP_URL="URL_WEBAPP_ANDA_DISINI"
    ```
-
+
