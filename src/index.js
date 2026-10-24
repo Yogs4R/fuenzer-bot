@@ -19,6 +19,10 @@ const { startCronJobs } = require('./jobs/serverMonitor');
 const { startReminderCron } = require('./jobs/reminderCron');
 const { startBufferCleanupCron } = require('./jobs/bufferCleanupCron');
 const { startSummarizeCron } = require('./jobs/summarizeCron');
+const { startDiscordBot, stopDiscordBot, getDiscordClient } = require('./lib/discordClient');
+const { setupDiscordBot } = require('./handlers/discordHandler');
+const { startSlackBot, stopSlackBot, getSlackApp } = require('./lib/slackClient');
+const { setupSlackBot } = require('./handlers/slackHandler');
 
 console.log(`Starting ${settings.app.name} v${settings.app.version} in ${settings.app.env} mode`);
 
@@ -156,6 +160,20 @@ async function main() {
         console.warn('⚠️  TELEGRAM_BOT_TOKEN tidak ditemukan. Bot Telegram tidak akan berjalan.');
     }
 
+    // Start Discord bot
+    const discordClient = getDiscordClient();
+    if (discordClient) {
+        setupDiscordBot(discordClient);
+        await startDiscordBot();
+    }
+
+    // Start Slack bot
+    const slackApp = getSlackApp();
+    if (slackApp) {
+        setupSlackBot(slackApp);
+        await startSlackBot();
+    }
+
     monitorCronTask = startCronJobs(telegramBot, () => waSocket);
     
     // Start Reminder Cron
@@ -174,7 +192,7 @@ async function main() {
 main();
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     console.log('\nMenerima SIGINT. Melakukan shutdown...');
     if (monitorCronTask) {
         monitorCronTask.stop();
@@ -193,11 +211,13 @@ process.on('SIGINT', () => {
     if (process.env.TELEGRAM_BOT_TOKEN) {
         telegramBot.stop('SIGINT');
     }
+    await stopDiscordBot();
+    await stopSlackBot();
     console.log('Shutdown selesai.');
     process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     console.log('\nMenerima SIGTERM. Melakukan shutdown...');
     if (monitorCronTask) {
         monitorCronTask.stop();
@@ -216,6 +236,8 @@ process.on('SIGTERM', () => {
     if (process.env.TELEGRAM_BOT_TOKEN) {
         telegramBot.stop('SIGTERM');
     }
+    await stopDiscordBot();
+    await stopSlackBot();
     console.log('Shutdown selesai.');
     process.exit(0);
 });
