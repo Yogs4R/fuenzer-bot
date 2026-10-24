@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Asisten Produktivitas Pribadi Otonom Multi-Platform (Omni-Channel)</b><br>
-  Berjalan bersamaan di WhatsApp & Telegram · Ditenagai Node.js, Supabase, dan Serverless AI
+  Berjalan bersamaan di WhatsApp, Telegram, Discord & Slack · Ditenagai Node.js, Supabase, dan Serverless AI
 </p>
 
 <p align="center">
@@ -15,6 +15,8 @@
   <img src="https://img.shields.io/badge/Node.js-20_LTS-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js" />
   <img src="https://img.shields.io/badge/WhatsApp-Baileys-25D366?style=flat-square&logo=whatsapp&logoColor=white" alt="WhatsApp" />
   <img src="https://img.shields.io/badge/Telegram-Telegraf-2CA5E0?style=flat-square&logo=telegram&logoColor=white" alt="Telegram" />
+  <img src="https://img.shields.io/badge/Discord-discord.js-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" />
+  <img src="https://img.shields.io/badge/Slack-Bolt-4A154B?style=flat-square&logo=slack&logoColor=white" alt="Slack" />
   <img src="https://img.shields.io/badge/Database-Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" />
 </p>
@@ -48,9 +50,9 @@
 
 ## Apa itu Fuenzer Bot?
 
-**Fuenzer Bot** adalah asisten virtual mandiri dengan ketersediaan tinggi (*high-availability*) yang dirancang untuk meningkatkan produktivitas harian Anda dengan memadukan pencatatan keuangan, penalaran AI multi-modal, pengolahan dokumen, dan pemantauan server langsung dari aplikasi chat sehari-hari (WhatsApp & Telegram) tanpa perlu berganti-ganti aplikasi.
+**Fuenzer Bot** adalah asisten virtual mandiri dengan ketersediaan tinggi (*high-availability*) yang dirancang untuk meningkatkan produktivitas harian Anda dengan memadukan pencatatan keuangan, penalaran AI multi-modal, pengolahan dokumen, dan pemantauan server langsung dari aplikasi chat sehari-hari (WhatsApp, Telegram, Discord & Slack) tanpa perlu berganti-ganti aplikasi.
 
-* **🔄 Arsitektur Omni-Channel:** Beroperasi secara bersamaan di WhatsApp (via Baileys) dan Telegram (via Telegraf).
+* **🔄 Arsitektur Omni-Channel:** Beroperasi secara bersamaan di WhatsApp (via Baileys), Telegram (via Telegraf), Discord (via discord.js), dan Slack (via Bolt Socket Mode).
 * **🌐 Dukungan Bilingual & Internasionalisasi:** Default Bahasa Inggris (`en`) untuk evaluasi global dengan dukungan penuh Bahasa Indonesia (`id`) via `/lang [en|id]` dan alias perintah dwibahasa 1-ke-1.
 * **🦥 Automated Morning Briefings (Gemma & ElevenLabs):** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
 * **🧠 Conversational AI Agent Harness:** Ngobrol santai secara natural tanpa mengetik slash command; bot otomatis mencatat keuangan, cek cuaca, pasang pengingat, jadwal sholat, hingga riset buku via pemanggilan tools.
@@ -64,12 +66,16 @@
 ## Preview
 
 <p align="center">
-  <img src="assets/images/screenshot-wa.png" alt="WhatsApp Bot Screenshot" width="45%" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/images/screenshot-tele.png" alt="Telegram Bot Screenshot" width="45%" />
+  <img src="assets/images/screenshot-wa.png" alt="WhatsApp Bot Screenshot" width="23%" />
+  &nbsp;
+  <img src="assets/images/screenshot-tele.png" alt="Telegram Bot Screenshot" width="23%" />
+  &nbsp;
+  <img src="assets/images/screenshot-discord.png" alt="Discord Bot Screenshot" width="23%" />
+  &nbsp;
+  <img src="assets/images/screenshot-slack.png" alt="Slack Bot Screenshot" width="23%" />
 </p>
 <p align="center">
-  <i>Antarmuka multi-platform: Format teks WhatsApp native (kiri) dan format HTML Telegram (kanan).</i>
+  <i>Antarmuka omnichannel yang mulus di WhatsApp, Telegram, Discord, dan Slack.</i>
 </p>
 
 ---
@@ -99,6 +105,8 @@
 Berjalan ganda secara independen namun terintegrasi penuh:
 - **WhatsApp Bot** (powered by Baileys)
 - **Telegram Bot** (powered by Telegraf)
+- **Discord Bot** (powered by discord.js dengan Gateway intents dan dukungan Guild/DM)
+- **Slack Bot** (powered by Slack Bolt for JavaScript dengan Socket Mode dan app mentions)
 
 ### 🌐 Dukungan Dwibahasa (Bilingual & i18n)
 Internasionalisasi penuh untuk kenyamanan pengguna lokal maupun internasional:
@@ -313,6 +321,8 @@ File `.env` berisi seluruh konfigurasi penting. Pastikan Anda menyalin `.env.exa
 **Penjelasan Konfigurasi Kunci:**
 - **WhatsApp**: `WA_SESSION_DIR` (Folder data auth), `WA_PHONE_NUMBER` (Nomor bot), `BOT_WA_LID` (ID LID khusus bot bila diperlukan).
 - **Telegram**: `TELEGRAM_BOT_TOKEN` dan `TELEGRAM_BOT_USERNAME` (Dari BotFather), serta `TELEGRAM_SESSION_DIR` (Folder session).
+- **Discord**: `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_MONITOR_CHANNELS` (Daftar ID channel yang dipantau untuk buffer grup, dipisahkan koma), serta `ADMIN_DISCORD_IDS` (Daftar ID User admin Discord).
+- **Slack**: `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN` (App-level token untuk Socket Mode `xapp-...`), `SLACK_SIGNING_SECRET`, `SLACK_MONITOR_CHANNELS` (Daftar ID channel yang dipantau untuk buffer grup, dipisahkan koma), serta `ADMIN_SLACK_IDS` (Daftar ID User admin Slack).
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Role anon), `SUPABASE_SECRET_KEY` (Service role untuk bypass RLS bot admin).
 - **API AI**: `GEMINI_API_KEY` atau `OPENROUTER_API_KEY` (dengan opsi `GEMMA_MODEL` untuk model default summarizer, default: `google/gemma-4-26b-a4b-it`).
 - **Internasionalisasi (i18n)**: `DEFAULT_LANGUAGE` (Bahasa default bot, `en` untuk Inggris atau `id` untuk Indonesia).

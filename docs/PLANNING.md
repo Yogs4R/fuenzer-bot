@@ -216,6 +216,6 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
   - [x] Implement Slack Bolt Socket Mode transport adapter (`src/lib/slackClient.js` & `src/handlers/slackHandler.js`) with message buffering, command dispatching, and AI chat.
   - [x] Post-Phase 6 verification fixes: DM group chat buffer resolution, model switch persistence, markdown table converter, Telegram asterisks fix, and resilient ElevenLabs voice briefing delivery.
   - [x] Non-blocking conditional initialization in `src/index.js` and automated tests in `tests/omnichannel.test.js`.
-- [ ] **Phase 8: English Documentation & DEV Submission**
-  - Update `README.md` in English highlighting the "Slow and Steady" architecture, AES-256 privacy, and AI Agent Harness.
-  - Draft submission for DEV Challenge Week 3.
+- [x] **Phase 8: English Documentation & DEV Submission**
+  - [x] Update `README.md` and `README.id.md` highlighting the "Slow and Steady" architecture, AES-256 privacy, AI Agent Harness, and Omnichannel 4-platform support.
+  - [ ] Draft submission for DEV Challenge Week 3 (handled independently by author).

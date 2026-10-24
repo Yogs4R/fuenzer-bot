@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>The Autonomous Omni-Channel Personal Productivity Assistant</b><br>
-  Runs concurrently on WhatsApp & Telegram · Powered by Node.js, Supabase, and Serverless AI
+  Runs concurrently on WhatsApp, Telegram, Discord & Slack · Powered by Node.js, Supabase, and Serverless AI
 </p>
 
 <p align="center">
@@ -15,6 +15,8 @@
   <img src="https://img.shields.io/badge/Node.js-20_LTS-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js" />
   <img src="https://img.shields.io/badge/WhatsApp-Baileys-25D366?style=flat-square&logo=whatsapp&logoColor=white" alt="WhatsApp" />
   <img src="https://img.shields.io/badge/Telegram-Telegraf-2CA5E0?style=flat-square&logo=telegram&logoColor=white" alt="Telegram" />
+  <img src="https://img.shields.io/badge/Discord-discord.js-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" />
+  <img src="https://img.shields.io/badge/Slack-Bolt-4A154B?style=flat-square&logo=slack&logoColor=white" alt="Slack" />
   <img src="https://img.shields.io/badge/Database-Supabase-3ECF8E?style=flat-square&logo=supabase&logoColor=white" alt="Supabase" />
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" />
 </p>
@@ -48,9 +50,9 @@
 
 ## What is Fuenzer Bot?
 
-**Fuenzer Bot** is a high-availability, standalone virtual assistant engineered to increase daily productivity by bringing financial management, multi-modal AI reasoning, document processing, and server monitoring directly into your everyday chat apps (WhatsApp & Telegram) with zero context switching.
+**Fuenzer Bot** is a high-availability, standalone virtual assistant engineered to increase daily productivity by bringing financial management, multi-modal AI reasoning, document processing, and server monitoring directly into your everyday chat apps (WhatsApp, Telegram, Discord & Slack) with zero context switching.
 
-* **🔄 Omni-Channel Architecture:** Operates simultaneously on WhatsApp (via Baileys) and Telegram (via Telegraf).
+* **🔄 Omni-Channel Architecture:** Operates simultaneously on WhatsApp (via Baileys), Telegram (via Telegraf), Discord (via discord.js), and Slack (via Bolt Socket Mode).
 * **🌐 Bilingual & Internationalized:** Default English (`en`) for global evaluation with native Indonesian (`id`) support via `/lang [en|id]` and 1-to-1 bilingual command aliases.
 * **🦥 Automated Morning Briefings (Gemma & ElevenLabs):** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma alongside soothing ElevenLabs audio voice note briefings.
 * **🧠 Conversational AI Agent Harness:** Interact casually in natural language without typing slash commands; the bot automatically executes finance logging, weather lookups, reminders, prayer times, and book research via structured tool calling.
@@ -64,12 +66,16 @@
 ## Preview
 
 <p align="center">
-  <img src="assets/images/screenshot-wa.png" alt="WhatsApp Bot Screenshot" width="45%" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/images/screenshot-tele.png" alt="Telegram Bot Screenshot" width="45%" />
+  <img src="assets/images/screenshot-wa.png" alt="WhatsApp Bot Screenshot" width="23%" />
+  &nbsp;
+  <img src="assets/images/screenshot-tele.png" alt="Telegram Bot Screenshot" width="23%" />
+  &nbsp;
+  <img src="assets/images/screenshot-discord.png" alt="Discord Bot Screenshot" width="23%" />
+  &nbsp;
+  <img src="assets/images/screenshot-slack.png" alt="Slack Bot Screenshot" width="23%" />
 </p>
 <p align="center">
-  <i>Seamless dual-platform interface: Native WhatsApp formatting (left) and Telegram rich HTML (right).</i>
+  <i>Seamless omnichannel interface across WhatsApp, Telegram, Discord, and Slack.</i>
 </p>
 
 ---
@@ -99,6 +105,8 @@
 Runs simultaneously, independently but fully integrated:
 - **WhatsApp Bot** (powered by Baileys)
 - **Telegram Bot** (powered by Telegraf)
+- **Discord Bot** (powered by discord.js with Gateway intents and Guild/DM support)
+- **Slack Bot** (powered by Slack Bolt for JavaScript with Socket Mode and app mentions)
 
 ### 🌐 Bilingual Support & i18n
 Seamless internationalization catering to both global and Indonesian users:
@@ -313,6 +321,8 @@ The `.env` file contains all essential configuration strings. Copy `.env.example
 **Key Configuration Explanations:**
 - **WhatsApp**: `WA_SESSION_DIR` (Auth data folder), `WA_PHONE_NUMBER` (Bot's phone number), `BOT_WA_LID` (Specific bot WhatsApp LID if needed).
 - **Telegram**: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (From BotFather), and `TELEGRAM_SESSION_DIR` (Session folder).
+- **Discord**: `DISCORD_BOT_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_MONITOR_CHANNELS` (Comma-separated channel IDs for group chat buffering), and `ADMIN_DISCORD_IDS` (Comma-separated admin User IDs).
+- **Slack**: `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN` (App-level token for Socket Mode `xapp-...`), `SLACK_SIGNING_SECRET`, `SLACK_MONITOR_CHANNELS` (Comma-separated channel IDs for group chat buffering), and `ADMIN_SLACK_IDS` (Comma-separated admin User IDs).
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Anon public key), `SUPABASE_SECRET_KEY` (Service role to bypass RLS for admin).
 - **AI APIs**: `GEMINI_API_KEY` or `OPENROUTER_API_KEY` (with optional `GEMMA_MODEL` for default summarizer model, default: `google/gemma-4-26b-a4b-it`).
 - **Internationalization (i18n)**: `DEFAULT_LANGUAGE` (Default bot locale, `en` for English or `id` for Indonesian).
