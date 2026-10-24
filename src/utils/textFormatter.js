@@ -36,8 +36,67 @@ function appendFooter(text, footer) {
   return `${base}\n\n${foot}`;
 }
 
+/**
+ * Converts Markdown tables (| col | col |) into clean mobile-friendly bullet points (- col: val).
+ *
+ * @param {string} rawText
+ * @returns {string}
+ */
+function convertMarkdownTablesToBullets(rawText) {
+  if (!rawText || typeof rawText !== 'string') return '';
+
+  const lines = rawText.split(/\r?\n/);
+  const result = [];
+  let i = 0;
+
+  const isTableRow = (l) => /^\s*\|.+\|\s*$/.test(l);
+  const isTableSeparator = (l) => /^\s*\|(?:\s*:?-+:?\s*\|)+\s*$/.test(l);
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      const headers = line
+        .split('|')
+        .map((h) => h.trim())
+        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+      // Skip header and separator
+      i += 2;
+
+      // Process rows
+      while (i < lines.length && isTableRow(lines[i])) {
+        const rowCols = lines[i]
+          .split('|')
+          .map((c) => c.trim())
+          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+        if (rowCols.length > 0) {
+          const rowText = rowCols
+            .map((col, cIdx) => {
+              const header = headers[cIdx];
+              return header ? `${header}: ${col}` : col;
+            })
+            .join(' | ');
+
+          result.push(`- ${rowText}`);
+        }
+        i += 1;
+      }
+    } else {
+      result.push(line);
+      i += 1;
+    }
+  }
+
+  return result.join('\n');
+}
+
 function formatTelegramHtml(rawText) {
   let text = String(rawText || '').replace(/\r\n/g, '\n').trim();
+
+  // Convert markdown tables into bullet points first
+  text = convertMarkdownTablesToBullets(text);
 
   const preservedTags = [];
   const preserveTag = (tag) => {
@@ -61,8 +120,16 @@ function formatTelegramHtml(rawText) {
 
   text = text.replace(/```([\s\S]*?)```/g, (_match, codeBlock) => codeBlock.trim());
   text = text.replace(/`([^`\n]+)`/g, '$1');
+
+  // Convert bullet points starting with * to - so they do not break bold parsing
+  text = text.replace(/^(\s*)\*\s+/gm, '$1- ');
+
+  // Convert double asterisks **bold** to <b> first
+  text = text.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+
+  // Convert single asterisks *bold* to <b>
   text = text.replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
-  text = text.replace(/(^|\n)-\s+/g, '$1');
+
   text = autoLink(text);
 
   text = text.replace(/__HTML_TAG_(\d+)__/g, (_match, indexText) => {
@@ -135,5 +202,6 @@ module.exports = {
   stripWrappingQuotes,
   appendFooter,
   formatTelegramHtml,
-  formatBodyBold
+  formatBodyBold,
+  convertMarkdownTablesToBullets
 };

@@ -288,6 +288,8 @@ async function executeToolCall(toolName, args = {}, context = {}) {
   }
 }
 
+const { convertMarkdownTablesToBullets } = require('../utils/textFormatter');
+
 /**
  * Builds the Sloth Butler system prompt with conversational instructions.
  *
@@ -314,7 +316,8 @@ CORE RULES:
 3. If the user is having a casual conversation, asking questions, or asking for help, reply helpfully and warmly without forcing tool calls.
 4. After receiving tool results, synthesize a friendly, charming confirmation summarizing what was accomplished. Mention numbers, remaining balances, temperatures, or reminder times clearly.
 5. Tone: Relaxed, polite, helpful, with a subtle sloth butler charm (use 🦥 or relevant emojis sparingly).
-6. Language: You MUST reply in English.`
+6. Language: You MUST reply in English.
+7. STRICT FORMATTING: NEVER use Markdown tables (| Column | Column |). If presenting tabular data, lists, or comparisons, ALWAYS use clean bullet points (- Item: Value) or numbered lists (1. 2. 3.).`
     : `Kamu adalah Fuenzer Bot, asisten pribadi "sloth butler" milik Ridwan Yoga Suryantara yang tenang, santai, dan sangat bisa diandalkan.
 Prinsipmu adalah "pelan tapi pasti" (slow and steady) — membantu pengguna tetap teratur dan produktif tanpa rasa cemas.
 Kamu punya akses ke tools produktivitas:
@@ -332,7 +335,8 @@ ATURAN UTAMA:
 3. Jika pengguna hanya menyapa, ngobrol santai, atau bertanya materi/coding biasa, jawablah dengan ramah tanpa memaksakan pemanggilan tool.
 4. Setelah menerima hasil tool, rangkai jawaban konfirmasi yang ramah, jelas, dan santai. Sebutkan nominal yang dicatat, sisa saldo, kondisi cuaca, atau waktu pengingat secara rapi.
 5. Gaya bahasa: Santai, sopan, ramah dengan sentuhan sloth butler (gunakan emoji 🦥 atau emoji pendukung secukupnya).
-6. Bahasa: Wajib membalas dalam Bahasa Indonesia.`;
+6. Bahasa: Wajib membalas dalam Bahasa Indonesia.
+7. FORMAT PESAN: DILARANG KERAS menggunakan Tabel Markdown (| Kolom |). Selalu gunakan Bullet Points (-) atau Numbered Lists (1. 2. 3.) untuk daftar atau perbandingan data.`;
 }
 
 /**
@@ -340,7 +344,8 @@ ATURAN UTAMA:
  */
 function formatWhatsAppMarkdown(text) {
   if (!text || typeof text !== 'string') return '';
-  return text
+  const withoutTables = convertMarkdownTablesToBullets(text);
+  return withoutTables
     .replace(/\*\*(.*?)\*\*/g, '*$1*')
     .replace(/^#+\s*(.*)$/gm, '*$1*')
     .replace(/^\s*\*\s+/gm, '- ');
@@ -364,7 +369,8 @@ async function runAiHarnessChat({
   lang = 'en',
   realId = null
 }) {
-  const activeModelId = await getActiveModel(userId, platform);
+  const canonicalUserId = typeof realId === 'string' && realId.trim() ? realId.trim() : userId;
+  const activeModelId = await getActiveModel(canonicalUserId, platform);
   const fallbackModelId = AI_MODELS['gemma4']?.id || 'google/gemma-4-26b-a4b-it';
 
   const systemPrompt = buildHarnessSystemPrompt(lang);
