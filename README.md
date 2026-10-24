@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/banner.png" alt="Fuenzer Bot Banner" width="70%" />
+  <img src="assets/images/banner.webp" alt="Fuenzer Bot Banner" width="70%" />
 </p>
 
 <h1 align="center">Fuenzer Bot</h1>
@@ -52,7 +52,9 @@
 
 * **🔄 Omni-Channel Architecture:** Operates simultaneously on WhatsApp (via Baileys) and Telegram (via Telegraf).
 * **🌐 Bilingual & Internationalized:** Default English (`en`) for global evaluation with native Indonesian (`id`) support via `/lang [en|id]` and 1-to-1 bilingual command aliases.
-* **🦥 Automated Morning Briefings:** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma and soothing ElevenLabs voice notes.
+* **🦥 Automated Morning Briefings (Gemma & ElevenLabs):** Passively buffers group chat clutter and delivers scheduled executive summaries via Google Gemma alongside soothing ElevenLabs audio voice note briefings.
+* **🧠 Conversational AI Agent Harness:** Interact casually in natural language without typing slash commands; the bot automatically executes finance logging, weather lookups, reminders, prayer times, and book research via structured tool calling.
+* **🌐 Dedicated Cloud Browsing Agent (Browserbase):** Inspect, navigate, and bypass anti-bot protections on remote web pages via `/browse <url>` to capture full viewport screenshots and extract clean text excerpts directly to your chat.
 * **🔒 Privacy-First AES-256-GCM Encryption:** All buffered group messages and sender names are encrypted at rest with AES-256-GCM (`iv:authTag:ciphertext`) with an automated 24-hour retention purge.
 * **💰 Frictionless Personal Finance:** Track income and expenses on-the-fly, inspect real-time balances, and render visual monthly charts.
 * **🛠 Swiss Army Knife Utilities:** Generate/convert WebP stickers, remove image backgrounds, compress/merge PDFs, and monitor cloud VM server health.
@@ -138,6 +140,14 @@ Advanced smart assistant powered by large language models (LLM) via OpenRouter A
 - Built-in model usage metadata in replies (token usage and RPM label).
 - Supports multilingual answers by following the user's input language.
 - Full bilingual command aliases and localized response outputs across all modules.
+
+### 🌐 Cloud Browser Agent (Browserbase Automation)
+Dedicated cloud-based web automation agent triggered via `/browse <url>` (EN) or `/jelajah <url>` (ID):
+- **Managed Remote Cloud Execution**: Runs in Browserbase's isolated cloud infrastructure via Playwright CDP (`connectOverCDP`), requiring zero local Chromium binaries on your server.
+- **Anti-Bot & CAPTCHA Bypass**: Automatically bypasses bot-detection firewalls (`solveCaptchas: true` and `blockAds: true`) to navigate challenging dynamic websites.
+- **Visual Viewport Capture**: Delivers a crisp, high-resolution JPEG screenshot directly into your WhatsApp or Telegram chat.
+- **Readable Content Excerpt**: Extracts clean DOM text snippets from the destination page without manual scraping scripts.
+- **Live Debugger Inspector**: Generates a shareable session debug URL (`debuggerFullscreenUrl`) allowing developers and judges to inspect execution traces and replay interactions in real time.
 
 ### 📚 Research Tools
 Research references powered by multiple public APIs (no API key required):

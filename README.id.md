@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/banner.png" alt="Fuenzer Bot Banner" width="70%" />
+  <img src="assets/images/banner.webp" alt="Fuenzer Bot Banner" width="70%" />
 </p>
 
 <h1 align="center">Fuenzer Bot</h1>
@@ -52,7 +52,9 @@
 
 * **🔄 Arsitektur Omni-Channel:** Beroperasi secara bersamaan di WhatsApp (via Baileys) dan Telegram (via Telegraf).
 * **🌐 Dukungan Bilingual & Internasionalisasi:** Default Bahasa Inggris (`en`) untuk evaluasi global dengan dukungan penuh Bahasa Indonesia (`id`) via `/lang [en|id]` dan alias perintah dwibahasa 1-ke-1.
-* **🦥 Automated Morning Briefings:** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
+* **🦥 Automated Morning Briefings (Gemma & ElevenLabs):** Menampung tumpukan pesan grup yang ramai secara pasif dan mengirimkan ringkasan eksekutif via Google Gemma serta Voice Note santai ElevenLabs setiap pagi.
+* **🧠 Conversational AI Agent Harness:** Ngobrol santai secara natural tanpa mengetik slash command; bot otomatis mencatat keuangan, cek cuaca, pasang pengingat, jadwal sholat, hingga riset buku via pemanggilan tools.
+* **🌐 Agen Cloud Browser Mandiri (Browserbase):** Akses, jelajahi, dan lewati proteksi anti-bot di website mana saja via `/jelajah <url>` untuk mengambil screenshot visual penuh dan mengekstrak cuplikan teks langsung ke ruang chat.
 * **🔒 Privasi Terjaga dengan Enkripsi AES-256-GCM:** Semua percakapan grup yang ditampung dienkripsi sebelum disimpan ke database dengan format `iv:authTag:ciphertext` serta pembersihan otomatis (*retention purge*) 24 jam.
 * **💰 Pencatatan Keuangan Praktis:** Catat pemasukan/pengeluaran secara instan via chat, cek saldo real-time, dan hasilkan grafik visual bulanan.
 * **🛠 Utilitas Serbaguna (Swiss Army Knife):** Buat stiker WebP, hapus latar belakang foto, kompres/gabungkan PDF, serta pantau kesehatan server cloud VM Anda.
@@ -138,6 +140,14 @@ Asisten cerdas tingkat lanjut yang ditenagai oleh model bahasa besar (LLM) melal
 - Metadata penggunaan model di balasan (token usage dan label RPM).
 - Mendukung jawaban multi-bahasa dengan menyesuaikan bahasa input pengguna.
 - Mendukung alias perintah dwibahasa penuh dan respons output yang terlokalisasi di seluruh modul.
+
+### 🌐 Agen Cloud Browser (Browserbase Automation)
+Agen otomasi browser cloud mandiri yang dipanggil via command `/jelajah <url>` (ID) atau `/browse <url>` (EN):
+- **Eksekusi Remote di Cloud**: Berjalan di lingkungan container Browserbase yang terisolasi via Playwright CDP (`connectOverCDP`), tanpa memerlukan binary Chromium lokal di server VM Anda.
+- **Bypass Proteksi Anti-Bot & CAPTCHA**: Otomatis mengatasi proteksi Cloudflare/antibot (`solveCaptchas: true` dan `blockAds: true`) saat membuka situs dinamis yang kompleks.
+- **Tangkapan Layar Resolusi Tinggi**: Mengirimkan file gambar JPEG langsung ke obrolan WhatsApp atau Telegram Anda.
+- **Ekstraksi Cuplikan Teks**: Menampilkan ringkasan teks bersih langsung dari DOM halaman web tujuan.
+- **Inspeksi Sesi Langsung (Debugger)**: Menghasilkan link sesi live (`debuggerFullscreenUrl`) agar Anda dapat melihat rekaman interaksi web secara real-time.
 
 ### 📚 Research Tools
 Fitur riset referensi berbasis beberapa API publik (tanpa API key):
