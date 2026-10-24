@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "node tests/i18n.test.js && node tests/crypto.test.js && node -r dotenv/config tests/languageService.test.js && node -r dotenv/config tests/dispatcherAliases.test.js && node -r dotenv/config tests/chatBufferService.test.js && node -r dotenv/config tests/summarizeService.test.js"
+    "test": "node tests/i18n.test.js && node tests/crypto.test.js && node -r dotenv/config tests/languageService.test.js && node -r dotenv/config tests/dispatcherAliases.test.js && node -r dotenv/config tests/chatBufferService.test.js && node -r dotenv/config tests/summarizeService.test.js && node -r dotenv/config tests/elevenLabsService.test.js"
   },
   "keywords": [
     "bot",

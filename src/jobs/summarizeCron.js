@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const supabase = require('../lib/supabaseClient');
 const { generateGroupSummary } = require('../services/summarizeService');
 const { markMessagesAsSummarized, resolveMonitoredGroupIds } = require('../services/chatBufferService');
+const { extractSlothTldr, synthesizeSpeech } = require('../services/elevenLabsService');
 const { formatWhatsAppReply } = require('../handlers/adapters/waMediaAdapter');
 const { formatTelegramHtml, formatBodyBold } = require('../utils/textFormatter');
 const { t } = require('../utils/i18n');
@@ -100,6 +101,27 @@ function startSummarizeCron(getWaSocket, telegramBot = null) {
                 await sock.sendMessage(userId, { text: formattedReply });
                 deliverySuccess = true;
                 console.log(`[summarizeCron] WhatsApp briefing delivered to ${userId} for group ${groupId}.`);
+
+                // Send audio briefing if enabled (isolated try-catch to keep optional voice failure from aborting briefing tracking)
+                const isVoiceActive = Boolean(setting.voice_note_enabled);
+                if (isVoiceActive && process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY !== 'YOUR_ELEVENLABS_API_KEY') {
+                  try {
+                    const tldrText = extractSlothTldr(summaryResult.summaryText);
+                    if (tldrText) {
+                      const ttsResult = await synthesizeSpeech({ text: tldrText });
+                      if (ttsResult.success && ttsResult.audioBuffer) {
+                        await sock.sendMessage(userId, {
+                          audio: ttsResult.audioBuffer,
+                          mimetype: ttsResult.mimeType || 'audio/mpeg',
+                          ptt: false
+                        });
+                        console.log(`[summarizeCron] WhatsApp audio briefing delivered to ${userId}.`);
+                      }
+                    }
+                  } catch (voiceErr) {
+                    console.warn(`[summarizeCron] Optional WhatsApp audio delivery failed for ${userId}:`, voiceErr.message);
+                  }
+                }
               }
             } else if (platform === 'telegram' && telegramBot) {
               const chatId = Number(userId);
@@ -108,6 +130,23 @@ function startSummarizeCron(getWaSocket, telegramBot = null) {
                 await telegramBot.telegram.sendMessage(chatId, formattedHtml, { parse_mode: 'HTML' });
                 deliverySuccess = true;
                 console.log(`[summarizeCron] Telegram briefing delivered to ${chatId} for group ${groupId}.`);
+
+                // Send audio briefing if enabled (isolated try-catch to keep optional voice failure from aborting briefing tracking)
+                const isVoiceActive = Boolean(setting.voice_note_enabled);
+                if (isVoiceActive && process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_API_KEY !== 'YOUR_ELEVENLABS_API_KEY') {
+                  try {
+                    const tldrText = extractSlothTldr(summaryResult.summaryText);
+                    if (tldrText) {
+                      const ttsResult = await synthesizeSpeech({ text: tldrText });
+                      if (ttsResult.success && ttsResult.audioBuffer) {
+                        await telegramBot.telegram.sendVoice(chatId, { source: ttsResult.audioBuffer, filename: 'briefing.mp3' });
+                        console.log(`[summarizeCron] Telegram audio briefing (voice note) delivered to ${chatId}.`);
+                      }
+                    }
+                  } catch (voiceErr) {
+                    console.warn(`[summarizeCron] Optional Telegram audio delivery failed for ${chatId}:`, voiceErr.message);
+                  }
+                }
               }
             }
 

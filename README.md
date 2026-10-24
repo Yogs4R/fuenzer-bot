@@ -112,20 +112,22 @@ Strict zero-knowledge data privacy engineered for conversational security:
 - **Fail-Closed Security**: Ingestion strictly requires `ENCRYPTION_KEY`; if the key is missing, buffering safely halts to prevent persisting unencrypted data.
 - **Ephemeral 24-Hour Retention**: Group messages buffered for AI morning summaries are subject to an automated 24-hour grace period purge after processing, and inactive unsummarized messages expire after 7 days.
 
-### 🦥 Automated Morning Briefing & Chat Summarizer (Google Gemma)
+### 🦥 Automated Morning Briefing & Chat Summarizer (Google Gemma & ElevenLabs)
 Designed for the DEV Challenge Week 3 ("Slow and Steady"):
 - **Google Gemma 4 (`google/gemma-4-26b-a4b-it`)**: Reads through cluttered group conversations to eliminate the chore of manually catching up on hundreds of unread messages.
 - **Three-Part Structured Sloth Briefing**:
   1. 🦥 **Sloth TL;DR**: 2–3 sentence executive summary of core discussions and group sentiment.
   2. 🎯 **Key Action Items & Mentions**: Concise bullet points of tasks, decisions, deadlines, and questions.
   3. 📊 **Chatter & Noise Statistics**: Volume assessment and signal-to-noise ratio.
+- **🎙️ ElevenLabs Native Audio Briefing**: Automatically synthesizes the Sloth TL;DR executive summary into a calm, soothing voice note (default: Rachel `21m00Tcm4TlvDq8ikWAM`) and sends it directly as a native voice message (WhatsApp PTT waveform / Telegram Voice Note) alongside the text briefing.
 - **Automated Morning Delivery**: Dispatches a private morning briefing at a scheduled time (default `08:00`) directly to your DM via WhatsApp or Telegram.
 - **Full Bilingual Command Interface**:
   - `/summarize on` / `/ringkas on` : Activate automated morning briefing.
   - `/summarize off` / `/ringkas off` : Deactivate daily briefing.
   - `/summarize schedule <HH:mm>` / `/ringkas jadwal <HH:mm>` : Customize delivery time (e.g. `/summarize schedule 07:30`).
+  - `/summarize voice [on|off]` / `/ringkas voice [on|off]` : Toggle ElevenLabs audio voice note attachments.
   - `/summarize now` / `/ringkas sekarang` : Instantly summarize the current buffer directly in the chat.
-  - `/summarize status` / `/ringkas status` : Check active schedule, buffer count, and AI model.
+  - `/summarize status` / `/ringkas status` : Check active schedule, voice note status, buffer count, and AI model.
 
 ### 🤖 AI Assistant
 Advanced smart assistant powered by large language models (LLM) via OpenRouter API integration. Ready to answer technical questions, discussions, and coding.
@@ -214,7 +216,7 @@ Simple ticketing system to receive user questions and feedback:
 | `/translate` | Translate text or replied message to a target language | aiClient, OpenRouter | `/translate id Hello world` |
 | `/model_info` | Show available AI models and aliases | OpenRouter, aiPreferenceService | `/model_info` |
 | `/switch` | Switch active AI model per user | OpenRouter, aiPreferenceService | `/switch gemma4` |
-| `/summarize` | AI group chat summarizer & morning briefing (`on`, `off`, `schedule <HH:mm>`, `now`, `status`) | summarizeService, OpenRouter Gemma, node-cron | `/summarize on`, `/summarize now` |
+| `/summarize` | AI group chat summarizer & morning briefing (`on`, `off`, `schedule <HH:mm>`, `voice on\|off`, `now`, `status`) | summarizeService, OpenRouter Gemma, ElevenLabs, node-cron | `/summarize on`, `/summarize voice on`, `/summarize now` |
 | `/help` | Show help center and Customer Service menu | csService | `/help` |
 | `/feedback` | Send feedback (saved to Google Sheets) | csService, GAS | `/feedback great bot` |
 | `/ask` | Send question to admin via CS | csService, GAS | `/ask how to donate?` |
@@ -248,7 +250,7 @@ Simple ticketing system to receive user questions and feedback:
 | `/artikel`, `/paper` | `/article`, `/paper` | Cari artikel ilmiah | `/artikel healthcare` |
 | `/terjemah`, `/terjemahkan` | `/translate` | Terjemahkan teks | `/terjemah en Selamat pagi` |
 | `/model`, `/models` | `/model_info` | Daftar model AI yang tersedia | `/model` |
-| `/ringkas` | `/summarize` | Ringkas chat grup & briefing pagi otomatis | `/ringkas on`, `/ringkas sekarang`, `/ringkas jadwal 07:30` |
+| `/ringkas` | `/summarize` | Ringkas chat grup & briefing pagi otomatis | `/ringkas on`, `/ringkas sekarang`, `/ringkas jadwal 07:30`, `/ringkas voice on` |
 | `/bantuan` | `/help` | Bantuan & CS | `/bantuan` |
 | `/saran` | `/feedback` | Kirim feedback ke Google Sheets | `/saran bot mantap` |
 | `/unduh` | `/download` | Unduh media sosial | `/unduh https://...` |
@@ -300,6 +302,7 @@ The `.env` file contains all essential configuration strings. Copy `.env.example
 - **Telegram**: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` (From BotFather), and `TELEGRAM_SESSION_DIR` (Session folder).
 - **Database (Supabase)**: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (Anon public key), `SUPABASE_SECRET_KEY` (Service role to bypass RLS for admin).
 - **AI APIs**: `GEMINI_API_KEY` or `OPENROUTER_API_KEY` (with optional `GEMMA_MODEL` for default summarizer model, default: `google/gemma-4-26b-a4b-it`).
+- **Audio & Speech (ElevenLabs)**: `ELEVENLABS_API_KEY` for text-to-speech voice note synthesis, with optional `ELEVENLABS_VOICE_ID` (default: Rachel `21m00Tcm4TlvDq8ikWAM`) and `ELEVENLABS_MODEL_ID` (default: `eleven_multilingual_v2`).
 - **Other APIs**: `OPENWEATHER_API_KEY` for weather features, `REMOVEBG_API_KEY`, `CLOUDCONVERT_API_KEY`, *HCTI* (web screenshots), and `GAS_WEBAPP_URL` for Google Sheets feedback service.
 - **Security & Data Privacy (AES-256-GCM)**: `ENCRYPTION_KEY` (32-byte secret key used to encrypt group chats at rest). Generate a secure 64-character hex key (32 bytes) by running:
   ```bash

@@ -193,6 +193,14 @@ function setupTelegramBot() {
                     await updateStatusAnswered(args[0]);
                 }
 
+                if (typeof dispatched === 'object' && dispatched?.audio) {
+                    if (dispatched.message) {
+                        await sendTelegramReply(ctx, dispatched.message);
+                    }
+                    await ctx.replyWithVoice({ source: dispatched.audio });
+                    return;
+                }
+
                 if (command === '/admin' && isAdmin(userId, 'telegram')) {
                     await sendTelegramReply(ctx, dispatched, buildAdminMenuKeyboard());
                 } else if ((command === '/monitor' || command === '/me' || command === '/about') && !dispatched.includes('AKSES DITOLAK')) {

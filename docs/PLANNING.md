@@ -201,9 +201,9 @@ Command modules in `src/commands/` support simultaneous English and Indonesian t
 - [x] **Phase 3: Summarizer Service with Gemma & Cron**
   - [x] Implement `summarizeService.js` calling Gemma API with structured prompts (decrypting buffer on read).
   - [x] Setup automated daily execution and 24-hour purge cron using `node-cron`.
-- [ ] **Phase 4: ElevenLabs Audio Briefing**
-  - Connect ElevenLabs TTS to synthesize the executive summary.
-  - Send voice notes natively to WhatsApp & Telegram.
+- [x] **Phase 4: ElevenLabs Audio Briefing**
+  - [x] Connect ElevenLabs TTS to synthesize the executive summary.
+  - [x] Send voice notes natively to WhatsApp & Telegram.
 - [ ] **Phase 5: AI Agent Harness (Natural Language Tool Calling)**
   - Implement `aiHarnessService.js` with tool definitions for finance, reminders, and weather.
   - Connect conversational prompt pipeline to allow conversational command execution with friendly replies.
