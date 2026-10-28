@@ -57,7 +57,14 @@ function createTtlCache(ttlMs = 3600000, maxEntries = 1000) {
 
 const msgRetryCounterCache = createTtlCache(60 * 60 * 1000, 2000);
 const sentMessagesCache = createTtlCache(60 * 60 * 1000, 500);
-const sessionPurgeCooldown = createTtlCache(15 * 1000, 500);
+// Cooldown 60 detik agar proses negosiasi ulang PreKey oleh Baileys tidak terputus di tengah jalan
+const sessionPurgeCooldown = createTtlCache(60 * 1000, 500);
+
+const CORRUPTED_SESSION_ERROR_PATTERN = /bad mac|no matching sessions|invalid prekey|missing signedprekey/i;
+
+function isCorruptedSessionError(reason = '') {
+    return CORRUPTED_SESSION_ERROR_PATTERN.test(String(reason || ''));
+}
 
 function destroyWhatsAppSocket(sock) {
     if (!sock) return;
@@ -80,7 +87,13 @@ function destroyWhatsAppSocket(sock) {
     }
 }
 
-async function purgeCorruptedSignalSession(sock, msg) {
+async function purgeCorruptedSignalSession(sock, msg, reason = '') {
+    // Jangan pernah menghapus sesi jika alasan gagalnya adalah "No session record"
+    // karena Baileys sedang melakukan handshake PreKey baru untuk membuat sesi tersebut.
+    if (reason && !isCorruptedSessionError(reason)) {
+        return false;
+    }
+
     const authKeys = sock?.authState?.keys;
     if (!authKeys || typeof authKeys.set !== 'function' || !msg?.key) {
         return false;
@@ -132,7 +145,7 @@ async function purgeCorruptedSignalSession(sock, msg) {
             payload['sender-key'] = senderKeyUpdates;
         }
         await authKeys.set(payload);
-        console.warn(`[waClient] Purged corrupted Signal session(s) for recovery: ${sessionAddrs.join(', ')}`);
+        console.log(`[waClient] Purged corrupted Signal session(s) for recovery (${reason || 'corrupted'}): ${sessionAddrs.join(', ')}`);
         return true;
     } catch (err) {
         console.error('[waClient] Failed to purge corrupted Signal session:', err.message);
@@ -175,9 +188,9 @@ async function connectToWhatsApp() {
         browser: Browsers.windows('Chrome'),
         // Versi Baileys terbaru
         version,
-        // Tambahkan opsi untuk handle connection issues
-        retryRequestDelayMs: 1500,
-        maxMsgRetryCount: 3,
+        // Percepat retry receipt agar antrean pesan tidak tertahan lama
+        retryRequestDelayMs: 300,
+        maxMsgRetryCount: 5,
         maxRetries: 3,
         // Tambahkan options untuk QR
         qrTimeout: 60000,
@@ -312,5 +325,6 @@ module.exports = {
     connectToWhatsApp,
     destroyWhatsAppSocket,
     purgeCorruptedSignalSession,
+    isCorruptedSessionError,
     createTtlCache
 };

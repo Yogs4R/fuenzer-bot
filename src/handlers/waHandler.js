@@ -19,7 +19,7 @@ const {
 const { getUserLanguage } = require('../services/languageService');
 const { t } = require('../utils/i18n');
 const { enqueueMessage } = require('../services/chatBufferService');
-const { purgeCorruptedSignalSession } = require('../lib/waClient');
+const { purgeCorruptedSignalSession, isCorruptedSessionError } = require('../lib/waClient');
 
 function normalizeWhatsAppId(value) {
   return String(value || '')
@@ -106,13 +106,13 @@ class WhatsAppHandler {
       for (const msg of messages) {
         if (!msg) continue;
 
-        // Auto-recovery apabila pesan gagal didekripsi karena Bad MAC / sesi Signal tidak sinkron
+        // Auto-recovery HANYA apabila sesi Signal yang sudah ada mengalami kerusakan kriptografi (Bad MAC / No matching sessions).
+        // Untuk "No session record", biarkan Baileys menyelesaikan handshake retry PreKey tanpa menghapus sesi yang baru terbentuk.
         if (msg.messageStubType === WAMessageStubType.CIPHERTEXT || msg.messageStubType === 2) {
           const stubReason = String(msg.messageStubParameters?.[0] || 'CIPHERTEXT');
-          console.warn(
-            `[waHandler] Pesan gagal didekripsi dari ${msg.key?.remoteJid || 'unknown'} (${stubReason}). Mereset sesi Signal yang korup...`
-          );
-          await purgeCorruptedSignalSession(this.sock, msg);
+          if (isCorruptedSessionError(stubReason)) {
+            await purgeCorruptedSignalSession(this.sock, msg, stubReason);
+          }
           continue;
         }
 
