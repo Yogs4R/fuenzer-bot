@@ -1,4 +1,4 @@
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { downloadMediaMessage, WAMessageStubType } = require('@whiskeysockets/baileys');
 const { dispatchCommand, updateStatusAnswered } = require('../commands/index');
 const { processAiChat, formatAiError } = require('../commands/ai/index');
 const { buildMultimodalPayload } = require('../utils/aiMediaHelper');
@@ -19,6 +19,7 @@ const {
 const { getUserLanguage } = require('../services/languageService');
 const { t } = require('../utils/i18n');
 const { enqueueMessage } = require('../services/chatBufferService');
+const { purgeCorruptedSignalSession } = require('../lib/waClient');
 
 function normalizeWhatsAppId(value) {
   return String(value || '')
@@ -76,256 +77,294 @@ function cleanMentionFromGroupText(text, mentionIds = []) {
 class WhatsAppHandler {
   constructor(sock) {
     this.sock = sock;
+    this.chatLocks = new Map();
     this.setup();
+  }
+
+  runWithChatLock(chatKey, task) {
+    const key = String(chatKey || 'default');
+    const previous = this.chatLocks.get(key) || Promise.resolve();
+    const next = previous
+      .then(() => task())
+      .catch((err) => {
+        console.error(`[waHandler] Error processing message for ${key}:`, err);
+      })
+      .finally(() => {
+        if (this.chatLocks.get(key) === next) {
+          this.chatLocks.delete(key);
+        }
+      });
+    this.chatLocks.set(key, next);
+    return next;
   }
 
   setup() {
     this.sock.ev.on('messages.upsert', async (m) => {
-      if (m.type !== 'notify') return;
+      const messages = Array.isArray(m?.messages) ? m.messages : [];
+      if (messages.length === 0) return;
 
-      const msg = m.messages[0];
-      if (!msg.message || msg.key.fromMe) return;
+      for (const msg of messages) {
+        if (!msg) continue;
 
-      const isGroup = msg.key.remoteJid.endsWith('@g.us');
-      const userId = isGroup
-        ? (msg.key.participant || msg.participant || msg.key.remoteJid)
-        : msg.key.remoteJid;
-      const botJid = this.sock.user?.id || '';
-      const botNumber = normalizeWhatsAppId(botJid);
-      let text = '';
-
-      if (msg.message?.conversation) {
-        text = msg.message.conversation;
-      } else if (msg.message?.extendedTextMessage?.text) {
-        text = msg.message.extendedTextMessage.text;
-      } else if (msg.message?.imageMessage?.caption) {
-        text = msg.message.imageMessage.caption;
-      } else if (msg.message?.documentMessage?.caption) {
-        text = msg.message.documentMessage.caption;
-      } else if (msg.message?.videoMessage?.caption) {
-        text = msg.message.videoMessage.caption;
-      } else if (msg.message?.buttonsResponseMessage?.selectedButtonId) {
-        text = msg.message.buttonsResponseMessage.selectedButtonId;
-      } else if (msg.message?.templateButtonReplyMessage?.selectedId) {
-        text = msg.message.templateButtonReplyMessage.selectedId;
-      }
-
-      const contextInfo = getMessageContextInfo(msg);
-      const mentionedJids = contextInfo?.mentionedJid || [];
-      const botLid = normalizeWhatsAppId(process.env.BOT_WA_LID);
-      const incomingDocumentMsg = msg.message?.documentMessage;
-      const hasPdfDocument = isWhatsAppPdfDocument(incomingDocumentMsg);
-      const hasActiveMergeSession = pdfMergeSessionManager.hasSession(userId);
-      const isBotMentioned = mentionedJids.some((jid) => {
-        const normalizedJid = normalizeWhatsAppId(jid);
-        return normalizedJid === botNumber || normalizedJid === botLid;
-      });
-      const isReplyToBot = normalizeWhatsAppId(contextInfo?.participant) === botNumber;
-
-      if (isGroup && !isBotMentioned && !isReplyToBot && !(hasActiveMergeSession && hasPdfDocument)) {
-        const trimmedText = String(text || '').trim();
-        if (trimmedText && !trimmedText.startsWith('/')) {
-          enqueueMessage({
-            platform: 'whatsapp',
-            chatId: msg.key.remoteJid,
-            senderName: msg.pushName || '',
-            messageText: trimmedText
-          }).catch((err) => {
-            console.warn(`[waHandler] Buffer enqueue error: ${err.message}`);
-          });
-        }
-        return;
-      }
-
-      let cleanText = text.trim();
-      if (isGroup && isBotMentioned) {
-        cleanText = cleanMentionFromGroupText(cleanText, [botNumber, botLid, ...mentionedJids]);
-      }
-
-      if (isGroup && !cleanText && !(hasActiveMergeSession && hasPdfDocument)) {
-        return;
-      }
-
-      let replyText = '';
-
-      // PDF merge interactive session inbound receiver
-      if (hasPdfDocument && hasActiveMergeSession) {
-        await handleWhatsAppPdfMergeUpload(this.sock, msg, incomingDocumentMsg, userId);
-        return;
-      }
-
-      if (cleanText.startsWith('/')) {
-        const parts = cleanText.split(' ');
-        const command = parts[0].toLowerCase();
-        const args = parts.slice(1);
-
-        const realId = resolveWhatsAppSenderJid(msg, userId);
-        const lang = await getUserLanguage(realId || userId, 'whatsapp');
-
-        if (command && realId) {
-          await logCommand(realId, 'whatsapp', command);
+        // Auto-recovery apabila pesan gagal didekripsi karena Bad MAC / sesi Signal tidak sinkron
+        if (msg.messageStubType === WAMessageStubType.CIPHERTEXT || msg.messageStubType === 2) {
+          const stubReason = String(msg.messageStubParameters?.[0] || 'CIPHERTEXT');
+          console.warn(
+            `[waHandler] Pesan gagal didekripsi dari ${msg.key?.remoteJid || 'unknown'} (${stubReason}). Mereset sesi Signal yang korup...`
+          );
+          await purgeCorruptedSignalSession(this.sock, msg);
+          continue;
         }
 
-        const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-        const quotedText = quotedMsg ? (
-          quotedMsg.conversation ||
-          quotedMsg.extendedTextMessage?.text ||
-          quotedMsg.imageMessage?.caption ||
-          quotedMsg.videoMessage?.caption ||
-          ''
-        ) : '';
+        if (m.type !== 'notify') continue;
+        if (!msg.message || msg.key?.fromMe) continue;
 
-        const dispatched = await dispatchCommand(command, args, realId, 'whatsapp', {
-          lang,
+        const chatKey = msg.key?.remoteJid || 'default';
+        await this.runWithChatLock(chatKey, () => this.handleSingleMessage(msg));
+      }
+    });
+  }
+
+  async handleSingleMessage(msg) {
+    const isGroup = msg.key.remoteJid.endsWith('@g.us');
+    const userId = isGroup
+      ? (msg.key.participant || msg.participant || msg.key.remoteJid)
+      : msg.key.remoteJid;
+    const botJid = this.sock.user?.id || '';
+    const botNumber = normalizeWhatsAppId(botJid);
+    let text = '';
+
+    if (msg.message?.conversation) {
+      text = msg.message.conversation;
+    } else if (msg.message?.extendedTextMessage?.text) {
+      text = msg.message.extendedTextMessage.text;
+    } else if (msg.message?.imageMessage?.caption) {
+      text = msg.message.imageMessage.caption;
+    } else if (msg.message?.documentMessage?.caption) {
+      text = msg.message.documentMessage.caption;
+    } else if (msg.message?.videoMessage?.caption) {
+      text = msg.message.videoMessage.caption;
+    } else if (msg.message?.buttonsResponseMessage?.selectedButtonId) {
+      text = msg.message.buttonsResponseMessage.selectedButtonId;
+    } else if (msg.message?.templateButtonReplyMessage?.selectedId) {
+      text = msg.message.templateButtonReplyMessage.selectedId;
+    }
+
+    const contextInfo = getMessageContextInfo(msg);
+    const mentionedJids = contextInfo?.mentionedJid || [];
+    const botLid = normalizeWhatsAppId(process.env.BOT_WA_LID);
+    const incomingDocumentMsg = msg.message?.documentMessage;
+    const hasPdfDocument = isWhatsAppPdfDocument(incomingDocumentMsg);
+    const hasActiveMergeSession = pdfMergeSessionManager.hasSession(userId);
+    const isBotMentioned = mentionedJids.some((jid) => {
+      const normalizedJid = normalizeWhatsAppId(jid);
+      return normalizedJid === botNumber || normalizedJid === botLid;
+    });
+    const isReplyToBot = normalizeWhatsAppId(contextInfo?.participant) === botNumber;
+
+    if (isGroup && !isBotMentioned && !isReplyToBot && !(hasActiveMergeSession && hasPdfDocument)) {
+      const trimmedText = String(text || '').trim();
+      if (trimmedText && !trimmedText.startsWith('/')) {
+        enqueueMessage({
+          platform: 'whatsapp',
           chatId: msg.key.remoteJid,
-          quotedText,
-          notifyAdmin: async (textToAdmin) => {
-            await this.sock.sendMessage(
-              msg.key.remoteJid,
-              { text: formatWhatsAppReply(String(textToAdmin || '')) },
-              { quoted: msg }
-            );
-          },
-          sendToUser: async (targetId, textToSend) => {
-            const targetJid = toWhatsAppJid(targetId);
-            if (!targetJid) throw new Error('Invalid WhatsApp target');
-            await this.sock.sendMessage(targetJid, { text: String(textToSend || '') });
-          }
+          senderName: msg.pushName || '',
+          messageText: trimmedText
+        }).catch((err) => {
+          console.warn(`[waHandler] Buffer enqueue error: ${err.message}`);
         });
+      }
+      return;
+    }
 
-        if (dispatched !== null) {
-          if (command === '/answer' && args[0]) {
-            await updateStatusAnswered(args[0]);
-          }
+    let cleanText = text.trim();
+    if (isGroup && isBotMentioned) {
+      cleanText = cleanMentionFromGroupText(cleanText, [botNumber, botLid, ...mentionedJids]);
+    }
 
-          if (typeof dispatched === 'object' && (dispatched?.type === 'image' || dispatched?.image)) {
-            const imagePayload = dispatched.image ? dispatched.image : { url: dispatched.url };
+    if (isGroup && !cleanText && !(hasActiveMergeSession && hasPdfDocument)) {
+      return;
+    }
+
+    let replyText = '';
+
+    // PDF merge interactive session inbound receiver
+    if (hasPdfDocument && hasActiveMergeSession) {
+      await handleWhatsAppPdfMergeUpload(this.sock, msg, incomingDocumentMsg, userId);
+      return;
+    }
+
+    if (cleanText.startsWith('/')) {
+      const parts = cleanText.split(' ');
+      const command = parts[0].toLowerCase();
+      const args = parts.slice(1);
+
+      const realId = resolveWhatsAppSenderJid(msg, userId);
+      const lang = await getUserLanguage(realId || userId, 'whatsapp');
+
+      if (command && realId) {
+        await logCommand(realId, 'whatsapp', command);
+      }
+
+      const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+      const quotedText = quotedMsg ? (
+        quotedMsg.conversation ||
+        quotedMsg.extendedTextMessage?.text ||
+        quotedMsg.imageMessage?.caption ||
+        quotedMsg.videoMessage?.caption ||
+        ''
+      ) : '';
+
+      const dispatched = await dispatchCommand(command, args, realId, 'whatsapp', {
+        lang,
+        chatId: msg.key.remoteJid,
+        quotedText,
+        notifyAdmin: async (textToAdmin) => {
+          await this.sock.sendMessage(
+            msg.key.remoteJid,
+            { text: formatWhatsAppReply(String(textToAdmin || '')) },
+            { quoted: msg }
+          );
+        },
+        sendToUser: async (targetId, textToSend) => {
+          const targetJid = toWhatsAppJid(targetId);
+          if (!targetJid) throw new Error('Invalid WhatsApp target');
+          await this.sock.sendMessage(targetJid, { text: String(textToSend || '') });
+        }
+      });
+
+      if (dispatched !== null) {
+        if (command === '/answer' && args[0]) {
+          await updateStatusAnswered(args[0]);
+        }
+
+        if (typeof dispatched === 'object' && (dispatched?.type === 'image' || dispatched?.image)) {
+          const imagePayload = dispatched.image ? dispatched.image : { url: dispatched.url };
+          await this.sock.sendMessage(
+            msg.key.remoteJid,
+            {
+              image: imagePayload,
+              caption: formatWhatsAppReply(dispatched.caption || '')
+            },
+            { quoted: msg }
+          );
+          return;
+        }
+
+        if (typeof dispatched === 'object' && dispatched?.audio) {
+          try {
+            if (dispatched.message) {
+              await this.sock.sendMessage(
+                msg.key.remoteJid,
+                { text: formatWhatsAppReply(dispatched.message) },
+                { quoted: msg }
+              );
+            }
+            console.log(`[waHandler] Sending audio (${dispatched.audio?.length} bytes) to ${msg.key.remoteJid}...`);
             await this.sock.sendMessage(
               msg.key.remoteJid,
               {
-                image: imagePayload,
-                caption: formatWhatsAppReply(dispatched.caption || '')
+                audio: dispatched.audio,
+                mimetype: dispatched.mimetype || 'audio/mpeg',
+                ptt: Boolean(dispatched.ptt),
+                seconds: dispatched.seconds || Math.max(1, Math.round((dispatched.audio?.length || 0) / 16000))
               },
               { quoted: msg }
             );
-            return;
+            console.log(`[waHandler] Audio sent successfully to ${msg.key.remoteJid}.`);
+          } catch (audioSendErr) {
+            console.error(`[waHandler] Failed to send audio to ${msg.key.remoteJid}:`, audioSendErr);
           }
-
-          if (typeof dispatched === 'object' && dispatched?.audio) {
-            try {
-              if (dispatched.message) {
-                await this.sock.sendMessage(
-                  msg.key.remoteJid,
-                  { text: formatWhatsAppReply(dispatched.message) },
-                  { quoted: msg }
-                );
-              }
-              console.log(`[waHandler] Sending audio (${dispatched.audio?.length} bytes) to ${msg.key.remoteJid}...`);
-              await this.sock.sendMessage(
-                msg.key.remoteJid,
-                {
-                  audio: dispatched.audio,
-                  mimetype: dispatched.mimetype || 'audio/mpeg',
-                  ptt: Boolean(dispatched.ptt),
-                  seconds: dispatched.seconds || Math.max(1, Math.round((dispatched.audio?.length || 0) / 16000))
-                },
-                { quoted: msg }
-              );
-              console.log(`[waHandler] Audio sent successfully to ${msg.key.remoteJid}.`);
-            } catch (audioSendErr) {
-              console.error(`[waHandler] Failed to send audio to ${msg.key.remoteJid}:`, audioSendErr);
-            }
-            return;
-          }
-
-          replyText = typeof dispatched === 'string' ? dispatched : (dispatched.message || '');
-        } else {
-          switch (command) {
-            case '/img':
-              replyText = await handleWhatsAppImageConverter(this.sock, msg, args);
-              break;
-
-            case '/sticker':
-            case '/tosticker':
-              replyText = await handleWhatsAppSticker(this.sock, msg, contextInfo);
-              break;
-
-            case '/removebg':
-            case '/hapusbg':
-              replyText = await handleWhatsAppRemoveBg(this.sock, msg);
-              break;
-
-            case '/screenshot':
-            case '/ss':
-              replyText = await handleWhatsAppScreenshot(this.sock, msg, args);
-              break;
-
-            case '/topdf':
-            case '/pdf':
-              replyText = await handleWhatsAppPdf(this.sock, msg, command, args, userId);
-              break;
-
-            case '/download':
-            case '/audio':
-              replyText = await handleWhatsAppDownloader(this.sock, msg, command, args);
-              break;
-
-            default: {
-              const defaultHeader = t('common.unknown_command_header', {}, lang);
-              const defaultBody = t('common.unknown_command_body', { command }, lang);
-              replyText = `${defaultHeader}\n\n${defaultBody}`;
-            }
-          }
+          return;
         }
+
+        replyText = typeof dispatched === 'string' ? dispatched : (dispatched.message || '');
       } else {
-        const isImage = !!msg.message?.imageMessage;
-        const isDoc = !!msg.message?.documentMessage;
-        const hasMedia = isImage || isDoc;
+        switch (command) {
+          case '/img':
+            replyText = await handleWhatsAppImageConverter(this.sock, msg, args);
+            break;
 
-        const realId = resolveWhatsAppSenderJid(msg, userId);
-        const lang = await getUserLanguage(realId || userId, 'whatsapp');
+          case '/sticker':
+          case '/tosticker':
+            replyText = await handleWhatsAppSticker(this.sock, msg, contextInfo);
+            break;
 
-        if (cleanText.length <= 2 && !hasMedia) {
-          const shortHeader = t('common.too_short_header', {}, lang);
-          const shortBody = t('common.too_short_body', {}, lang);
-          replyText = `${shortHeader}\n\n${shortBody}`;
-        } else {
-          try {
-            const realId = resolveWhatsAppSenderJid(msg, userId);
-            let aiPayload = cleanText;
+          case '/removebg':
+          case '/hapusbg':
+            replyText = await handleWhatsAppRemoveBg(this.sock, msg);
+            break;
 
-            if (hasMedia) {
-              const fileLength = msg.message?.imageMessage?.fileLength || 
-                                 msg.message?.documentMessage?.fileLength;
-              const fileSizeBytes = Number(fileLength) || 0;
-              const buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: this.sock.updateMediaMessage });
-              const docMsg = msg.message?.documentMessage;
-              aiPayload = buildMultimodalPayload({
-                isImage,
-                isDoc,
-                fileSizeBytes,
-                buffer,
-                mimeType: isImage ? (msg.message.imageMessage?.mimetype || 'image/jpeg') : (docMsg?.mimetype || ''),
-                fileName: docMsg?.fileName || '',
-                cleanText
-              });
-            }
+          case '/screenshot':
+          case '/ss':
+            replyText = await handleWhatsAppScreenshot(this.sock, msg, args);
+            break;
 
-            const chatResult = await processAiChat(aiPayload, realId || userId, 'whatsapp', { realId });
-            replyText = chatResult.fullText;
-          } catch (error) {
-            console.error('Error saat memproses AI di WhatsApp:', error);
-            replyText = formatAiError(error, 'whatsapp');
+          case '/topdf':
+          case '/pdf':
+            replyText = await handleWhatsAppPdf(this.sock, msg, command, args, userId);
+            break;
+
+          case '/download':
+          case '/audio':
+            replyText = await handleWhatsAppDownloader(this.sock, msg, command, args);
+            break;
+
+          default: {
+            const defaultHeader = t('common.unknown_command_header', {}, lang);
+            const defaultBody = t('common.unknown_command_body', { command }, lang);
+            replyText = `${defaultHeader}\n\n${defaultBody}`;
           }
         }
       }
+    } else {
+      const isImage = !!msg.message?.imageMessage;
+      const isDoc = !!msg.message?.documentMessage;
+      const hasMedia = isImage || isDoc;
 
-      if (replyText) {
-        await this.sock.sendMessage(msg.key.remoteJid, {
-          text: formatWhatsAppReply(replyText)
-        });
+      const realId = resolveWhatsAppSenderJid(msg, userId);
+      const lang = await getUserLanguage(realId || userId, 'whatsapp');
+
+      if (cleanText.length <= 2 && !hasMedia) {
+        const shortHeader = t('common.too_short_header', {}, lang);
+        const shortBody = t('common.too_short_body', {}, lang);
+        replyText = `${shortHeader}\n\n${shortBody}`;
+      } else {
+        try {
+          const realId = resolveWhatsAppSenderJid(msg, userId);
+          let aiPayload = cleanText;
+
+          if (hasMedia) {
+            const fileLength = msg.message?.imageMessage?.fileLength || 
+                               msg.message?.documentMessage?.fileLength;
+            const fileSizeBytes = Number(fileLength) || 0;
+            const buffer = await downloadMediaMessage(msg, 'buffer', {}, { reuploadRequest: this.sock.updateMediaMessage });
+            const docMsg = msg.message?.documentMessage;
+            aiPayload = buildMultimodalPayload({
+              isImage,
+              isDoc,
+              fileSizeBytes,
+              buffer,
+              mimeType: isImage ? (msg.message.imageMessage?.mimetype || 'image/jpeg') : (docMsg?.mimetype || ''),
+              fileName: docMsg?.fileName || '',
+              cleanText
+            });
+          }
+
+          const chatResult = await processAiChat(aiPayload, realId || userId, 'whatsapp', { realId });
+          replyText = chatResult.fullText;
+        } catch (error) {
+          console.error('Error saat memproses AI di WhatsApp:', error);
+          replyText = formatAiError(error, 'whatsapp');
+        }
       }
-    });
+    }
+
+    if (replyText) {
+      await this.sock.sendMessage(msg.key.remoteJid, {
+        text: formatWhatsAppReply(replyText)
+      });
+    }
   }
 }
 

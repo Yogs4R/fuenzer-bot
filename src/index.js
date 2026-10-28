@@ -10,8 +10,9 @@ if (!process.env.OPENROUTER_API_KEY) {
     console.log('✅ OPENROUTER_API_KEY ditemukan dan siap digunakan.');
 }
 
+const { DisconnectReason } = require('@whiskeysockets/baileys');
 const settings = require('./config/settings');
-const { connectToWhatsApp } = require('./lib/waClient');
+const { connectToWhatsApp, destroyWhatsAppSocket } = require('./lib/waClient');
 const WhatsAppHandler = require('./handlers/waHandler');
 const { setupTelegramBot } = require('./handlers/teleHandler');
 const telegramBot = require('./lib/telegramClient');
@@ -26,51 +27,108 @@ const { setupSlackBot } = require('./handlers/slackHandler');
 
 console.log(`Starting ${settings.app.name} v${settings.app.version} in ${settings.app.env} mode`);
 
-// Variabel untuk menyimpan instance WhatsApp
+// Variabel untuk menyimpan instance WhatsApp & menjaga single-flight connection
 let waSocket = null;
 let waHandler = null;
+let isWaConnecting = false;
+let waReconnectTimer = null;
+let isShuttingDown = false;
 let monitorCronTask = null;
 let bufferCleanupCronTask = null;
 let summarizeCronTask = null;
 
-// Fungsi untuk memulai WhatsApp bot
+function scheduleWhatsAppReconnect(delayMs) {
+    if (isShuttingDown) return;
+    if (waReconnectTimer) {
+        clearTimeout(waReconnectTimer);
+        waReconnectTimer = null;
+    }
+    console.log(`Mencoba menghubungkan kembali dalam ${Math.round(delayMs / 1000)} detik...`);
+    waReconnectTimer = setTimeout(() => {
+        waReconnectTimer = null;
+        startWhatsAppBot();
+    }, delayMs);
+}
+
+// Fungsi untuk memulai WhatsApp bot dengan proteksi race condition (single-flight)
 async function startWhatsAppBot() {
+    if (isShuttingDown) return;
+    if (isWaConnecting) {
+        console.log('[WhatsApp] Proses koneksi sedang berjalan, melewati pemanggilan duplikat.');
+        return;
+    }
+
+    if (waReconnectTimer) {
+        clearTimeout(waReconnectTimer);
+        waReconnectTimer = null;
+    }
+
+    isWaConnecting = true;
+
     try {
+        if (waSocket) {
+            destroyWhatsAppSocket(waSocket);
+            waSocket = null;
+            waHandler = null;
+        }
+
         console.log('Menghubungkan ke WhatsApp...');
-        waSocket = await connectToWhatsApp();
-        
+        const currentSocket = await connectToWhatsApp();
+        waSocket = currentSocket;
+
         // Inisialisasi WhatsApp handler hanya setelah koneksi benar-benar terbuka
-        waHandler = new WhatsAppHandler(waSocket);
+        waHandler = new WhatsAppHandler(currentSocket);
         console.log('WhatsApp handler berhasil diinisialisasi');
-        
+
         console.log('Bot berhasil terhubung dan siap menerima pesan!');
-        
-        // Tambahkan event listener untuk menangani error koneksi
-        waSocket.ev.on('connection.update', (update) => {
+
+        // Tambahkan event listener tunggal untuk menangani putusnya koneksi saat runtime
+        currentSocket.ev.on('connection.update', (update) => {
             if (update.connection === 'close') {
-                console.log('Koneksi terputus dari dalam handler. Mencoba ulang...');
-                // Restart bot
-                setTimeout(() => {
-                    startWhatsAppBot();
-                }, 10000);
+                const statusCode = update.lastDisconnect?.error?.output?.statusCode;
+                const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+
+                destroyWhatsAppSocket(currentSocket);
+                if (waSocket === currentSocket) {
+                    waSocket = null;
+                    waHandler = null;
+                }
+
+                if (isLoggedOut) {
+                    console.error('Koneksi WhatsApp logout. Silakan hapus sesi lama dan scan QR code ulang.');
+                    return;
+                }
+
+                if (!isShuttingDown) {
+                    console.log('Koneksi terputus dari dalam handler. Mencoba ulang...');
+                    scheduleWhatsAppReconnect(10000);
+                }
             }
         });
-        
     } catch (error) {
         console.error('Gagal memulai WhatsApp bot:', error.message);
+        if (error?.isLoggedOut || error?.message === 'Logged out') {
+            console.error('WhatsApp membutuhkan autentikasi ulang (QR code). Tidak melakukan auto-reconnect.');
+            return;
+        }
         // Coba ulang setelah waktu yang bervariasi
         const retryDelay = Math.floor(Math.random() * 10000) + 10000; // 10-20 detik
-        console.log(`Mencoba menghubungkan kembali dalam ${retryDelay/1000} detik...`);
-        setTimeout(() => {
-            startWhatsAppBot();
-        }, retryDelay);
+        scheduleWhatsAppReconnect(retryDelay);
+    } finally {
+        isWaConnecting = false;
     }
 }
 
 // Fungsi untuk menghentikan WhatsApp bot
 function stopWhatsAppBot() {
+    isShuttingDown = true;
+    if (waReconnectTimer) {
+        clearTimeout(waReconnectTimer);
+        waReconnectTimer = null;
+    }
     if (waSocket) {
         console.log('Menghentikan WhatsApp bot...');
+        destroyWhatsAppSocket(waSocket);
         waSocket = null;
         waHandler = null;
     }

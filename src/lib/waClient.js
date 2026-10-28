@@ -1,9 +1,144 @@
 const makeWASocket = require('@whiskeysockets/baileys').default;
-const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = require('@whiskeysockets/baileys');
+const {
+    useMultiFileAuthState,
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+    Browsers,
+    makeCacheableSignalKeyStore,
+    jidDecode
+} = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const path = require('path');
 const fs = require('fs');
 const qrcode = require('qrcode-terminal');
+
+function createTtlCache(ttlMs = 3600000, maxEntries = 1000) {
+    const store = new Map();
+
+    const pruneExpired = () => {
+        const now = Date.now();
+        for (const [key, entry] of store.entries()) {
+            if (entry.expiresAt <= now) {
+                store.delete(key);
+            }
+        }
+        while (store.size > maxEntries) {
+            const oldestKey = store.keys().next().value;
+            if (oldestKey === undefined) break;
+            store.delete(oldestKey);
+        }
+    };
+
+    return {
+        get(key) {
+            const entry = store.get(key);
+            if (!entry) return undefined;
+            if (entry.expiresAt <= Date.now()) {
+                store.delete(key);
+                return undefined;
+            }
+            return entry.value;
+        },
+        set(key, value) {
+            if (store.size >= maxEntries) {
+                pruneExpired();
+            }
+            store.set(key, { value, expiresAt: Date.now() + ttlMs });
+            return true;
+        },
+        del(key) {
+            store.delete(key);
+        },
+        flushAll() {
+            store.clear();
+        }
+    };
+}
+
+const msgRetryCounterCache = createTtlCache(60 * 60 * 1000, 2000);
+const sentMessagesCache = createTtlCache(60 * 60 * 1000, 500);
+const sessionPurgeCooldown = createTtlCache(15 * 1000, 500);
+
+function destroyWhatsAppSocket(sock) {
+    if (!sock) return;
+    try {
+        sock.ev?.removeAllListeners('connection.update');
+        sock.ev?.removeAllListeners('creds.update');
+        sock.ev?.removeAllListeners('messages.upsert');
+    } catch {
+        // Ignore listener cleanup errors
+    }
+    try {
+        sock.end?.(undefined);
+    } catch {
+        // Ignore socket end errors
+    }
+    try {
+        sock.ws?.close?.();
+    } catch {
+        // Ignore websocket close errors
+    }
+}
+
+async function purgeCorruptedSignalSession(sock, msg) {
+    const authKeys = sock?.authState?.keys;
+    if (!authKeys || typeof authKeys.set !== 'function' || !msg?.key) {
+        return false;
+    }
+
+    const candidates = [
+        msg.key.participant,
+        msg.key.senderLid,
+        msg.key.senderPn,
+        msg.key.participantLid,
+        msg.key.participantPn,
+        msg.key.remoteJid
+    ].filter(Boolean);
+
+    const sessionUpdates = {};
+    const senderKeyUpdates = {};
+    const isGroup = String(msg.key.remoteJid || '').endsWith('@g.us');
+
+    for (const rawJid of candidates) {
+        if (String(rawJid).endsWith('@g.us') || String(rawJid).endsWith('@broadcast')) {
+            continue;
+        }
+        const decoded = jidDecode(rawJid);
+        if (!decoded?.user) continue;
+
+        const deviceId = decoded.device || 0;
+        const signalAddr = `${decoded.user}.${deviceId}`;
+
+        if (!sessionPurgeCooldown.get(signalAddr)) {
+            sessionPurgeCooldown.set(signalAddr, true);
+            sessionUpdates[signalAddr] = null;
+            if (deviceId !== 0) {
+                sessionUpdates[`${decoded.user}.0`] = null;
+            }
+            if (isGroup && msg.key.remoteJid) {
+                senderKeyUpdates[`${msg.key.remoteJid}::${decoded.user}::${deviceId}`] = null;
+            }
+        }
+    }
+
+    const sessionAddrs = Object.keys(sessionUpdates);
+    if (sessionAddrs.length === 0) {
+        return false;
+    }
+
+    try {
+        const payload = { session: sessionUpdates };
+        if (Object.keys(senderKeyUpdates).length > 0) {
+            payload['sender-key'] = senderKeyUpdates;
+        }
+        await authKeys.set(payload);
+        console.warn(`[waClient] Purged corrupted Signal session(s) for recovery: ${sessionAddrs.join(', ')}`);
+        return true;
+    } catch (err) {
+        console.error('[waClient] Failed to purge corrupted Signal session:', err.message);
+        return false;
+    }
+}
 
 async function connectToWhatsApp() {
     // Membuat folder auth/whatsapp jika belum ada
@@ -14,14 +149,23 @@ async function connectToWhatsApp() {
 
     // Menggunakan multi file auth state
     const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+    const baileysLogger = pino({ level: process.env.BAILEYS_LOG_LEVEL || 'silent' });
 
     // Gunakan versi Baileys terbaru untuk menghindari error 405
     const { version } = await fetchLatestBaileysVersion();
 
-    // Membuat socket connection dengan opsi tambahan
+    // Membuat socket connection dengan in-memory Signal key cache untuk mencegah race condition I/O
     const sock = makeWASocket({
-        logger: pino({ level: 'silent' }),
-        auth: state,
+        logger: baileysLogger,
+        auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, baileysLogger)
+        },
+        msgRetryCounterCache,
+        getMessage: async (key) => {
+            if (!key?.id) return undefined;
+            return sentMessagesCache.get(key.id);
+        },
         // Opsi untuk meningkatkan koneksi
         connectTimeoutMs: 30000,
         keepAliveIntervalMs: 10000,
@@ -32,7 +176,8 @@ async function connectToWhatsApp() {
         // Versi Baileys terbaru
         version,
         // Tambahkan opsi untuk handle connection issues
-        retryRequestDelayMs: 2000,
+        retryRequestDelayMs: 1500,
+        maxMsgRetryCount: 3,
         maxRetries: 3,
         // Tambahkan options untuk QR
         qrTimeout: 60000,
@@ -41,13 +186,29 @@ async function connectToWhatsApp() {
         markOnlineOnConnect: false
     });
 
-    // Menyimpan kredensial ketika diperbarui
-    sock.ev.on('creds.update', saveCreds);
+    // Simpan pesan keluar di cache agar Baileys dapat melayani retry receipt dari perangkat penerima
+    const originalSendMessage = sock.sendMessage.bind(sock);
+    sock.sendMessage = async (jid, content, options) => {
+        const sent = await originalSendMessage(jid, content, options);
+        if (sent?.key?.id && sent?.message) {
+            sentMessagesCache.set(sent.key.id, sent.message);
+        }
+        return sent;
+    };
+
+    // Serialisasi penyimpanan kredensial agar tidak terjadi race condition saat creds.update beruntun
+    let credsSaveChain = Promise.resolve();
+    sock.ev.on('creds.update', () => {
+        credsSaveChain = credsSaveChain
+            .then(() => saveCreds())
+            .catch((err) => console.error('[waClient] Failed to save creds:', err.message));
+    });
 
     // Variable untuk menyimpan promise resolver
     let resolvePromise;
     let rejectPromise;
-    
+    let settled = false;
+
     const connectionPromise = new Promise((resolve, reject) => {
         resolvePromise = resolve;
         rejectPromise = reject;
@@ -57,11 +218,27 @@ async function connectToWhatsApp() {
     let qrDisplayed = false;
     let connectionTimeout;
 
-    // Menangani event connection.update
-    sock.ev.on('connection.update', (update) => {
+    const clearPendingTimeout = () => {
+        if (connectionTimeout) {
+            clearTimeout(connectionTimeout);
+            connectionTimeout = null;
+        }
+    };
+
+    const failAndCleanup = (err) => {
+        clearPendingTimeout();
+        if (!settled) {
+            settled = true;
+            destroyWhatsAppSocket(sock);
+            rejectPromise(err);
+        }
+    };
+
+    // Menangani event connection.update selama fase inisialisasi
+    const onInitialConnectionUpdate = (update) => {
         console.log('Log Update:', JSON.stringify(update, null, 2));
         const { connection, lastDisconnect, qr, isNewLogin } = update;
-        
+
         // Tampilkan QR code jika tersedia
         if (qr && !qrDisplayed) {
             console.log('\n=== QR CODE UNTUK WHATSAPP ===');
@@ -69,17 +246,15 @@ async function connectToWhatsApp() {
             console.log('=== SCAN QR CODE DI ATAS ===\n');
             qrDisplayed = true;
             // Reset timeout ketika QR muncul
-            if (connectionTimeout) {
-                clearTimeout(connectionTimeout);
-            }
+            clearPendingTimeout();
             connectionTimeout = setTimeout(() => {
-                if (!sock.user) {
+                if (!sock.user && !settled) {
                     console.log('QR code timeout. Coba ulang...');
-                    rejectPromise(new Error('QR timeout'));
+                    failAndCleanup(new Error('QR timeout'));
                 }
             }, 120000);
         }
-        
+
         if (connection === 'connecting') {
             console.log('Sedang menghubungkan ke WhatsApp...');
             if (isNewLogin && !qrDisplayed) {
@@ -97,40 +272,45 @@ async function connectToWhatsApp() {
             }
             const statusCode = lastDisconnect?.error?.output?.statusCode;
             const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-            
+
             if (shouldReconnect) {
                 console.log('Koneksi terputus. Akan mencoba kembali...');
-                // Reject promise untuk memicu reconnect di index.js
-                rejectPromise(new Error('Connection closed, need to reconnect'));
+                failAndCleanup(new Error('Connection closed, need to reconnect'));
             } else {
                 console.log('Koneksi ditutup karena logout. Silakan scan QR code lagi.');
-                rejectPromise(new Error('Logged out'));
-            }
-            // Clear timeout
-            if (connectionTimeout) {
-                clearTimeout(connectionTimeout);
+                const loggedOutError = new Error('Logged out');
+                loggedOutError.isLoggedOut = true;
+                failAndCleanup(loggedOutError);
             }
         } else if (connection === 'open') {
             console.log('Berhasil terhubung ke WhatsApp!');
             qrDisplayed = false;
-            // Clear timeout
-            if (connectionTimeout) {
-                clearTimeout(connectionTimeout);
+            clearPendingTimeout();
+            // Lepaskan listener fase inisialisasi agar tidak duplikat dengan listener runtime di index.js
+            sock.ev.off('connection.update', onInitialConnectionUpdate);
+            if (!settled) {
+                settled = true;
+                resolvePromise(sock);
             }
-            // Resolve promise hanya ketika koneksi terbuka
-            resolvePromise(sock);
         }
-    });
+    };
+
+    sock.ev.on('connection.update', onInitialConnectionUpdate);
 
     // Set timeout untuk connection awal
     connectionTimeout = setTimeout(() => {
-        if (!sock.user && !qrDisplayed) {
+        if (!sock.user && !qrDisplayed && !settled) {
             console.log('Waktu koneksi habis. Coba ulang...');
-            rejectPromise(new Error('Connection timeout'));
+            failAndCleanup(new Error('Connection timeout'));
         }
     }, 60000);
 
     return connectionPromise;
 }
 
-module.exports = { connectToWhatsApp };
+module.exports = {
+    connectToWhatsApp,
+    destroyWhatsAppSocket,
+    purgeCorruptedSignalSession,
+    createTtlCache
+};
